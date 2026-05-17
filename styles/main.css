@@ -3125,3 +3125,242 @@ button.danger:hover {
   opacity: 0.5;
   font-family: monospace;
 }
+
+/* ── Tournament Mode ──────────────────────────────────────────────────── */
+
+.screen-tournament-bracket {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.bracket {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 24px 0;
+}
+
+.bracket-match {
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+}
+
+.bracket-match h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  color: var(--terracotta);
+  margin-bottom: 12px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.bracket-final h3 {
+  color: var(--gold);
+  font-size: 20px;
+}
+
+.bracket-pair {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 16px;
+}
+
+.bracket-slot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: white;
+  min-width: 120px;
+}
+
+.bracket-slot.winner {
+  border-color: var(--gold);
+  background: #fffbe6;
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.3);
+}
+
+.bracket-slot.loser {
+  opacity: 0.45;
+}
+
+.bracket-slot.pending {
+  border-style: dashed;
+  border-color: var(--ink);
+  opacity: 0.7;
+}
+
+.bracket-hero-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.bracket-portrait svg {
+  width: 90px;
+  height: 90px;
+}
+
+.bracket-hero-name {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--navy);
+}
+
+.bracket-slot-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--terracotta);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bracket-vs {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--terracotta);
+  flex-shrink: 0;
+}
+
+.bracket-slot-tbd {
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  opacity: 0.4;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.bracket-sim-note {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0.7;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.champion-banner {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--gold);
+  text-align: center;
+  text-shadow: 2px 2px 0 var(--ink);
+  animation: champion-pulse 1.5s ease-in-out infinite;
+  margin: 32px 0 16px;
+}
+
+@keyframes champion-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.champion-portrait {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.champion-portrait svg {
+  width: 100%;
+  height: auto;
+}
+
+.champion-name {
+  text-align: center;
+  font-size: 32px;
+  color: var(--navy);
+  margin-top: 8px;
+}
+
+.champion-flavor {
+  text-align: center;
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ink);
+  opacity: 0.8;
+  margin: 4px 0;
+}
+
+.champion-record {
+  text-align: center;
+  font-size: 16px;
+  margin: 16px 0;
+}
+
+.bracket-recap {
+  text-align: center;
+  margin: 24px auto;
+  padding: 16px;
+  background: var(--cream);
+  border-radius: 8px;
+  border: 2px solid var(--ink);
+  max-width: 340px;
+}
+
+.bracket-recap p {
+  margin: 4px 0;
+  font-size: 15px;
+}
+
+.big-btn {
+  font-size: 20px;
+  padding: 14px 28px;
+  display: block;
+  margin: 16px auto;
+}
+
+.screen-tournament-result {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.screen-tournament-result h2 {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.screen-tournament-result .sub {
+  font-size: 15px;
+  font-style: italic;
+  opacity: 0.75;
+  margin: 8px 0;
+}
+
+@media (max-width: 600px) {
+  .bracket-pair {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bracket-slot {
+    width: 100%;
+    max-width: 240px;
+  }
+  .bracket-vs {
+    font-size: 18px;
+  }
+  .champion-banner {
+    font-size: 22px;
+  }
+  .champion-name {
+    font-size: 26px;
+  }
+}

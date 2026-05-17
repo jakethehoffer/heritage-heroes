@@ -603,6 +603,39 @@ test("backward compat: old save with sound:true migrates both music and sfx to t
   assert.strictEqual(data.sfx,   true, "sfx should be true (migrated from sound:true)");
 });
 
+// ── Tournament ────────────────────────────────────────────────────────────
+
+test("tournamentsWon defaults to 0", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.tournamentsWon, 0);
+});
+
+test("recordTournamentWin increments by 1 and persists", () => {
+  const s = fakeStore();
+  Storage.recordTournamentWin(s);
+  const data = Storage.load(s);
+  assert.strictEqual(data.tournamentsWon, 1);
+
+  Storage.recordTournamentWin(s);
+  const data2 = Storage.load(s);
+  assert.strictEqual(data2.tournamentsWon, 2);
+});
+
+test("tournament achievements default false and round-trip", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.tournamentWinner, false);
+  assert.strictEqual(data.achievements.tournamentMaster, false);
+  assert.strictEqual(data.achievements.tournamentLegend, false);
+
+  data.achievements.tournamentWinner = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.achievements.tournamentWinner, true);
+  assert.strictEqual(reloaded.achievements.tournamentMaster, false);
+  assert.strictEqual(reloaded.achievements.tournamentLegend, false);
+});
+
 test("music and sfx round-trip independently via save/load", () => {
   const s = fakeStore();
   const data = Storage.load(s);

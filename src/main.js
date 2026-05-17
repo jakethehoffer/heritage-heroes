@@ -13,6 +13,7 @@ var Main = (function () {
     matchStats: null,       // { biggestHit, specialsUsed, triviaCorrect, triviaTotal, triviaSeen }
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     endless: null,          // { heroId, streak, lastOpponentId, carriedHp?, healInfo?, nextOpponentId?, isNewBest?, previousBest? } when active
+    tournament: null,       // { playerHeroId, slots: [4 hero ids], bracket: { semi1Winner, semi2Winner, semi2Log, finalWinner }, currentMatch: "semi1"|"final" } when active
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
@@ -54,6 +55,27 @@ var Main = (function () {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  // ── Headless AI vs AI simulation ─────────────────────────────────────────
+  function simulateAiVsAi(heroAId, heroBId) {
+    const m = Combat.createMatch(heroAId, heroBId);
+    let safety = 200;
+    while (m.winner === null && safety-- > 0) {
+      const idx = m.activePlayer;
+      let move;
+      if (Combat.isCharging(m, idx)) {
+        move = "charge";
+      } else {
+        move = Combat.chooseAIMove(m, idx, Math.random, "normal");
+      }
+      Combat.applyMove(m, move);
+    }
+    return {
+      winner: m.winner,
+      turns: m.turnNumber - 1,
+      log: m.log
+    };
   }
 
   // ── Daily Challenge helpers ───────────────────────────────────────────────
@@ -155,6 +177,11 @@ var Main = (function () {
     tryUnlock("dailyStreak7",  ds.currentStreak >= 7 || ds.bestStreak >= 7);
     tryUnlock("dailyStreak30", ds.currentStreak >= 30 || ds.bestStreak >= 30);
 
+    // Tournament achievements
+    tryUnlock("tournamentWinner", (save.tournamentsWon || 0) >= 1);
+    tryUnlock("tournamentMaster",  (save.tournamentsWon || 0) >= 5);
+    tryUnlock("tournamentLegend",  (save.tournamentsWon || 0) >= 20);
+
     return newKeys;
   }
 
@@ -233,6 +260,8 @@ var Main = (function () {
     else if (state.screen === "settings")         body = Screens.renderSettings(state);
     else if (state.screen === "history")          body = Screens.renderHistory(state);
     else if (state.screen === "timeline")         body = Screens.renderTimeline(state);
+    else if (state.screen === "tournament-bracket") body = Screens.renderTournamentBracket(state);
+    else if (state.screen === "tournament-result")  body = Screens.renderTournamentResult(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -419,6 +448,7 @@ var Main = (function () {
         state.currentMatchLowHp = { 0: false, 1: false };
         state.triviaStreak = 0;
         state.bossIntroShown = false;
+        state.tournament = null;
         state.overlay = null;
         state.screen = "title";
         render();
@@ -556,6 +586,10 @@ var Main = (function () {
         return;
       }
 
+      case "start-tournament": startTournament(); return;
+      case "begin-tournament": beginTournament(); return;
+      case "continue-to-final": continueToFinal(); return;
+
       case "start-daily":
         startDaily();
         return;
@@ -673,6 +707,35 @@ var Main = (function () {
     render();
   }
 
+  function startTournament() {
+    state.mode = "tournament";
+    state.controllers = ["human", "ai"];
+    state.selecting = 1;
+    state.picks = { 1: null, 2: null };
+    state.tournament = null;
+    state.screen = "charselect";
+    render();
+  }
+
+  function beginTournament() {
+    const t = state.tournament;
+    t.currentMatch = "semi1";
+    state.matchStats = _freshMatchStats();
+    state.bossIntroShown = true;
+    state.match = Combat.createMatch(t.slots[0], t.slots[1]);
+    state.screen = "battle";
+    render();
+  }
+
+  function continueToFinal() {
+    const t = state.tournament;
+    t.currentMatch = "final";
+    state.matchStats = _freshMatchStats();
+    state.match = Combat.createMatch(t.slots[0], t.bracket.semi2Winner);
+    state.screen = "battle";
+    render();
+  }
+
   function pickHero(heroId) {
     state.picks[state.selecting] = heroId;
 
@@ -707,6 +770,30 @@ var Main = (function () {
         remaining: Combat.arcadeOrder(heroId).slice()
       };
       startNextArcadeMatch();
+      return;
+    }
+
+    if (state.mode === "tournament") {
+      const otherHeroes = HERO_ORDER.filter(id => id !== heroId);
+      const shuffled = otherHeroes.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const ais = shuffled.slice(0, 3);
+      state.tournament = {
+        playerHeroId: heroId,
+        slots: [heroId, ais[0], ais[1], ais[2]],
+        bracket: {
+          semi1Winner: null,
+          semi2Winner: null,
+          semi2Log: null,
+          finalWinner: null
+        },
+        currentMatch: null
+      };
+      state.screen = "tournament-bracket";
+      render();
       return;
     }
 
@@ -1029,6 +1116,55 @@ var Main = (function () {
     const loserHero  = state.match.players[1 - winnerIdx].heroId;
     const newAchKeys = [];
 
+    if (state.mode === "tournament") {
+      const playerWon = state.match.winner === 0;
+      const t = state.tournament;
+
+      if (t.currentMatch === "semi1") {
+        if (!playerWon) {
+          t.eliminatedBy = state.match.players[1].heroId;
+          state.screen = "tournament-result";
+          render();
+          return;
+        }
+        t.bracket.semi1Winner = t.slots[0];
+
+        // Simulate the AI-vs-AI semifinal
+        const sim = simulateAiVsAi(t.slots[2], t.slots[3]);
+        t.bracket.semi2Winner = sim.winner === 0 ? t.slots[2] : t.slots[3];
+        t.bracket.semi2Log = sim.log;
+
+        state.screen = "tournament-bracket";
+        render();
+        return;
+      }
+
+      if (t.currentMatch === "final") {
+        if (!playerWon) {
+          t.eliminatedBy = state.match.players[1].heroId;
+          state.screen = "tournament-result";
+          render();
+          return;
+        }
+        t.bracket.finalWinner = t.slots[0];
+
+        // Player won the whole tournament!
+        const store = getStore();
+        if (store) {
+          Storage.recordTournamentWin(store);
+          state.save = Storage.load(store);
+        }
+
+        const newTourneyKeys = checkAchievements();
+        if (newTourneyKeys.length) applyAchievements(newTourneyKeys);
+
+        state.screen = "tournament-result";
+        render();
+        return;
+      }
+      return;
+    }
+
     if (state.mode === "daily") {
       const playerWon = state.match.winner === 0;
       if (playerWon && state.dailyChallenge) {
@@ -1175,6 +1311,7 @@ var Main = (function () {
     state.arcade = null;
     state.endless = null;
     state.study = null;
+    state.tournament = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;
     state.screen = "title";
@@ -1188,6 +1325,7 @@ var Main = (function () {
     state.match = null;
     state.arcade = null;
     state.endless = null;
+    state.tournament = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;
     state.screen = "charselect";

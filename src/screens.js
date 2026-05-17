@@ -122,6 +122,10 @@ var Screens = (function () {
       <h3>Daily Challenge</h3>
       <p>One specific matchup per day, the same for everyone. Beat it to claim today and build your streak.</p>
     </button>
+    <button data-action="start-tournament" class="mode-card">
+      <h3>Tournament</h3>
+      <p>Single-elimination bracket. Beat two opponents in a row to be crowned Champion.</p>
+    </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
 </section>`;
@@ -152,6 +156,8 @@ var Screens = (function () {
       ? "Pick a hero to study"
       : state.mode === "endless"
       ? "Pick a hero for your Endless run."
+      : state.mode === "tournament"
+      ? "Pick your hero for the Tournament"
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
@@ -2366,7 +2372,10 @@ var Screens = (function () {
     { key: "endlessLegend",   title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇" },
     { key: "dailyStreak3",   title: "Daily Devoted",          description: "Complete the daily challenge 3 days in a row",       icon: "🗓️" },
     { key: "dailyStreak7",   title: "Weekly Warrior",         description: "Complete the daily challenge 7 days in a row",       icon: "📅" },
-    { key: "dailyStreak30",  title: "Monthly Monk",           description: "Complete the daily challenge 30 days in a row",      icon: "🏆" }
+    { key: "dailyStreak30",  title: "Monthly Monk",           description: "Complete the daily challenge 30 days in a row",      icon: "🏆" },
+    { key: "tournamentWinner", title: "Tournament Winner",    description: "Win a Tournament",                                   icon: "🏟️" },
+    { key: "tournamentMaster",  title: "Tournament Master",   description: "Win 5 Tournaments",                                  icon: "🥇" },
+    { key: "tournamentLegend",  title: "Tournament Legend",   description: "Win 20 Tournaments",                                 icon: "👑" }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2916,6 +2925,159 @@ var Screens = (function () {
 </div>`;
   }
 
+  // ── Tournament screens ────────────────────────────────────────────────────
+
+  function _tournamentHeroCard(heroId, label) {
+    const h = Heroes.byId(heroId);
+    if (!h) return `<div class="bracket-slot-tbd">???</div>`;
+    const portrait = Render.renderHero({ heroId, pose: "idle", facing: "right" });
+    const labelHtml = label ? `<span class="bracket-slot-label">${Render.escapeHtml(label)}</span>` : "";
+    return `
+<div class="bracket-hero-card">
+  <div class="bracket-portrait">${portrait}</div>
+  <span class="bracket-hero-name">${Render.escapeHtml(h.name)}</span>
+  ${labelHtml}
+</div>`;
+  }
+
+  function renderTournamentBracket(state) {
+    const t = state.tournament;
+    if (!t) return `<section class="screen screen-tournament-bracket"><p>No tournament in progress.</p></section>`;
+
+    const semi1State = t.bracket.semi1Winner ? "resolved" : "active";
+    const semi2State = t.bracket.semi2Winner ? "resolved" : "pending";
+
+    const slot0Winner = t.bracket.semi1Winner === t.slots[0];
+    const slot1Winner = t.bracket.semi1Winner === t.slots[1];
+    const slot2Winner = t.bracket.semi2Winner === t.slots[2];
+    const slot3Winner = t.bracket.semi2Winner === t.slots[3];
+
+    const semi1Resolved = !!t.bracket.semi1Winner;
+    const semi2Resolved = !!t.bracket.semi2Winner;
+
+    const slot0Class = semi1Resolved ? (slot0Winner ? "winner" : "loser") : "pending";
+    const slot1Class = semi1Resolved ? (slot1Winner ? "winner" : "loser") : "pending";
+    const slot2Class = semi2Resolved ? (slot2Winner ? "winner" : "loser") : "pending";
+    const slot3Class = semi2Resolved ? (slot3Winner ? "winner" : "loser") : "pending";
+
+    const finalSlot1Html = t.bracket.semi1Winner
+      ? _tournamentHeroCard(t.bracket.semi1Winner, t.bracket.semi1Winner === t.slots[0] ? "You" : null)
+      : `<div class="bracket-slot-tbd">TBD</div>`;
+    const finalSlot2Html = t.bracket.semi2Winner
+      ? _tournamentHeroCard(t.bracket.semi2Winner)
+      : `<div class="bracket-slot-tbd">TBD</div>`;
+
+    const finalSlot1WinClass = t.bracket.finalWinner === t.slots[0] ? "winner" : "pending";
+    const finalSlot2WinClass = t.bracket.finalWinner ? (t.bracket.finalWinner !== t.slots[0] ? "winner" : "loser") : "pending";
+
+    let actionButton = "";
+    if (!t.bracket.semi1Winner) {
+      actionButton = `<button data-action="begin-tournament" class="big-btn">Begin Tournament</button>`;
+    } else if (!t.bracket.finalWinner) {
+      actionButton = `<button data-action="continue-to-final" class="big-btn">Continue to Final &rarr;</button>`;
+    }
+
+    return `
+<section class="screen screen-tournament-bracket">
+  <h2>Tournament</h2>
+  <div class="bracket">
+    <div class="bracket-match bracket-match-${semi1State}">
+      <h3>Semifinal 1</h3>
+      <div class="bracket-pair">
+        <div class="bracket-slot ${slot0Class}">
+          ${_tournamentHeroCard(t.slots[0], "You")}
+        </div>
+        <span class="bracket-vs">vs</span>
+        <div class="bracket-slot ${slot1Class}">
+          ${_tournamentHeroCard(t.slots[1])}
+        </div>
+      </div>
+    </div>
+    <div class="bracket-match bracket-match-${semi2State}">
+      <h3>Semifinal 2</h3>
+      <div class="bracket-pair">
+        <div class="bracket-slot ${slot2Class}">
+          ${_tournamentHeroCard(t.slots[2])}
+        </div>
+        <span class="bracket-vs">vs</span>
+        <div class="bracket-slot ${slot3Class}">
+          ${_tournamentHeroCard(t.slots[3])}
+        </div>
+      </div>
+      ${semi2Resolved ? `<p class="bracket-sim-note">Simulated result: ${Render.escapeHtml((Heroes.byId(t.bracket.semi2Winner) || { name: t.bracket.semi2Winner }).name)} advances</p>` : ""}
+    </div>
+    <div class="bracket-match bracket-final">
+      <h3>FINAL</h3>
+      <div class="bracket-pair">
+        <div class="bracket-slot ${finalSlot1WinClass}">
+          ${finalSlot1Html}
+        </div>
+        <span class="bracket-vs">vs</span>
+        <div class="bracket-slot ${finalSlot2WinClass}">
+          ${finalSlot2Html}
+        </div>
+      </div>
+    </div>
+  </div>
+  ${actionButton}
+  <button data-action="goto-title" class="back">&larr; Forfeit &amp; Return</button>
+</section>`;
+  }
+
+  function renderTournamentResult(state) {
+    const t = state.tournament;
+    if (!t) return `<section class="screen screen-tournament-result"><p>No tournament data.</p></section>`;
+
+    const playerWon = !!t.bracket.finalWinner;
+
+    if (playerWon) {
+      const playerHero = Heroes.byId(t.slots[0]);
+      const playerName = playerHero ? Render.escapeHtml(playerHero.name) : t.slots[0];
+      const opp1Hero = Heroes.byId(t.slots[1]);
+      const opp1Name = opp1Hero ? Render.escapeHtml(opp1Hero.name) : t.slots[1];
+      const finalOppHero = Heroes.byId(t.bracket.semi2Winner);
+      const finalOppName = finalOppHero ? Render.escapeHtml(finalOppHero.name) : (t.bracket.semi2Winner || "opponent");
+      const portrait = Render.renderHero({ heroId: t.slots[0], pose: "attack", facing: "right" });
+      const tourneysWon = state.save && state.save.tournamentsWon ? state.save.tournamentsWon : 1;
+
+      return `
+<section class="screen screen-tournament-result">
+  <div class="champion-banner">&#x1F3C6; TOURNAMENT CHAMPION! &#x1F3C6;</div>
+  <div class="champion-portrait">${portrait}</div>
+  <h2 class="champion-name">${playerName}</h2>
+  <p class="champion-flavor">prevailed in the tournament!</p>
+  <p class="champion-record">Tournaments won: <strong>${tourneysWon}</strong></p>
+  <div class="bracket-recap">
+    <p>Semifinal: defeated ${opp1Name}</p>
+    <p>Final: defeated ${finalOppName}</p>
+  </div>
+  <div class="result-buttons">
+    <button data-action="start-tournament">Play Another</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+    }
+
+    // Player lost
+    const elimHero = Heroes.byId(t.eliminatedBy);
+    const elimName = elimHero ? Render.escapeHtml(elimHero.name) : Render.escapeHtml(t.eliminatedBy || "an opponent");
+    const roundLabel = t.currentMatch === "semi1" ? "Semifinals" : "Final";
+    const reachedFinalNote = t.currentMatch === "final"
+      ? `<p class="sub">You made it to the Final.</p>`
+      : "";
+
+    return `
+<section class="screen screen-tournament-result">
+  <h2>Eliminated</h2>
+  <p>You were defeated by <strong>${elimName}</strong> in the ${roundLabel}.</p>
+  ${reachedFinalNote}
+  <div class="result-buttons">
+    <button data-action="start-tournament">Try Again</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+  }
+
   // ── Heritage Timeline screen ─────────────────────────────────────────────
   const TIMELINE_ORDER = [
     { eraLabel: "Ancient Israel",  heroes: ["moses", "david"] },
@@ -2976,6 +3138,7 @@ var Screens = (function () {
     renderHistory, renderMatchDetail,
     renderDailyAlreadyDone,
     renderTimeline,
+    renderTournamentBracket, renderTournamentResult,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,

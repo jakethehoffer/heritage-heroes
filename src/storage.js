@@ -48,8 +48,12 @@ var Storage = (function () {
         endlessLegend:    false,
         dailyStreak3:     false,
         dailyStreak7:     false,
-        dailyStreak30:    false
+        dailyStreak30:    false,
+        tournamentWinner: false,
+        tournamentMaster: false,
+        tournamentLegend: false
       },
+      tournamentsWon: 0,
       recentMatches: [],  // ring buffer; newest first, max 10 entries
       daily: {
         completedDates: [],     // array of ISO date strings, sorted oldest-first
@@ -144,6 +148,9 @@ var Storage = (function () {
               Number.isInteger(e.winnerSlot) &&
               Number.isInteger(e.turns);
           }).slice(0, 10);
+        }
+        if (Number.isInteger(parsed.tournamentsWon) && parsed.tournamentsWon >= 0) {
+          out.tournamentsWon = parsed.tournamentsWon;
         }
         // daily challenge data
         if (parsed.daily && typeof parsed.daily === "object") {
@@ -317,6 +324,14 @@ var Storage = (function () {
     };
   }
 
+  // Increment tournamentsWon by 1, save, return updated save.
+  function recordTournamentWin(store) {
+    const data = load(store);
+    data.tournamentsWon = (data.tournamentsWon || 0) + 1;
+    save(store, data);
+    return data;
+  }
+
   // Push a match history entry to the front of the ring buffer, trim to 10, save, return updated save.
   function recordMatchHistory(store, entry) {
     const data = load(store);
@@ -328,7 +343,7 @@ var Storage = (function () {
 
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
-           recordMatchHistory, recordDailyCompletion, dailyStats };
+           recordMatchHistory, recordDailyCompletion, dailyStats, recordTournamentWin };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;
