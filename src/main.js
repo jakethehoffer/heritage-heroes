@@ -70,6 +70,7 @@ var Main = (function () {
       state.save.achievements[key] = true;
       if (typeof Screens !== "undefined" && Screens.queueAchievementToast) {
         Screens.queueAchievementToast(key);
+        Sfx.play("achievement");
       }
     }
   }
@@ -220,8 +221,10 @@ var Main = (function () {
         }
         if (isCorrect) {
           state.triviaStreak += 1;
+          Sfx.play("triviaCorrect");
         } else {
           state.triviaStreak = 0;
+          Sfx.play("triviaWrong");
         }
 
         // Check achievements after trivia
@@ -524,6 +527,7 @@ var Main = (function () {
       Screens.playSpecialFx(idx, activeHeroId);
     } else if (isChargeTick && activeHeroId === "einstein") {
       Screens.playChargeFx(idx);
+      Sfx.play("chargeTick");
     }
 
     deltas.forEach((delta, pIdx) => {
@@ -531,6 +535,7 @@ var Main = (function () {
         // This player took damage
         Screens.flashHit(pIdx);
         Screens.showDamageNumber(pIdx, delta, "damage");
+        Sfx.play("hit");
         // Play attack slash FX on the hit target for basic attacks
         if (move === "attack") {
           Screens.playAttackFx(pIdx, activeHeroId);
