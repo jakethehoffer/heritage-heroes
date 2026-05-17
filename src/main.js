@@ -27,7 +27,10 @@ var Main = (function () {
     titleFeaturedTimer: null, // interval id, cleared when leaving title
     // Daily Challenge
     dailyChallenge: null,   // { isoDate, playerHeroId, opponentHeroId, difficulty } | null
-    dailyToday: null        // { challenge, stats } precomputed for title screen
+    dailyToday: null,       // { challenge, stats } precomputed for title screen
+    // Pause support
+    pendingAiTimeout: null,      // id of scheduled aiStep timeout (clearable on pause)
+    pendingMatchEndTimeout: null // id of scheduled onMatchEnd timeout (clearable on pause)
   };
 
   function _freshMatchStats() {
@@ -172,7 +175,8 @@ var Main = (function () {
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
     state.save = Storage.load(store);
-    Sfx.setMuted(!state.save.sound);
+    Sfx.setMusicMuted(!state.save.music);
+    Sfx.setSfxMuted(!state.save.sfx);
     Sfx.preload();
     // Randomise starting featured hero so each session feels fresh
     state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
@@ -254,6 +258,8 @@ var Main = (function () {
     if (state.overlay === "profile")      overlay = Screens.renderProfile(state, state.profileHeroId);
     if (state.overlay === "match-detail") overlay = Screens.renderMatchDetail(state);
     if (state.overlay === "daily-already-done") overlay = Screens.renderDailyAlreadyDone(state);
+    if (state.overlay === "pause")        overlay = Screens.renderPauseOverlay(state);
+    if (state.overlay === "battle-log")   overlay = Screens.renderBattleLog(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -268,6 +274,16 @@ var Main = (function () {
   }
 
   function onKey(e) {
+    if (e.key === "Escape") {
+      if (state.screen === "battle" && !state.overlay) {
+        handleAction("pause-battle", null);
+        e.preventDefault();
+      } else if (state.overlay === "pause") {
+        handleAction("resume-battle", null);
+        e.preventDefault();
+      }
+      return;
+    }
     if (state.screen !== "battle" || state.overlay) return;
     if (e.key === "1") dispatchMove("attack");
     else if (e.key === "2") dispatchMove("defend");
@@ -415,9 +431,56 @@ var Main = (function () {
         return;
 
       case "toggle-sound":
-        state.save.sound = !state.save.sound;
-        Sfx.setMuted(!state.save.sound);
+        // backward compat — toggle both music and sfx together
+        {
+          const both = !(state.save.music && state.save.sfx);
+          state.save.music = both;
+          state.save.sfx = both;
+          state.save.sound = both;
+          Sfx.setMusicMuted(!both);
+          Sfx.setSfxMuted(!both);
+          Storage.save(getStore(), state.save);
+          render();
+        }
+        return;
+
+      case "toggle-music":
+        state.save.music = !state.save.music;
+        Sfx.setMusicMuted(!state.save.music);
         Storage.save(getStore(), state.save);
+        render();
+        return;
+
+      case "toggle-sfx":
+        state.save.sfx = !state.save.sfx;
+        Sfx.setSfxMuted(!state.save.sfx);
+        Storage.save(getStore(), state.save);
+        render();
+        return;
+
+      case "pause-battle":
+        if (state.pendingAiTimeout) { clearTimeout(state.pendingAiTimeout); state.pendingAiTimeout = null; }
+        if (state.pendingMatchEndTimeout) { clearTimeout(state.pendingMatchEndTimeout); state.pendingMatchEndTimeout = null; }
+        state.overlay = "pause";
+        render();
+        return;
+
+      case "resume-battle":
+        state.overlay = null;
+        render();
+        // Reschedule AI if it's their turn and match is still ongoing
+        if (state.match && !state.match.winner && state.controllers[state.match.activePlayer] === "ai") {
+          state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(1500));
+        }
+        return;
+
+      case "view-battle-log":
+        state.overlay = "battle-log";
+        render();
+        return;
+
+      case "close-battle-log":
+        state.overlay = "pause";
         render();
         return;
 
@@ -924,7 +987,7 @@ var Main = (function () {
     }
 
     if (state.match.winner !== null) {
-      window.setTimeout(onMatchEnd, scaledDelay(1500));
+      state.pendingMatchEndTimeout = window.setTimeout(onMatchEnd, scaledDelay(1500));
       return;
     }
 
@@ -935,7 +998,7 @@ var Main = (function () {
       if (move === "special" || isUnleash) delay = 2200;
       else if (move === "defend") delay = 1500;
       else delay = 1800;
-      window.setTimeout(aiStep, scaledDelay(delay));
+      state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(delay));
     }
   }
 
@@ -1162,7 +1225,7 @@ var Main = (function () {
     state.match.turnNumber = (state.match.turnNumber || 0) + 1;
     render();
     if (state.controllers[state.match.activePlayer] === "ai") {
-      window.setTimeout(aiStep, scaledDelay(1500));
+      state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(1500));
     }
   }
 

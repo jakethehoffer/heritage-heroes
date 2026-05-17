@@ -577,3 +577,47 @@ test("dailyStats returns currentStreak computed against today and completedToday
   assert.strictEqual(stats.currentStreak, 1);
   assert.strictEqual(stats.lifetimeCompletions, 2);
 });
+
+// ── music / sfx defaults and backward compat ──────────────────────────────
+
+test("music and sfx default to true", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.music, true, "music should default to true");
+  assert.strictEqual(data.sfx,   true, "sfx should default to true");
+});
+
+test("backward compat: old save with sound:false migrates both music and sfx to false", () => {
+  const s = fakeStore();
+  // Simulate a save that only has the old `sound` key (no music/sfx)
+  s.setItem("heritageHeroes.save", JSON.stringify({ sound: false }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.music, false, "music should be false (migrated from sound:false)");
+  assert.strictEqual(data.sfx,   false, "sfx should be false (migrated from sound:false)");
+});
+
+test("backward compat: old save with sound:true migrates both music and sfx to true", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ sound: true }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.music, true, "music should be true (migrated from sound:true)");
+  assert.strictEqual(data.sfx,   true, "sfx should be true (migrated from sound:true)");
+});
+
+test("music and sfx round-trip independently via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.music = false;
+  data.sfx   = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.music, false, "music=false should round-trip");
+  assert.strictEqual(reloaded.sfx,   true,  "sfx=true should round-trip");
+
+  // flip them
+  reloaded.music = true;
+  reloaded.sfx   = false;
+  Storage.save(s, reloaded);
+  const reloaded2 = Storage.load(s);
+  assert.strictEqual(reloaded2.music, true,  "music=true should round-trip");
+  assert.strictEqual(reloaded2.sfx,   false, "sfx=false should round-trip");
+});

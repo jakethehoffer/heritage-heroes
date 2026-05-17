@@ -267,7 +267,10 @@ var Screens = (function () {
   <div class="turn-banner">${Render.escapeHtml(turnLabel)}</div>
   <div class="moves-row">${isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`}</div>
   <div class="move-log">${match.log.slice(-5).map(l => `<div>${Render.escapeHtml(l)}</div>`).join("")}</div>
-  <button data-action="confirm-quit" class="back">Quit match</button>
+  <div class="battle-bottom-buttons">
+    <button data-action="pause-battle" class="back">&#x23F8; Pause</button>
+    <button data-action="confirm-quit" class="back">Quit match</button>
+  </div>
 </section>`;
   }
 
@@ -2705,18 +2708,27 @@ var Screens = (function () {
   }
 
   function renderSettings(state) {
-    const soundOn = state.save && state.save.sound;
+    const musicOn = state.save && state.save.music;
+    const sfxOn   = state.save && state.save.sfx;
     const animSpeed = (state.save && state.save.animSpeed) || "normal";
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
 
   <div class="settings-group">
-    <h3>Sound</h3>
-    <button data-action="toggle-sound" class="settings-toggle ${soundOn ? "on" : "off"}">
-      ${soundOn ? "ON" : "OFF"}
+    <h3>Music</h3>
+    <button data-action="toggle-music" class="settings-toggle ${musicOn ? "on" : "off"}">
+      ${musicOn ? "ON" : "OFF"}
     </button>
-    <p class="settings-help">Plays sound effects, music, and trivia feedback.</p>
+    <p class="settings-help">Per-stage ambient background music during battles.</p>
+  </div>
+
+  <div class="settings-group">
+    <h3>Sound Effects</h3>
+    <button data-action="toggle-sfx" class="settings-toggle ${sfxOn ? "on" : "off"}">
+      ${sfxOn ? "ON" : "OFF"}
+    </button>
+    <p class="settings-help">Move sounds, hit thuds, trivia chimes, achievement fanfares, and victory.</p>
   </div>
 
   <div class="settings-group">
@@ -2751,6 +2763,43 @@ var Screens = (function () {
     <div class="overlay-buttons">
       <button data-action="cancel-reset-all" class="secondary">Cancel</button>
       <button data-action="confirm-reset-all" class="danger">Yes, wipe everything</button>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function renderPauseOverlay(state) {
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>Paused</h3>
+    <p class="subtitle">Take your time. The match is on hold.</p>
+    <div class="overlay-buttons" style="flex-direction: column; gap: 10px;">
+      <button data-action="resume-battle">&#x25B6; Resume</button>
+      <button data-action="view-battle-log" class="secondary">View Match Log</button>
+      <button data-action="confirm-quit" class="secondary">Quit Match</button>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function renderBattleLog(state) {
+    const match = state.match;
+    const log = match && match.log ? match.log : [];
+    const turnNum = match ? Math.max(0, (match.turnNumber || 1) - 1) : 0;
+    const lines = log.map(function (line, i) {
+      return `<div class="log-line"><span class="log-num">${i + 1}.</span> ${Render.escapeHtml(line)}</div>`;
+    }).join("");
+    return `
+<div class="overlay">
+  <div class="overlay-card overlay-card-wide">
+    <h3>Match Log</h3>
+    <p class="subtitle">All moves so far (turn ${turnNum})</p>
+    <div class="battle-log-full">
+      ${lines || "<em>No moves yet.</em>"}
+    </div>
+    <div class="overlay-buttons">
+      <button data-action="close-battle-log">&larr; Back to Pause</button>
     </div>
   </div>
 </div>`;
@@ -2923,6 +2972,7 @@ var Screens = (function () {
     renderBossIntro, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
+    renderPauseOverlay, renderBattleLog,
     renderHistory, renderMatchDetail,
     renderDailyAlreadyDone,
     renderTimeline,

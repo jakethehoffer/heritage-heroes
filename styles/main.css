@@ -3087,3 +3087,41 @@ button.danger:hover {
     text-align: center;
   }
 }
+
+/* ── Pause / Battle-log new styles ──────────────────────────────────────────── */
+
+.battle-bottom-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.battle-log-full {
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--cream, #fdf6e3);
+  border: 2px solid var(--ink, #2c1a0e);
+  border-radius: 6px;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+
+.battle-log-full .log-line {
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(0,0,0,0.08);
+}
+
+.battle-log-full .log-line:last-child {
+  border-bottom: none;
+}
+
+.battle-log-full .log-num {
+  display: inline-block;
+  width: 30px;
+  color: var(--ink, #2c1a0e);
+  opacity: 0.5;
+  font-family: monospace;
+}

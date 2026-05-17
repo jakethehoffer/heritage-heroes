@@ -5,7 +5,9 @@ var Sfx = (function () {
   let ctx = null;        // AudioContext, created lazily
   let masterGain = null; // GainNode wired to ctx.destination
   let musicGain  = null; // Separate gain node for ambient music (quieter than SFX)
-  let muted = true;
+  let muted = true;      // legacy; kept in sync with sfxMuted for backward compat
+  let sfxMuted  = true;  // controls SFX (masterGain)
+  let musicMuted = false; // controls music (musicGain)
   let unlocked = false;  // whether AudioContext has been resumed after user gesture
 
   // ── Music state ────────────────────────────────────────────────────────────
@@ -775,10 +777,10 @@ var Sfx = (function () {
 
     // Fade in
     const now = c.currentTime;
-    const targetVol = muted ? 0 : MUSIC_MASTER_VOLUME;
+    const targetVol = musicMuted ? 0 : MUSIC_MASTER_VOLUME;
     musicGain.gain.cancelScheduledValues(now);
     musicGain.gain.setValueAtTime(0, now);
-    if (!muted) {
+    if (!musicMuted) {
       musicGain.gain.linearRampToValueAtTime(targetVol, now + 1.5);
     }
   }
@@ -815,7 +817,7 @@ var Sfx = (function () {
   }
 
   function play(id) {
-    if (muted) return;
+    if (sfxMuted) return;
     const c = getCtx();
     if (!c) return;
     ensureUnlocked();
@@ -826,21 +828,31 @@ var Sfx = (function () {
     } catch (_) { /* silently ignore synthesis errors */ }
   }
 
-  function setMuted(value) {
-    muted = !!value;
+  function setSfxMuted(value) {
+    sfxMuted = !!value;
+    muted = sfxMuted; // keep legacy flag in sync
     if (masterGain) {
-      masterGain.gain.setValueAtTime(muted ? 0 : 0.5, ctx ? ctx.currentTime : 0);
-    }
-    if (musicGain && ctx) {
-      const now = ctx.currentTime;
-      musicGain.gain.cancelScheduledValues(now);
-      musicGain.gain.setValueAtTime(muted ? 0 : MUSIC_MASTER_VOLUME, now);
+      masterGain.gain.setValueAtTime(sfxMuted ? 0 : 0.5, ctx ? ctx.currentTime : 0);
     }
   }
 
-  function isMuted() { return muted; }
+  function setMusicMuted(value) {
+    musicMuted = !!value;
+    if (musicGain && ctx) {
+      const now = ctx.currentTime;
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.setValueAtTime(musicMuted ? 0 : MUSIC_MASTER_VOLUME, now);
+    }
+  }
 
-  return { preload, play, setMuted, isMuted, playMusic, stopMusic, getActiveMusicStage };
+  function setMuted(value) {
+    setSfxMuted(value);
+    setMusicMuted(value);
+  }
+
+  function isMuted() { return sfxMuted && musicMuted; }
+
+  return { preload, play, setMuted, setSfxMuted, setMusicMuted, isMuted, playMusic, stopMusic, getActiveMusicStage };
 })();
 
 if (typeof module !== "undefined") module.exports = Sfx;

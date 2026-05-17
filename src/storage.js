@@ -14,6 +14,8 @@ var Storage = (function () {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       endlessHighScore: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
+      music: true,
+      sfx: true,
       animSpeed: "normal",
       tutorialSeen: false,
       hardUnlocked: false,
@@ -76,6 +78,17 @@ var Storage = (function () {
           }
         }
         if (typeof parsed.sound === "boolean") out.sound = parsed.sound;
+        // music/sfx — read new fields; backward compat: if old save has only `sound`, copy to both
+        if (typeof parsed.music === "boolean") {
+          out.music = parsed.music;
+        } else if (typeof parsed.sound === "boolean") {
+          out.music = parsed.sound;
+        }
+        if (typeof parsed.sfx === "boolean") {
+          out.sfx = parsed.sfx;
+        } else if (typeof parsed.sound === "boolean") {
+          out.sfx = parsed.sound;
+        }
         if (parsed.animSpeed === "slow" || parsed.animSpeed === "normal" || parsed.animSpeed === "fast") {
           out.animSpeed = parsed.animSpeed;
         }
