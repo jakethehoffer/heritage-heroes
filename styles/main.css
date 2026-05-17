@@ -3586,3 +3586,147 @@ button.danger:hover {
   }
   .matchup-portraits { justify-content: center; }
 }
+
+/* ── Trophy Room ─────────────────────────────────────────────────────────── */
+
+.screen-trophy-room {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.trophy-filters, .trophy-sorts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.trophy-filter-label {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.trophy-chip {
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trophy-chip.active {
+  background: var(--terracotta);
+  color: var(--cream);
+}
+
+.trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.trophy-card {
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.trophy-card.locked {
+  opacity: 0.6;
+  filter: grayscale(0.6);
+}
+
+.trophy-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+
+.trophy-title {
+  font-size: 18px;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.trophy-desc {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.trophy-status {
+  font-weight: 700;
+  color: var(--olive);
+  font-size: 13px;
+}
+
+.trophy-locked-status {
+  font-weight: 700;
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.trophy-progress {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.trophy-progress-bar {
+  height: 10px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+}
+
+.trophy-progress-fill {
+  height: 100%;
+  background: var(--terracotta);
+  transition: width 300ms ease;
+}
+
+.trophy-progress-text {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+.trophy-category {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--gold);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--ink);
+}
+
+.stats-trophy-summary {
+  text-align: center;
+}
+
+.trophy-summary-count {
+  font-size: 16px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: var(--navy);
+}

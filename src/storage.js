@@ -132,11 +132,16 @@ var Storage = (function () {
             }
           }
         }
-        // achievements boolean merge
+        // achievements merge — supports legacy boolean or new timestamp integer format
         if (parsed.achievements && typeof parsed.achievements === "object") {
           for (const key of Object.keys(out.achievements)) {
-            if (typeof parsed.achievements[key] === "boolean") {
-              out.achievements[key] = parsed.achievements[key];
+            const v = parsed.achievements[key];
+            if (v === true) {
+              out.achievements[key] = 1;  // legacy: unlocked but no timestamp
+            } else if (typeof v === "number" && v > 0) {
+              out.achievements[key] = v;
+            } else {
+              out.achievements[key] = false;
             }
           }
         }
@@ -251,10 +256,11 @@ var Storage = (function () {
   }
 
   // Idempotently unlock an achievement by key. Returns the updated save.
+  // Stores a timestamp (Date.now()) instead of true so the Trophy Room can show unlock dates.
   function unlockAchievement(store, key) {
     const data = load(store);
-    if (data.achievements[key] === false) {
-      data.achievements[key] = true;
+    if (data.achievements[key] === false || data.achievements[key] == null) {
+      data.achievements[key] = Date.now();
       save(store, data);
     }
     return data;

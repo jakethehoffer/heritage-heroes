@@ -2394,28 +2394,56 @@ var Screens = (function () {
 
   // ── Achievement metadata ──────────────────────────────────────────────────
   const ACHIEVEMENT_LIST = [
-    { key: "firstWin",         title: "First Steps",            description: "Win your first match",                              icon: "🏅" },
-    { key: "arcadeChampion",   title: "Arcade Champion",        description: "Complete the Arcade Ladder",                        icon: "🏆" },
-    { key: "hardChampion",     title: "Hard-Mode Champion",     description: "Complete the Arcade Ladder on Hard difficulty",      icon: "💎" },
-    { key: "heroOfThePeople",  title: "Hero of the People",     description: "Win at least one match with every hero",            icon: "🌟" },
-    { key: "triviaApprentice", title: "Trivia Apprentice",      description: "Answer 10 trivia questions correctly",              icon: "📚" },
-    { key: "triviaScholar",    title: "Trivia Scholar",         description: "Answer 50 trivia questions correctly",              icon: "📖" },
-    { key: "triviaSage",       title: "Trivia Sage",            description: "Answer 150 trivia questions correctly",             icon: "🧙" },
-    { key: "heritageScholar",  title: "Heritage Scholar",       description: "Master all 7 heroes",                               icon: "🎓" },
-    { key: "streakOf5",        title: "Hot Streak",             description: "Answer 5 trivia questions correctly in a row",      icon: "🔥" },
-    { key: "streakOf10",       title: "On Fire",                description: "Answer 10 trivia questions correctly in a row",     icon: "⚡" },
-    { key: "comeback",         title: "Comeback Kid",           description: "Win a match after dropping below 20 HP",           icon: "💪" },
-    { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯" },
-    { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹" },
-    { key: "endlessSurvivor", title: "Survivor",               description: "Reach a 5-win streak in Endless Survival",          icon: "🥉" },
-    { key: "endlessMarathon", title: "Marathon",               description: "Reach a 10-win streak in Endless Survival",         icon: "🥈" },
-    { key: "endlessLegend",   title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇" },
-    { key: "dailyStreak3",   title: "Daily Devoted",          description: "Complete the daily challenge 3 days in a row",       icon: "🗓️" },
-    { key: "dailyStreak7",   title: "Weekly Warrior",         description: "Complete the daily challenge 7 days in a row",       icon: "📅" },
-    { key: "dailyStreak30",  title: "Monthly Monk",           description: "Complete the daily challenge 30 days in a row",      icon: "🏆" },
-    { key: "tournamentWinner", title: "Tournament Winner",    description: "Win a Tournament",                                   icon: "🏟️" },
-    { key: "tournamentMaster",  title: "Tournament Master",   description: "Win 5 Tournaments",                                  icon: "🥇" },
-    { key: "tournamentLegend",  title: "Tournament Legend",   description: "Win 20 Tournaments",                                 icon: "👑" }
+    { key: "firstWin",         title: "First Steps",            description: "Win your first match",                              icon: "🏅", category: "combat",  progress: null },
+    { key: "arcadeChampion",   title: "Arcade Champion",        description: "Complete the Arcade Ladder",                        icon: "🏆", category: "combat",  progress: null },
+    { key: "hardChampion",     title: "Hard-Mode Champion",     description: "Complete the Arcade Ladder on Hard difficulty",      icon: "💎", category: "mode",    progress: null },
+    { key: "heroOfThePeople",  title: "Hero of the People",     description: "Win at least one match with every hero",            icon: "🌟", category: "combat",  progress: (save) => {
+      const ph = (save.stats && save.stats.perHero) || {};
+      const wonCount = Object.values(ph).filter(h => h.won >= 1).length;
+      return { current: wonCount, target: 7 };
+    }},
+    { key: "triviaApprentice", title: "Trivia Apprentice",      description: "Answer 10 trivia questions correctly",              icon: "📚", category: "trivia",  progress: (save) => ({ current: (save.stats && save.stats.triviaCorrect) || 0, target: 10 }) },
+    { key: "triviaScholar",    title: "Trivia Scholar",         description: "Answer 50 trivia questions correctly",              icon: "📖", category: "trivia",  progress: (save) => ({ current: (save.stats && save.stats.triviaCorrect) || 0, target: 50 }) },
+    { key: "triviaSage",       title: "Trivia Sage",            description: "Answer 150 trivia questions correctly",             icon: "🧙", category: "trivia",  progress: (save) => ({ current: (save.stats && save.stats.triviaCorrect) || 0, target: 150 }) },
+    { key: "heritageScholar",  title: "Heritage Scholar",       description: "Master all 7 heroes",                               icon: "🎓", category: "mode",    progress: (save) => {
+      const masteredCount = Object.values(save.mastered || {}).filter(Boolean).length;
+      return { current: masteredCount, target: 7 };
+    }},
+    { key: "streakOf5",        title: "Hot Streak",             description: "Answer 5 trivia questions correctly in a row",      icon: "🔥", category: "trivia",  progress: null },
+    { key: "streakOf10",       title: "On Fire",                description: "Answer 10 trivia questions correctly in a row",     icon: "⚡", category: "trivia",  progress: null },
+    { key: "comeback",         title: "Comeback Kid",           description: "Win a match after dropping below 20 HP",           icon: "💪", category: "combat",  progress: null },
+    { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯", category: "combat",  progress: (save) => ({ current: (save.stats && save.stats.matchesPlayed) || 0, target: 100 }) },
+    { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹", category: "combat",  progress: null },
+    { key: "endlessSurvivor",  title: "Survivor",               description: "Reach a 5-win streak in Endless Survival",          icon: "🥉", category: "streak",  progress: (save) => {
+      const vals = Object.values(save.endlessHighScore || {});
+      const max = vals.length > 0 ? Math.max(0, ...vals) : 0;
+      return { current: max, target: 5 };
+    }},
+    { key: "endlessMarathon",  title: "Marathon",               description: "Reach a 10-win streak in Endless Survival",         icon: "🥈", category: "streak",  progress: (save) => {
+      const vals = Object.values(save.endlessHighScore || {});
+      const max = vals.length > 0 ? Math.max(0, ...vals) : 0;
+      return { current: max, target: 10 };
+    }},
+    { key: "endlessLegend",    title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇", category: "streak",  progress: (save) => {
+      const vals = Object.values(save.endlessHighScore || {});
+      const max = vals.length > 0 ? Math.max(0, ...vals) : 0;
+      return { current: max, target: 20 };
+    }},
+    { key: "dailyStreak3",     title: "Daily Devoted",          description: "Complete the daily challenge 3 days in a row",      icon: "🗓️", category: "streak",  progress: (save) => {
+      const daily = save.daily || { currentStreak: 0, bestStreak: 0 };
+      return { current: Math.max(daily.currentStreak, daily.bestStreak), target: 3 };
+    }},
+    { key: "dailyStreak7",     title: "Weekly Warrior",         description: "Complete the daily challenge 7 days in a row",      icon: "📅", category: "streak",  progress: (save) => {
+      const daily = save.daily || { currentStreak: 0, bestStreak: 0 };
+      return { current: Math.max(daily.currentStreak, daily.bestStreak), target: 7 };
+    }},
+    { key: "dailyStreak30",    title: "Monthly Monk",           description: "Complete the daily challenge 30 days in a row",     icon: "🏆", category: "streak",  progress: (save) => {
+      const daily = save.daily || { currentStreak: 0, bestStreak: 0 };
+      return { current: Math.max(daily.currentStreak, daily.bestStreak), target: 30 };
+    }},
+    { key: "tournamentWinner", title: "Tournament Winner",      description: "Win a Tournament",                                  icon: "🏟️", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 1 }) },
+    { key: "tournamentMaster", title: "Tournament Master",      description: "Win 5 Tournaments",                                 icon: "🥇", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 5 }) },
+    { key: "tournamentLegend", title: "Tournament Legend",      description: "Win 20 Tournaments",                                icon: "👑", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 20 }) }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2703,18 +2731,7 @@ var Screens = (function () {
 </div>`;
     }).join("");
 
-    const achievementCards = ACHIEVEMENT_LIST.map(a => {
-      const unlocked = !!achievements[a.key];
-      const cls = unlocked ? "achievement-card" : "achievement-card locked";
-      const lockOverlay = unlocked ? "" : `<div class="achievement-lock">🔒</div>`;
-      return `
-<div class="${cls}">
-  <div class="achievement-icon">${a.icon}</div>
-  <div class="achievement-title">${Render.escapeHtml(a.title)}</div>
-  <div class="achievement-desc">${Render.escapeHtml(a.description)}</div>
-  ${lockOverlay}
-</div>`;
-    }).join("");
+    const unlockedCount = ACHIEVEMENT_LIST.filter(a => !!achievements[a.key]).length;
 
     const dailyData = save.daily || { completedDates: [], currentStreak: 0, bestStreak: 0, lifetimeCompletions: 0 };
     // Compute live current streak for display
@@ -2815,9 +2832,10 @@ var Screens = (function () {
 </div>`;
   })()}
 
-  <div class="stats-section">
+  <div class="stats-section stats-trophy-summary">
     <h3>Achievements</h3>
-    <div class="achievement-grid">${achievementCards}</div>
+    <p class="trophy-summary-count">${unlockedCount} of ${ACHIEVEMENT_LIST.length} unlocked</p>
+    <button data-action="open-trophy-room">&#x1F3C6; View Trophy Room &rarr;</button>
   </div>
 
   <div class="stats-section danger-zone">
@@ -2827,6 +2845,138 @@ var Screens = (function () {
   </div>
 
   <button data-action="goto-title" class="back">&larr; Back to Menu</button>
+</section>`;
+  }
+
+  // ── Trophy Room ───────────────────────────────────────────────────────────
+
+  function _formatTrophyDate(epoch) {
+    if (!epoch || epoch <= 1) return null;
+    const d = new Date(epoch);
+    const today = new Date();
+    if (d.getFullYear() === today.getFullYear() &&
+        d.getMonth()    === today.getMonth() &&
+        d.getDate()     === today.getDate()) {
+      return "Today";
+    }
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  function _renderTrophyCard(a, save) {
+    const rawVal  = save.achievements[a.key];
+    const isUnlocked = !!rawVal;
+    const cls = isUnlocked ? "trophy-card unlocked" : "trophy-card locked";
+
+    let statusHtml;
+    if (isUnlocked) {
+      const dateStr = _formatTrophyDate(rawVal);
+      statusHtml = `<p class="trophy-status">&#x2713; Unlocked${dateStr ? " " + dateStr : ""}</p>`;
+    } else if (a.progress) {
+      const prog = a.progress(save);
+      if (prog) {
+        const pct = Math.min(100, Math.round(prog.current / prog.target * 100));
+        statusHtml = `
+<div class="trophy-progress">
+  <div class="trophy-progress-bar"><div class="trophy-progress-fill" style="width:${pct}%"></div></div>
+  <p class="trophy-progress-text">${prog.current} / ${prog.target}</p>
+</div>`;
+      } else {
+        statusHtml = `<p class="trophy-locked-status">&#x1F512; Locked</p>`;
+      }
+    } else {
+      statusHtml = `<p class="trophy-locked-status">&#x1F512; Locked</p>`;
+    }
+
+    return `
+<div class="${cls}">
+  <span class="trophy-category">${Render.escapeHtml(a.category)}</span>
+  <div class="trophy-icon">${a.icon}</div>
+  <h3 class="trophy-title">${Render.escapeHtml(a.title)}</h3>
+  <p class="trophy-desc">${Render.escapeHtml(a.description)}</p>
+  ${statusHtml}
+</div>`;
+  }
+
+  function renderTrophyRoom(state) {
+    const save = state.save || {};
+    const achievements = save.achievements || {};
+    const filter = state.trophyFilter || "all";
+    const sort   = state.trophySort   || "recent";
+
+    const total = ACHIEVEMENT_LIST.length;
+    const unlockedCount = ACHIEVEMENT_LIST.filter(a => !!achievements[a.key]).length;
+
+    // Filter
+    let visible = ACHIEVEMENT_LIST.slice();
+    if (filter === "unlocked") visible = visible.filter(a => !!achievements[a.key]);
+    if (filter === "locked")   visible = visible.filter(a => !achievements[a.key]);
+
+    // Sort
+    function _progressPct(a) {
+      if (!a.progress) return -1;
+      const prog = a.progress(save);
+      if (!prog) return -1;
+      return prog.current / prog.target;
+    }
+
+    if (sort === "recent") {
+      visible.sort((a, b) => {
+        const av = achievements[a.key];
+        const bv = achievements[b.key];
+        if (!!av !== !!bv) return av ? -1 : 1;    // unlocked first
+        if (av && bv) return (bv - av);           // newer timestamp first
+        return _progressPct(b) - _progressPct(a); // locked: higher progress first
+      });
+    } else if (sort === "category") {
+      visible.sort((a, b) => {
+        const aUnl = !!achievements[a.key];
+        const bUnl = !!achievements[b.key];
+        if (aUnl !== bUnl) return aUnl ? -1 : 1;
+        const catCmp = a.category.localeCompare(b.category);
+        if (catCmp !== 0) return catCmp;
+        return a.title.localeCompare(b.title);
+      });
+    } else if (sort === "progress") {
+      visible.sort((a, b) => {
+        const aUnl = !!achievements[a.key];
+        const bUnl = !!achievements[b.key];
+        if (aUnl !== bUnl) return aUnl ? -1 : 1;
+        if (aUnl && bUnl) return 0;
+        const ap = _progressPct(a);
+        const bp = _progressPct(b);
+        if (ap < 0 && bp >= 0) return 1;
+        if (bp < 0 && ap >= 0) return -1;
+        return bp - ap;
+      });
+    }
+
+    const cards = visible.map(a => _renderTrophyCard(a, save)).join("");
+
+    return `
+<section class="screen screen-trophy-room">
+  <h2>&#x1F3C6; Trophy Room</h2>
+  <p class="subtitle">${unlockedCount} of ${total} unlocked</p>
+
+  <div class="trophy-filters">
+    <span class="trophy-filter-label">Show:</span>
+    <button data-action="trophy-filter" data-filter="all"      class="trophy-chip ${filter === "all"      ? "active" : ""}">All (${total})</button>
+    <button data-action="trophy-filter" data-filter="unlocked" class="trophy-chip ${filter === "unlocked" ? "active" : ""}">Unlocked (${unlockedCount})</button>
+    <button data-action="trophy-filter" data-filter="locked"   class="trophy-chip ${filter === "locked"   ? "active" : ""}">Locked (${total - unlockedCount})</button>
+  </div>
+
+  <div class="trophy-sorts">
+    <span class="trophy-filter-label">Sort:</span>
+    <button data-action="trophy-sort" data-sort="recent"   class="trophy-chip ${sort === "recent"   ? "active" : ""}">Recent</button>
+    <button data-action="trophy-sort" data-sort="category" class="trophy-chip ${sort === "category" ? "active" : ""}">Category</button>
+    <button data-action="trophy-sort" data-sort="progress" class="trophy-chip ${sort === "progress" ? "active" : ""}">Progress</button>
+  </div>
+
+  <div class="trophy-grid">
+    ${cards}
+  </div>
+
+  <button data-action="goto-title" class="back">&larr; Back</button>
 </section>`;
   }
 
@@ -3281,6 +3431,7 @@ var Screens = (function () {
     renderDailyAlreadyDone,
     renderTimeline,
     renderTournamentBracket, renderTournamentResult,
+    renderTrophyRoom,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,

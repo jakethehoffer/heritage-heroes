@@ -13,7 +13,9 @@ var Main = (function () {
     });
   }
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings | trophy-room
+    trophyFilter: "all",   // "all" | "unlocked" | "locked"
+    trophySort:   "recent", // "recent" | "category" | "progress"
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
     profileHeroId: null,
     tutorialStep: 0,
@@ -337,7 +339,7 @@ var Main = (function () {
     if (!store) return;
     for (const key of keys) {
       Storage.unlockAchievement(store, key);
-      state.save.achievements[key] = true;
+      state.save.achievements[key] = Date.now();
       if (typeof Screens !== "undefined" && Screens.queueAchievementToast) {
         Screens.queueAchievementToast(key);
         Sfx.play("achievement");
@@ -426,6 +428,7 @@ var Main = (function () {
     else if (state.screen === "timeline")         body = Screens.renderTimeline(state);
     else if (state.screen === "tournament-bracket") body = Screens.renderTournamentBracket(state);
     else if (state.screen === "tournament-result")  body = Screens.renderTournamentResult(state);
+    else if (state.screen === "trophy-room")        body = Screens.renderTrophyRoom(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -493,6 +496,9 @@ var Main = (function () {
     switch (action) {
       case "goto-title":   state.screen = "title"; state.overlay = null; render(); return;
       case "goto-mode":    state.screen = "mode"; render(); return;
+      case "open-trophy-room": state.screen = "trophy-room"; render(); return;
+      case "trophy-filter": state.trophyFilter = target.dataset.filter; render(); return;
+      case "trophy-sort":   state.trophySort   = target.dataset.sort;   render(); return;
       case "open-hall":      state.screen = "hall"; render(); return;
       case "open-timeline":  state.screen = "timeline"; render(); return;
       case "open-history":   state.screen = "history"; render(); return;

@@ -217,7 +217,7 @@ test("unlockAchievement flips only the targeted achievement key", () => {
   const s = fakeStore();
   Storage.unlockAchievement(s, "firstWin");
   const data = Storage.load(s);
-  assert.strictEqual(data.achievements.firstWin, true);
+  assert.ok(data.achievements.firstWin > 0, "firstWin should be a positive timestamp");
   // all others still false
   const keys = ["arcadeChampion","hardChampion","heroOfThePeople","triviaApprentice",
                  "triviaScholar","triviaSage","heritageScholar","streakOf5","streakOf10",
@@ -230,9 +230,11 @@ test("unlockAchievement flips only the targeted achievement key", () => {
 test("unlockAchievement is idempotent (second call is a no-op)", () => {
   const s = fakeStore();
   Storage.unlockAchievement(s, "centurion");
+  const firstTs = Storage.load(s).achievements.centurion;
   Storage.unlockAchievement(s, "centurion");
   const data = Storage.load(s);
-  assert.strictEqual(data.achievements.centurion, true);
+  assert.ok(data.achievements.centurion > 0, "centurion should be a positive timestamp");
+  assert.strictEqual(data.achievements.centurion, firstTs, "second call should not change the timestamp");
 });
 
 // ── achievements defaults ─────────────────────────────────────────────────
@@ -246,12 +248,13 @@ test("achievements defaults to all false", () => {
 test("achievements round-trips via save/load", () => {
   const s = fakeStore();
   const data = Storage.load(s);
-  data.achievements.firstWin      = true;
-  data.achievements.arcadeChampion = true;
+  const now = Date.now();
+  data.achievements.firstWin       = now;
+  data.achievements.arcadeChampion = now;
   Storage.save(s, data);
   const reloaded = Storage.load(s);
-  assert.strictEqual(reloaded.achievements.firstWin,       true);
-  assert.strictEqual(reloaded.achievements.arcadeChampion, true);
+  assert.strictEqual(reloaded.achievements.firstWin,       now);
+  assert.strictEqual(reloaded.achievements.arcadeChampion, now);
   assert.strictEqual(reloaded.achievements.centurion,      false);
 });
 
@@ -279,10 +282,11 @@ test("bossSlayer achievement defaults to false", () => {
 test("bossSlayer achievement round-trips via save/load", () => {
   const s = fakeStore();
   const data = Storage.load(s);
-  data.achievements.bossSlayer = true;
+  const now = Date.now();
+  data.achievements.bossSlayer = now;
   Storage.save(s, data);
   const reloaded = Storage.load(s);
-  assert.strictEqual(reloaded.achievements.bossSlayer, true);
+  assert.strictEqual(reloaded.achievements.bossSlayer, now);
   // Verify other achievements stay false
   assert.strictEqual(reloaded.achievements.firstWin, false);
   assert.strictEqual(reloaded.achievements.centurion, false);
@@ -292,7 +296,7 @@ test("unlockAchievement sets bossSlayer and leaves others unchanged", () => {
   const s = fakeStore();
   Storage.unlockAchievement(s, "bossSlayer");
   const data = Storage.load(s);
-  assert.strictEqual(data.achievements.bossSlayer, true);
+  assert.ok(data.achievements.bossSlayer > 0, "bossSlayer should be a positive timestamp");
   assert.strictEqual(data.achievements.firstWin, false);
 });
 
@@ -466,7 +470,7 @@ test("Storage.resetAll wipes save back to defaults", () => {
   data.sound = true;
   data.animSpeed = "fast";
   data.stats.matchesPlayed = 42;
-  data.achievements.firstWin = true;
+  data.achievements.firstWin = Date.now();
   Storage.save(s, data);
 
   // Confirm it was saved
@@ -474,7 +478,7 @@ test("Storage.resetAll wipes save back to defaults", () => {
   assert.strictEqual(before.sound, true);
   assert.strictEqual(before.animSpeed, "fast");
   assert.strictEqual(before.stats.matchesPlayed, 42);
-  assert.strictEqual(before.achievements.firstWin, true);
+  assert.ok(before.achievements.firstWin > 0, "firstWin should be a positive timestamp before reset");
 
   // Reset
   Storage.resetAll(s);
@@ -628,10 +632,11 @@ test("tournament achievements default false and round-trip", () => {
   assert.strictEqual(data.achievements.tournamentMaster, false);
   assert.strictEqual(data.achievements.tournamentLegend, false);
 
-  data.achievements.tournamentWinner = true;
+  const now = Date.now();
+  data.achievements.tournamentWinner = now;
   Storage.save(s, data);
   const reloaded = Storage.load(s);
-  assert.strictEqual(reloaded.achievements.tournamentWinner, true);
+  assert.strictEqual(reloaded.achievements.tournamentWinner, now);
   assert.strictEqual(reloaded.achievements.tournamentMaster, false);
   assert.strictEqual(reloaded.achievements.tournamentLegend, false);
 });
@@ -692,6 +697,30 @@ test("matchup keys are directional: moses|einstein and einstein|moses are separa
   // einstein|moses: 0 wins, 1 loss
   assert.strictEqual(data.matchups["einstein|moses"].wins,   0);
   assert.strictEqual(data.matchups["einstein|moses"].losses, 1);
+});
+
+// ── Achievement timestamp format ───────────────────────────────────────────
+
+test("unlockAchievement stores a timestamp (integer > 0) rather than true", () => {
+  const s = fakeStore();
+  const before = Date.now();
+  Storage.unlockAchievement(s, "firstWin");
+  const after = Date.now();
+  const data = Storage.load(s);
+  const val = data.achievements.firstWin;
+  assert.ok(typeof val === "number" && val > 0, "achievements.firstWin should be a positive integer timestamp");
+  assert.ok(val >= before && val <= after, "timestamp should be within the test window");
+});
+
+test("load migrates legacy achievements true -> 1 (truthy without precise timestamp)", () => {
+  const s = fakeStore();
+  // Simulate an old-format save where achievements are stored as booleans
+  s.setItem("heritageHeroes.save", JSON.stringify({
+    achievements: { firstWin: true, centurion: false }
+  }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.firstWin, 1, "legacy true should migrate to integer 1");
+  assert.strictEqual(data.achievements.centurion, false, "false should stay false");
 });
 
 test("matchups round-trip via save/load and malformed entries are filtered out", () => {
