@@ -90,3 +90,28 @@ test("defend: odd damage rounds down", () => {
   Combat.applyMove(s, "attack"); // David's sling 12 -> halved to 6
   assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 12 - 6);
 });
+
+test("winner: set when opponent HP reaches 0", () => {
+  const s = Combat.createMatch("moses", "einstein");
+  s.players[1].hp = 8; // Moses attack = 10
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, 0);
+  assert.strictEqual(s.winner, 0);
+});
+
+test("winner: applyMove is no-op once match is over", () => {
+  const s = Combat.createMatch("moses", "einstein");
+  s.players[1].hp = 8;
+  Combat.applyMove(s, "attack");
+  const turnBefore = s.turnNumber;
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.turnNumber, turnBefore);
+});
+
+test("isMatchOver returns true after a KO", () => {
+  const s = Combat.createMatch("moses", "einstein");
+  assert.strictEqual(Combat.isMatchOver(s), false);
+  s.players[1].hp = 8;
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(Combat.isMatchOver(s), true);
+});

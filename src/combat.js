@@ -56,6 +56,9 @@ const Combat = (function () {
       delete target.statuses.defend;
     }
     target.hp = Math.max(0, target.hp - dmg);
+    if (target.hp === 0 && state.winner === null) {
+      state.winner = fromIdx;
+    }
   }
 
   function endTurn(state) {
@@ -63,7 +66,9 @@ const Combat = (function () {
     state.turnNumber += 1;
   }
 
-  return { createMatch, applyMove };
+  function isMatchOver(state) { return state.winner !== null; }
+
+  return { createMatch, applyMove, isMatchOver };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;
