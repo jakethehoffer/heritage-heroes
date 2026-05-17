@@ -297,3 +297,30 @@ test("Einstein: while charging, isCharging exposes true", () => {
   Combat.applyMove(s, "special");
   assert.strictEqual(Combat.isCharging(s, 0), true);
 });
+
+// append
+test("AI: while charging, always returns 'charge'", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special"); // charging=2
+  // Bypass Moses's turn for test purposes — pretend state.activePlayer = 0
+  s.activePlayer = 0;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0), "charge");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "charge");
+});
+
+test("AI: special on cooldown -> attack at low rng, defend at high rng", () => {
+  const s = Combat.createMatch("moses", "david");
+  s.players[0].specialCooldown = 2;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.71), "defend");
+});
+
+test("AI: special available -> 0.0=attack, 0.6=defend, 0.9=special", () => {
+  const s = Combat.createMatch("moses", "david");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.54), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.56), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.84), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.86), "special");
+});

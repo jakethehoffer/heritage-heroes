@@ -180,7 +180,20 @@ const Combat = (function () {
     return typeof state.players[playerIdx].statuses.charging === "number";
   }
 
-  return { createMatch, applyMove, isMatchOver, isCharging };
+  function chooseAIMove(state, playerIdx, rng) {
+    rng = rng || Math.random;
+    const p = state.players[playerIdx];
+    if (typeof p.statuses.charging === "number") return "charge";
+    const r = rng();
+    if (p.specialCooldown > 0) {
+      return r < 0.70 ? "attack" : "defend";
+    }
+    if (r < 0.55) return "attack";
+    if (r < 0.85) return "defend";
+    return "special";
+  }
+
+  return { createMatch, applyMove, isMatchOver, isCharging, chooseAIMove };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;
