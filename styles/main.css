@@ -1518,3 +1518,298 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   cursor: pointer;
   box-shadow: 0 0 18px rgba(212, 165, 116, 0.4);
 }
+
+/* ============================================================
+   RESPONSIVE — Mobile + Tablet
+   ============================================================ */
+
+/* ── HP bar SVG: always scale fluidly inside its container ── */
+.hp-cell svg {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  display: block;
+}
+
+/* ============================================================
+   TABLET  (≤ 900 px)
+   ============================================================ */
+@media (max-width: 900px) {
+
+  /* Root padding tighter */
+  #root {
+    padding: 20px 16px;
+  }
+
+  /* Heading scale */
+  h1 { font-size: 36px; }
+  h2 { font-size: 26px; }
+
+  /* Title screen */
+  .screen-title h1 { font-size: 52px; }
+
+  /* Title buttons: full-width stack, but capped */
+  .title-buttons {
+    width: 100%;
+    max-width: 400px;
+    min-width: 0;
+  }
+
+  /* Mode / opponent / difficulty grids — lower min column size */
+  .mode-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  /* Hero grid: tighten minimum so cards can be 2-up on narrow tablets */
+  .hero-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  /* Battle: allow HP bar cells to shrink */
+  .hp-bars {
+    gap: 8px;
+  }
+
+  /* Move buttons: 3-across on tablet (already default at ≥900) */
+  .moves-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Result buttons — keep row but allow wrapping */
+  .result-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Boss intro: ensure vertical scrollability */
+  .screen-boss-intro {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+/* ============================================================
+   PHONE  (≤ 600 px)
+   ============================================================ */
+@media (max-width: 600px) {
+
+  /* Root: minimal side padding */
+  #root {
+    padding: 16px 12px;
+  }
+
+  /* Screen padding */
+  .screen {
+    padding: 24px 12px;
+    gap: 16px;
+  }
+
+  /* Base headings */
+  h1 { font-size: 28px; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 18px; }
+
+  /* ── Base button: ensure touch target + legible font ── */
+  button {
+    font-size: 18px;
+    padding: 14px 20px;
+    min-height: 44px;
+  }
+
+  /* ── Title screen ─────────────────────────────────── */
+  .screen-title h1 {
+    font-size: 44px;
+  }
+
+  .title-buttons {
+    width: 100%;
+    max-width: 320px;
+    min-width: 0;
+  }
+
+  .title-buttons button {
+    width: 100%;
+    font-size: 20px;
+  }
+
+  /* ── Mode / Opponent / Difficulty grids ───────────── */
+  .mode-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* ── Character select ─────────────────────────────── */
+  .hero-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .hero-portrait {
+    height: 120px;
+  }
+
+  .hero-meta .bio {
+    font-size: 12px;
+  }
+
+  .hero-meta .moves {
+    font-size: 11px;
+  }
+
+  /* ── Battle screen ─────────────────────────────────── */
+
+  /* HP bar cells shrink */
+  .hp-cell svg {
+    max-width: 220px;
+  }
+
+  .vs-label {
+    font-size: 20px;
+  }
+
+  /* Arena: taller aspect on phone so fighters are more visible */
+  .arena {
+    aspect-ratio: 4 / 3;
+  }
+
+  /* Move buttons: single column on phone */
+  .moves-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .moves-row button {
+    padding: 12px 16px;
+  }
+
+  .moves-row button strong {
+    font-size: 16px;
+  }
+
+  .turn-banner {
+    font-size: 18px;
+  }
+
+  /* Arcade roadmap compact: horizontal scroll on phone */
+  .arcade-roadmap.compact {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Result screen ─────────────────────────────────── */
+  .screen-result h2 {
+    font-size: 30px;
+  }
+
+  .result-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .result-buttons button {
+    width: 100%;
+  }
+
+  /* Arcade roadmap full variant: allow horizontal scroll */
+  .arcade-roadmap.full {
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Trivia overlay ────────────────────────────────── */
+  .trivia-options {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .trivia-option-btn {
+    font-size: 15px;
+    padding: 12px 14px;
+  }
+
+  .trivia-question {
+    font-size: 16px;
+  }
+
+  /* ── Stats screen ─────────────────────────────────── */
+  /* Already has @media(max-width:600px) above — extend here */
+  .stats-hero-row {
+    flex-wrap: wrap;
+  }
+
+  .stats-hero-portrait {
+    /* keep portrait but allow row to wrap naturally */
+    flex-shrink: 0;
+  }
+
+  .stats-hero-name {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .stats-overall {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── Study mode ────────────────────────────────────── */
+  .study-options {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .study-question {
+    font-size: 18px;
+  }
+
+  .study-option {
+    font-size: 16px;
+    padding: 14px 12px;
+  }
+
+  /* ── Achievement toast ─────────────────────────────── */
+  .achievement-toast {
+    width: 90%;
+    max-width: 320px;
+  }
+
+  /* ── Overlays ──────────────────────────────────────── */
+  .overlay-card {
+    padding: 20px 16px;
+  }
+
+  /* Boss intro overlay: vertically scrollable */
+  .screen-boss-intro {
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 16px 12px;
+    gap: 12px;
+  }
+
+  .boss-intro-portrait {
+    width: 130px;
+  }
+
+  .boss-intro-name {
+    font-size: 24px;
+  }
+
+  .boss-intro-header {
+    font-size: 22px;
+  }
+
+  .boss-begin-btn {
+    font-size: 18px;
+    padding: 12px 28px;
+  }
+
+  /* ── Help button: keep it accessible ──────────────── */
+  .help-button {
+    width: 44px;
+    height: 44px;
+    top: 8px;
+    right: 8px;
+  }
+}

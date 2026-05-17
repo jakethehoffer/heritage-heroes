@@ -20,7 +20,7 @@ var Render = (function () {
     // rawLabel: caller has already escaped/built the label string (may contain XML entities)
     const labelText = rawLabel ? label : escapeXml(label);
     return `
-<svg viewBox="0 0 ${W} ${H + 24}" width="${W}" height="${H + 24}" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 ${W} ${H + 24}" xmlns="http://www.w3.org/2000/svg">
   <text x="${labelX}" y="18" font-family="Georgia,serif" font-size="18" font-weight="700"
         fill="${colors.ink}" text-anchor="${labelAnchor}">${labelText}</text>
   <rect x="0" y="24" width="${W}" height="${H}" fill="${colors.cream}" stroke="${colors.ink}" stroke-width="3" rx="6" />
