@@ -213,8 +213,9 @@ var Main = (function () {
     render();
 
     // Now apply visual feedback to the freshly-rendered DOM.
+    // Note: the move name appears in the bottom move-log via renderBattle;
+    // no center-of-arena callout is rendered.
     Screens.animateAction(idx, kind);
-    if (lastLog) Screens.showCallout(lastLog);
     Sfx.play(move === "attack" ? "attack" : move === "defend" ? "defend" : activeHeroId);
 
     if (move === "special" || isUnleash) {
