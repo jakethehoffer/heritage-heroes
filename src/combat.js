@@ -108,6 +108,23 @@ var Combat = (function () {
       active.statuses.charging = active.bossTwist ? 1 : 2;
       return;
     }
+    if (heroId === "samson") {
+      // Boss twist: 40 dmg to opponent + 18 self; normal: 30 dmg + 12 self
+      const oppDmg  = active.bossTwist ? 40 : 30;
+      const selfDmg = active.bossTwist ? 18 : 12;
+      // Opponent damage: apply damageMultiplier (hard mode) — only on opponent side
+      dealDamage(state, activeIdx, enemyIdx, Math.round(oppDmg * mult));
+      // Self damage: constant — not amplified by damageMultiplier
+      // Apply directly (bypasses reversal/defend since it is self-inflicted)
+      if (state.winner === null) {
+        active.hp = Math.max(0, active.hp - selfDmg);
+        state.log.push(`Samson takes ${selfDmg} damage from the collapsing pillars!`);
+        if (active.hp === 0 && state.winner === null) {
+          state.winner = enemyIdx;
+        }
+      }
+      return;
+    }
     // other heroes implemented in later tasks
   }
 
@@ -336,6 +353,21 @@ var Combat = (function () {
     return "special";
   }
 
+  function _samsonAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    // Last-resort sacrificial play: when below 30% HP and special ready, always use special
+    if (p.hp < p.maxHp * 0.30 && p.specialCooldown === 0) return "special";
+    if (p.specialCooldown > 0) {
+      // 70% attack, 30% defend
+      return rng() < 0.70 ? "attack" : "defend";
+    }
+    // 55% attack, 15% defend, 30% special
+    const r = rng();
+    if (r < 0.55) return "attack";
+    if (r < 0.70) return "defend";
+    return "special";
+  }
+
   const PERSONALITIES = {
     moses:   _mosesAI,
     david:   _davidAI,
@@ -343,7 +375,8 @@ var Combat = (function () {
     judah:   _judahAI,
     rambam:  _rambamAI,
     golda:   _goldaAI,
-    einstein: _einsteinAI
+    einstein: _einsteinAI,
+    samson:  _samsonAI
   };
 
   // Hard-mode overlay: nudges each personality toward more special use.
@@ -388,7 +421,7 @@ var Combat = (function () {
     return move;
   }
 
-  const LADDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  const LADDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
 
   function arcadeOrder(playerHeroId) {
     return LADDER.filter(id => id !== playerHeroId);

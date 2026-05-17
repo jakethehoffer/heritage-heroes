@@ -12,7 +12,7 @@ var Main = (function () {
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
-    triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
+    triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [], samson: [] },
     study: null,            // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
     // Achievement tracking (in-memory per session/match)
     triviaStreak: 0,        // consecutive correct trivia answers
@@ -21,7 +21,7 @@ var Main = (function () {
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
-  const HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  const HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
 
   // Fisher-Yates shuffle of [0..n-1]
   function shuffleIndices(n) {

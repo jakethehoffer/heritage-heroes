@@ -246,6 +246,50 @@ var Render = (function () {
         <!-- arm lunge effect -->
         <line x1="126" y1="100" x2="${140 + lunge}" y2="${110 + lunge / 3}" stroke="${colors.ink}" stroke-width="4" stroke-linecap="round"/>`;
     },
+    samson(pose) {
+      const lunge = pose === "attack" ? 26 : 0;
+      return `
+        <ellipse cx="100" cy="182" rx="64" ry="6" fill="#000" opacity="0.20"/>
+        <!-- broad sleeveless brown tunic / fur garment -->
+        <path d="M50,185 L64,88 Q100,72 136,88 L150,185 Z" fill="#7a4a1a" stroke="${colors.ink}" stroke-width="3"/>
+        <!-- fur texture stripes on tunic -->
+        <path d="M64,110 Q100,102 136,110" fill="none" stroke="#5a2e0a" stroke-width="2" opacity="0.45"/>
+        <path d="M62,130 Q100,122 138,130" fill="none" stroke="#5a2e0a" stroke-width="2" opacity="0.4"/>
+        <path d="M60,155 Q100,146 140,155" fill="none" stroke="#5a2e0a" stroke-width="2" opacity="0.35"/>
+        <!-- broad muscular shoulders/arms -->
+        <ellipse cx="56" cy="100" rx="18" ry="12" fill="#c8884a" stroke="${colors.ink}" stroke-width="2.5"/>
+        <ellipse cx="144" cy="100" rx="18" ry="12" fill="#c8884a" stroke="${colors.ink}" stroke-width="2.5"/>
+        <!-- neck -->
+        <rect x="90" y="70" width="20" height="18" fill="#c8884a" stroke="${colors.ink}" stroke-width="2.5"/>
+        <!-- face — strong jaw, tanned -->
+        <circle cx="100" cy="52" r="22" fill="#c8884a" stroke="${colors.ink}" stroke-width="3"/>
+        <!-- medium dark beard -->
+        <path d="M78,56 Q72,72 74,92 Q84,108 100,112 Q116,108 126,92 Q128,72 122,56 Q122,76 100,78 Q78,76 78,56Z" fill="#3a2008" stroke="${colors.ink}" stroke-width="2"/>
+        <!-- beard texture -->
+        <path d="M92,78 Q92,100 95,110" fill="none" stroke="${colors.ink}" stroke-width="1" opacity="0.3"/>
+        <path d="M108,78 Q108,100 105,110" fill="none" stroke="${colors.ink}" stroke-width="1" opacity="0.3"/>
+        <!-- long flowing brown hair — past shoulders, left side -->
+        <path d="M78,30 Q62,40 58,68 Q56,90 60,112 Q68,90 72,68 Q74,50 78,30Z" fill="#5c3a17" stroke="${colors.ink}" stroke-width="2"/>
+        <!-- long flowing brown hair — right side -->
+        <path d="M122,30 Q138,40 142,68 Q144,90 140,112 Q132,90 128,68 Q126,50 122,30Z" fill="#5c3a17" stroke="${colors.ink}" stroke-width="2"/>
+        <!-- hair top/crown flowing back -->
+        <path d="M76,28 Q100,18 124,28 Q120,40 100,44 Q80,40 76,28Z" fill="#5c3a17" stroke="${colors.ink}" stroke-width="2.5"/>
+        <!-- hair inner highlight -->
+        <path d="M86,22 Q100,16 114,22 Q110,32 100,36 Q90,32 86,22Z" fill="#7a5025" stroke="none"/>
+        <!-- sandal-clad legs (visible below tunic) -->
+        <rect x="72" y="168" width="18" height="17" fill="#c8884a" stroke="${colors.ink}" stroke-width="2" rx="2"/>
+        <rect x="110" y="168" width="18" height="17" fill="#c8884a" stroke="${colors.ink}" stroke-width="2" rx="2"/>
+        <!-- sandal straps -->
+        <line x1="72" y1="172" x2="90" y2="172" stroke="#5a2e0a" stroke-width="2"/>
+        <line x1="110" y1="172" x2="128" y2="172" stroke="#5a2e0a" stroke-width="2"/>
+        <!-- donkey jawbone in right hand — curved, off-white, with teeth -->
+        <path d="M${136 + lunge},105 Q${152 + lunge},118 ${158 + lunge},138 Q${162 + lunge},155 ${155 + lunge},165" fill="none" stroke="#d8caa0" stroke-width="9" stroke-linecap="round"/>
+        <path d="M${136 + lunge},105 Q${152 + lunge},118 ${158 + lunge},138 Q${162 + lunge},155 ${155 + lunge},165" fill="none" stroke="#f0e8c8" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+        <!-- teeth on jawbone -->
+        <line x1="${148 + lunge}" y1="128" x2="${152 + lunge}" y2="136" stroke="#c0b080" stroke-width="3" stroke-linecap="round"/>
+        <line x1="${153 + lunge}" y1="136" x2="${157 + lunge}" y2="144" stroke="#c0b080" stroke-width="3" stroke-linecap="round"/>
+        <line x1="${157 + lunge}" y1="145" x2="${160 + lunge}" y2="154" stroke="#c0b080" stroke-width="3" stroke-linecap="round"/>`;
+    },
     einstein(pose) {
       const lunge = pose === "attack" ? 8 : 0;
       return `
