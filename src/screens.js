@@ -7,6 +7,14 @@ var Screens = (function () {
   function renderTitle(state) {
     const stats = state.save && state.save.arcade ? state.save.arcade : {};
     const totalWins = Object.values(stats).reduce((s, n) => s + (n || 0), 0);
+    const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+    const masteredCount = Object.values(mastered).filter(Boolean).length;
+    let masteryLine = "";
+    if (masteredCount === 7) {
+      masteryLine = `<p class="scholar-banner">&#x1F31F; HERITAGE SCHOLAR &mdash; All 7 heroes mastered!</p>`;
+    } else if (masteredCount > 0) {
+      masteryLine = `<p class="mastered-count">&#x1F31F; Mastered: ${masteredCount} of 7 heroes</p>`;
+    }
     return `
 <section class="screen screen-title">
   <h1>Heritage Heroes</h1>
@@ -17,6 +25,7 @@ var Screens = (function () {
     <button data-action="toggle-sound" class="secondary">${state.save && state.save.sound ? "Sound: ON" : "Sound: OFF"}</button>
   </div>
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
+  ${masteryLine}
 </section>`;
   }
 
@@ -32,6 +41,10 @@ var Screens = (function () {
     <button data-action="start-arcade" class="mode-card">
       <h3>Arcade Ladder</h3>
       <p>Pick a hero, beat all six others one by one.</p>
+    </button>
+    <button data-action="start-study" class="mode-card">
+      <h3>Study Mode</h3>
+      <p>Learn about each hero by answering all 20 of their trivia questions in a row. Ace them all to earn a Mastery star.</p>
     </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
@@ -59,15 +72,20 @@ var Screens = (function () {
   function renderCharSelect(state) {
     const heading = state.mode === "arcade"
       ? "Pick your hero for the Arcade Ladder"
+      : state.mode === "study"
+      ? "Pick a hero to study"
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
+
+    const mastered = state.save && state.save.mastered ? state.save.mastered : {};
 
     const cards = Heroes.list.map(h => {
       const specialLine = `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`;
+      const masteredStar = (state.mode === "study" && mastered[h.id]) ? "&#x1F31F; " : "";
       return `
       <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
         <div class="hero-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
         <div class="hero-meta">
-          <h3>${Render.escapeHtml(h.name)}</h3>
+          <h3>${masteredStar}${Render.escapeHtml(h.name)}</h3>
           <span class="era">${Render.escapeHtml(h.era)}</span>
           <p class="bio">${Render.escapeHtml(h.bio)}</p>
           <ul class="moves">
@@ -1956,10 +1974,122 @@ var Screens = (function () {
 </div>`;
   }
 
+  function renderStudySession(state) {
+    const study = state.study;
+    const hero = Heroes.byId(study.heroId);
+    const qIdx = study.questionOrder[study.currentIndex];
+    const trivia = hero.trivia[qIdx];
+    const qNum = study.currentIndex + 1;
+    const total = study.questionOrder.length;
+
+    const optionButtons = trivia.options.map((opt, i) => {
+      let cls = "study-option";
+      let disabled = "";
+      if (study.lastChoice !== null) {
+        disabled = "disabled";
+        if (i === trivia.correctIndex) cls += " correct-answer";
+        else if (i === study.lastChoice && i !== trivia.correctIndex) cls += " wrong-answer";
+      }
+      return `<button class="${cls}" data-action="study-answer" data-index="${i}" ${disabled}>${Render.escapeHtml(opt)}</button>`;
+    }).join("");
+
+    let feedbackPanel = "";
+    if (study.lastChoice !== null) {
+      const isCorrect = study.lastChoice === trivia.correctIndex;
+      const isLast = study.currentIndex === total - 1;
+      const nextAction = isLast ? "study-finish" : "study-next";
+      const nextLabel = isLast ? "See Results" : "Next &rarr;";
+      const resultClass = isCorrect ? "correct" : "wrong";
+      const resultText = isCorrect
+        ? "Correct!"
+        : `Not quite &mdash; the answer was: ${Render.escapeHtml(trivia.options[trivia.correctIndex])}`;
+      feedbackPanel = `
+<div class="study-feedback ${resultClass}">
+  <p class="study-feedback-result">${resultText}</p>
+  <p class="study-explanation">${Render.escapeHtml(trivia.explanation)}</p>
+  <button data-action="${nextAction}" class="study-next-btn">${nextLabel}</button>
+</div>`;
+    }
+
+    const filledPct = Math.round((qNum / total) * 100);
+
+    return `
+<section class="screen screen-study">
+  <div class="study-header">
+    <h2>${Render.escapeHtml(hero.name)} &mdash; Question ${qNum} of ${total}</h2>
+  </div>
+  <div class="study-progress">
+    <div class="study-progress-fill" style="width:${filledPct}%"></div>
+  </div>
+  <p class="study-question">${Render.escapeHtml(trivia.question)}</p>
+  <div class="study-options">${optionButtons}</div>
+  ${feedbackPanel}
+  <button data-action="quit-to-title" class="back study-quit">Quit Studying</button>
+</section>`;
+  }
+
+  function renderStudyResult(state) {
+    const study = state.study;
+    const hero = Heroes.byId(study.heroId);
+    const total = study.questionOrder.length;
+    const score = study.answers.reduce((acc, chosen, i) => {
+      const qIdx = study.questionOrder[i];
+      return acc + (chosen === hero.trivia[qIdx].correctIndex ? 1 : 0);
+    }, 0);
+
+    const isPerfect = score === total;
+
+    let banner = "";
+    if (isPerfect) {
+      banner = `<div class="mastery-banner">&#x1F31F; ${Render.escapeHtml(hero.name).toUpperCase()} MASTERED! &#x1F31F;</div>`;
+    } else {
+      banner = `<p class="study-retry-line">Nice work &mdash; try again to master ${Render.escapeHtml(hero.name)}.</p>`;
+    }
+
+    const masteredCount = state.save && state.save.mastered
+      ? Object.values(state.save.mastered).filter(Boolean).length
+      : 0;
+
+    let achievementLine = "";
+    if (study.justMastered) {
+      if (masteredCount === 7) {
+        achievementLine = `<p class="scholar-achievement">&#x1F3C6; Achievement unlocked: Heritage Scholar! All 7 heroes mastered!</p>`;
+      } else {
+        achievementLine = `<p class="scholar-achievement">Achievement unlocked: ${Render.escapeHtml(hero.name)} Mastery (${masteredCount} of 7 heroes mastered)</p>`;
+      }
+    }
+
+    const resultItems = study.questionOrder.map((qIdx, i) => {
+      const trivia = hero.trivia[qIdx];
+      const chosen = study.answers[i];
+      const isCorrect = chosen === trivia.correctIndex;
+      const icon = isCorrect ? "&#x2713;" : "&#x2717;";
+      const cls = isCorrect ? "study-result-item correct" : "study-result-item wrong";
+      const wrongLine = !isCorrect
+        ? `<span class="study-result-answer">Answer: ${Render.escapeHtml(trivia.options[trivia.correctIndex])}</span>`
+        : "";
+      return `<div class="${cls}"><span class="study-result-icon">${icon}</span><span class="study-result-q">${Render.escapeHtml(trivia.question)}</span>${wrongLine}</div>`;
+    }).join("");
+
+    return `
+<section class="screen screen-study-result">
+  <h2>You got ${score} / ${total} correct.</h2>
+  ${banner}
+  ${achievementLine}
+  <div class="study-result-grid">${resultItems}</div>
+  <div class="result-buttons">
+    <button data-action="study-restart">Try ${Render.escapeHtml(hero.name)} Again</button>
+    <button data-action="study-another" class="secondary">Study Another Hero</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
+    renderStudySession, renderStudyResult,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx
   };

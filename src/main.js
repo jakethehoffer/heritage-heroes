@@ -1,9 +1,9 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia'
     tutorialStep: 0,
-    mode: null,             // 'quick' | 'arcade'
+    mode: null,             // 'quick' | 'arcade' | 'study'
     difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
@@ -12,11 +12,22 @@ var Main = (function () {
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
-    triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] }
+    triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
+    study: null             // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
   const HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+
+  // Fisher-Yates shuffle of [0..n-1]
+  function shuffleIndices(n) {
+    const arr = Array.from({ length: n }, (_, i) => i);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
 
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
@@ -43,6 +54,8 @@ var Main = (function () {
     else if (state.screen === "charselect") body = Screens.renderCharSelect(state);
     else if (state.screen === "battle") body = Screens.renderBattle(state);
     else if (state.screen === "result") body = Screens.renderResult(state);
+    else if (state.screen === "study") body = Screens.renderStudySession(state);
+    else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
 
     let overlay = "";
     if (state.overlay === "tutorial") overlay = Screens.renderTutorial(state.tutorialStep);
@@ -152,6 +165,70 @@ var Main = (function () {
         _fumbleTurn(skipHeroId);
         return;
       }
+
+      case "start-study":
+        state.mode = "study";
+        state.controllers = ["human", "human"];
+        state.screen = "charselect";
+        render();
+        return;
+
+      case "study-answer": {
+        if (!state.study || state.study.lastChoice !== null) return;
+        const chosenIdx = parseInt(target.dataset.index, 10);
+        state.study.lastChoice = chosenIdx;
+        state.study.answers.push(chosenIdx);
+        render();
+        return;
+      }
+
+      case "study-next":
+        if (!state.study) return;
+        state.study.currentIndex += 1;
+        state.study.lastChoice = null;
+        render();
+        return;
+
+      case "study-finish": {
+        if (!state.study) return;
+        const hero = Heroes.byId(state.study.heroId);
+        const studyScore = state.study.answers.reduce((acc, chosen, i) => {
+          const qIdx = state.study.questionOrder[i];
+          return acc + (chosen === hero.trivia[qIdx].correctIndex ? 1 : 0);
+        }, 0);
+        if (studyScore === 20 && !state.save.mastered[state.study.heroId]) {
+          state.study.justMastered = true;
+          state.save.mastered[state.study.heroId] = true;
+          Storage.markMastered(getStore(), state.study.heroId);
+          state.save = Storage.load(getStore());
+        }
+        state.screen = "study-result";
+        render();
+        return;
+      }
+
+      case "study-restart": {
+        if (!state.study) return;
+        const restartHeroId = state.study.heroId;
+        state.study = {
+          heroId: restartHeroId,
+          questionOrder: shuffleIndices(20),
+          currentIndex: 0,
+          answers: [],
+          lastChoice: null,
+          justMastered: false
+        };
+        state.screen = "study";
+        render();
+        return;
+      }
+
+      case "study-another":
+        state.study = null;
+        state.mode = "study";
+        state.screen = "charselect";
+        render();
+        return;
     }
   }
 
@@ -188,6 +265,20 @@ var Main = (function () {
 
   function pickHero(heroId) {
     state.picks[state.selecting] = heroId;
+
+    if (state.mode === "study") {
+      state.study = {
+        heroId,
+        questionOrder: shuffleIndices(20),
+        currentIndex: 0,
+        answers: [],
+        lastChoice: null,
+        justMastered: false
+      };
+      state.screen = "study";
+      render();
+      return;
+    }
 
     if (state.mode === "arcade") {
       state.arcade = {
@@ -387,6 +478,7 @@ var Main = (function () {
     state.overlay = null;
     state.match = null;
     state.arcade = null;
+    state.study = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;
     state.screen = "title";

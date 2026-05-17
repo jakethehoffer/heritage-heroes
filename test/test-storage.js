@@ -93,3 +93,48 @@ test("unlockSpecial sets the right key and leaves others false", () => {
     assert.strictEqual(data.specialsUnlocked[id], false, `${id} should still be false`);
   }
 });
+
+test("mastered defaults to all false", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  for (const id of heroIds) {
+    assert.strictEqual(data.mastered[id], false, `${id} mastered should default to false`);
+  }
+});
+
+test("mastered round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.mastered.moses = true;
+  data.mastered.golda = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.mastered.moses, true);
+  assert.strictEqual(reloaded.mastered.golda, true);
+  assert.strictEqual(reloaded.mastered.david, false);
+  assert.strictEqual(reloaded.mastered.einstein, false);
+});
+
+test("markMastered flips only the targeted hero", () => {
+  const s = fakeStore();
+  Storage.markMastered(s, "david");
+  const data = Storage.load(s);
+  assert.strictEqual(data.mastered.david, true);
+  for (const id of ["moses", "esther", "judah", "rambam", "golda", "einstein"]) {
+    assert.strictEqual(data.mastered[id], false, `${id} should still be false`);
+  }
+});
+
+test("totalMastered returns 0 when none are mastered", () => {
+  const s = fakeStore();
+  assert.strictEqual(Storage.totalMastered(s), 0);
+});
+
+test("totalMastered returns correct count after marking several heroes", () => {
+  const s = fakeStore();
+  Storage.markMastered(s, "moses");
+  Storage.markMastered(s, "esther");
+  Storage.markMastered(s, "rambam");
+  assert.strictEqual(Storage.totalMastered(s), 3);
+});
