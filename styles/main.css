@@ -552,3 +552,314 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   75%  { opacity: 1; transform: scale(1.08); }
   100% { opacity: 0; transform: scale(0.9); }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   PER-HERO ATTACK FX KEYFRAMES
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── MOSES — Staff Strike ───────────────────────────────────── */
+/* Staff swings in downward arc from attacker left side */
+@keyframes moses-staff-swing-left {
+  0%   { opacity: 0; transform: rotate(-60deg) translateX(-20px); }
+  15%  { opacity: 1; transform: rotate(-50deg) translateX(0); }
+  60%  { opacity: 1; transform: rotate(40deg) translateX(30px); }
+  80%  { opacity: 0.7; transform: rotate(50deg) translateX(35px); }
+  100% { opacity: 0; transform: rotate(55deg) translateX(38px); }
+}
+/* Staff swings from attacker right side */
+@keyframes moses-staff-swing-right {
+  0%   { opacity: 0; transform: rotate(60deg) translateX(20px); }
+  15%  { opacity: 1; transform: rotate(50deg) translateX(0); }
+  60%  { opacity: 1; transform: rotate(-40deg) translateX(-30px); }
+  80%  { opacity: 0.7; transform: rotate(-50deg) translateX(-35px); }
+  100% { opacity: 0; transform: rotate(-55deg) translateX(-38px); }
+}
+/* Impact starburst at target */
+@keyframes moses-staff-impact {
+  0%   { opacity: 0; transform: scale(0.3); }
+  30%  { opacity: 1; transform: scale(1.2); }
+  60%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.85); }
+}
+
+/* ── DAVID — Shepherd's Sling (basic attack) ────────────────── */
+/* Quick twirl wind-up */
+@keyframes attack-david-twirl {
+  0%   { opacity: 1; transform: rotate(0deg); }
+  70%  { opacity: 1; transform: rotate(540deg); }
+  100% { opacity: 0; transform: rotate(620deg); }
+}
+/* Stone flies left→right (David is left attacker) */
+@keyframes attack-david-stone-left {
+  0%   { opacity: 1; transform: translateX(0) translateY(0); }
+  55%  { opacity: 1; transform: translateX(360px) translateY(12px); }
+  80%  { opacity: 0.5; transform: translateX(420px) translateY(16px); }
+  100% { opacity: 0; transform: translateX(440px) translateY(18px); }
+}
+/* Stone flies right→left */
+@keyframes attack-david-stone-right {
+  0%   { opacity: 1; transform: translateX(0) translateY(0); }
+  55%  { opacity: 1; transform: translateX(-360px) translateY(12px); }
+  80%  { opacity: 0.5; transform: translateX(-420px) translateY(16px); }
+  100% { opacity: 0; transform: translateX(-440px) translateY(18px); }
+}
+/* Small impact puff */
+@keyframes attack-david-impact {
+  0%   { opacity: 0; transform: scale(0.3); }
+  30%  { opacity: 1; transform: scale(1.15); }
+  65%  { opacity: 0.85; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+/* ── ESTHER — Royal Decree ──────────────────────────────────── */
+/* Scroll unfurls */
+@keyframes esther-decree-scroll {
+  0%   { opacity: 0; transform: scaleY(0.1); }
+  25%  { opacity: 1; transform: scaleY(1.05); }
+  40%  { opacity: 1; transform: scaleY(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: scaleY(0.9) translateY(-6px); }
+}
+/* Gold shockwave ring expands left→right */
+@keyframes esther-decree-wave-left {
+  0%   { opacity: 0; transform: scaleX(0.1) translateX(0); }
+  20%  { opacity: 1; transform: scaleX(0.4) translateX(0); }
+  70%  { opacity: 0.85; transform: scaleX(1) translateX(0); }
+  100% { opacity: 0; transform: scaleX(1.1) translateX(0); }
+}
+/* Shockwave right→left */
+@keyframes esther-decree-wave-right {
+  0%   { opacity: 0; transform: scaleX(0.1) translateX(0); }
+  20%  { opacity: 1; transform: scaleX(0.4) translateX(0); }
+  70%  { opacity: 0.85; transform: scaleX(1) translateX(0); }
+  100% { opacity: 0; transform: scaleX(1.1) translateX(0); }
+}
+/* Gold flash at target */
+@keyframes esther-decree-flash {
+  0%   { opacity: 0; transform: scale(0.5); }
+  35%  { opacity: 1; transform: scale(1.1); }
+  65%  { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+/* ── JUDAH — Spear Thrust ───────────────────────────────────── */
+/* Spear thrusts forward then retracts (left attacker) */
+@keyframes judah-spear-thrust-left {
+  0%   { opacity: 0; transform: translateX(-60px); }
+  12%  { opacity: 1; transform: translateX(-20px); }
+  50%  { opacity: 1; transform: translateX(140px); }   /* thrust forward */
+  72%  { opacity: 1; transform: translateX(60px); }    /* retract */
+  90%  { opacity: 0.5; transform: translateX(-10px); }
+  100% { opacity: 0; transform: translateX(-60px); }
+}
+/* Spear thrust from right side */
+@keyframes judah-spear-thrust-right {
+  0%   { opacity: 0; transform: translateX(60px); }
+  12%  { opacity: 1; transform: translateX(20px); }
+  50%  { opacity: 1; transform: translateX(-140px); }
+  72%  { opacity: 1; transform: translateX(-60px); }
+  90%  { opacity: 0.5; transform: translateX(10px); }
+  100% { opacity: 0; transform: translateX(60px); }
+}
+/* Spark burst at impact point */
+@keyframes judah-spear-sparks {
+  0%   { opacity: 0; transform: scale(0.4); }
+  25%  { opacity: 1; transform: scale(1.2); }
+  60%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+/* ── RAMBAM — Wisdom Bolt ───────────────────────────────────── */
+/* Gold glyph appears center */
+@keyframes rambam-glyph {
+  0%   { opacity: 0; transform: scale(0.4); }
+  30%  { opacity: 1; transform: scale(1.08); }
+  55%  { opacity: 1; transform: scale(1); }
+  80%  { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+/* Gold bolt flies left→right */
+@keyframes rambam-bolt-left {
+  0%   { opacity: 0; transform: scaleX(0.1) translateX(-40px); }
+  20%  { opacity: 1; transform: scaleX(0.5) translateX(0); }
+  70%  { opacity: 1; transform: scaleX(1) translateX(200px); }
+  100% { opacity: 0; transform: scaleX(1.1) translateX(240px); }
+}
+/* Gold bolt flies right→left */
+@keyframes rambam-bolt-right {
+  0%   { opacity: 0; transform: scaleX(0.1) translateX(40px); }
+  20%  { opacity: 1; transform: scaleX(0.5) translateX(0); }
+  70%  { opacity: 1; transform: scaleX(1) translateX(-200px); }
+  100% { opacity: 0; transform: scaleX(1.1) translateX(-240px); }
+}
+/* Gold ripple rings at impact */
+@keyframes rambam-ripple {
+  0%   { opacity: 0; transform: scale(0.3); }
+  30%  { opacity: 1; transform: scale(1.15); }
+  60%  { opacity: 0.85; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* ── GOLDA — Iron Word ──────────────────────────────────────── */
+/* "WORD!" slams left→right */
+@keyframes golda-word-slam-left {
+  0%   { opacity: 0; transform: translateX(-30px) scale(0.6); }
+  18%  { opacity: 1; transform: translateX(0) scale(1.1); }
+  40%  { opacity: 1; transform: translateX(20px) scale(1); }
+  72%  { opacity: 1; transform: translateX(340px) scale(1); }
+  85%  { opacity: 0.5; transform: translateX(380px) scale(0.9); }
+  100% { opacity: 0; transform: translateX(410px) scale(0.8); }
+}
+/* "WORD!" slams right→left */
+@keyframes golda-word-slam-right {
+  0%   { opacity: 0; transform: translateX(30px) scale(0.6); }
+  18%  { opacity: 1; transform: translateX(0) scale(1.1); }
+  40%  { opacity: 1; transform: translateX(-20px) scale(1); }
+  72%  { opacity: 1; transform: translateX(-340px) scale(1); }
+  85%  { opacity: 0.5; transform: translateX(-380px) scale(0.9); }
+  100% { opacity: 0; transform: translateX(-410px) scale(0.8); }
+}
+/* Gray shockwave ring expands */
+@keyframes golda-shockwave {
+  0%   { opacity: 0; transform: scale(0.3); }
+  30%  { opacity: 1; transform: scale(1.15); }
+  60%  { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* ── EINSTEIN — Equation Spark ──────────────────────────────── */
+/* Lightning bolt zigzag appears and fades */
+@keyframes einstein-spark-bolt {
+  0%   { opacity: 0; transform: scaleX(0); }
+  18%  { opacity: 1; transform: scaleX(0.35); }
+  55%  { opacity: 1; transform: scaleX(1); }
+  80%  { opacity: 0.6; transform: scaleX(1); }
+  100% { opacity: 0; }
+}
+/* Trailing delta symbol */
+@keyframes einstein-spark-delta {
+  0%   { opacity: 0; transform: scale(0.5) translateY(6px); }
+  25%  { opacity: 1; transform: scale(1.1) translateY(0); }
+  55%  { opacity: 1; transform: scale(1); }
+  80%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+/* Blue-white flash at impact */
+@keyframes einstein-spark-impact {
+  0%   { opacity: 0; transform: scale(0.4); }
+  35%  { opacity: 1; transform: scale(1.2); }
+  65%  { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PER-HERO DEFEND FX KEYFRAMES
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── MOSES — Pillar of Cloud ────────────────────────────────── */
+@keyframes moses-cloud {
+  0%   { opacity: 0; transform: scale(0.4) translateY(20px); }
+  22%  { opacity: 1; transform: scale(1.06) translateY(-4px); }
+  38%  { opacity: 1; transform: scale(1) translateY(0); }
+  /* gentle drift */
+  55%  { transform: scale(1.02) translateX(3px) translateY(-2px); }
+  70%  { opacity: 1; transform: scale(1) translateX(0) translateY(0); }
+  85%  { opacity: 0.8; }
+  100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+}
+
+/* ── DAVID — Lion's Cloak ───────────────────────────────────── */
+/* Wraps in from attacker left side */
+@keyframes david-cloak-wrap-left {
+  0%   { opacity: 0; transform: scaleX(0.05); }
+  25%  { opacity: 1; transform: scaleX(1.06); }
+  40%  { opacity: 1; transform: scaleX(1); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: scaleX(0.9) translateX(-10px); }
+}
+/* Wraps in from attacker right side */
+@keyframes david-cloak-wrap-right {
+  0%   { opacity: 0; transform: scaleX(0.05); }
+  25%  { opacity: 1; transform: scaleX(1.06); }
+  40%  { opacity: 1; transform: scaleX(1); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: scaleX(0.9) translateX(10px); }
+}
+
+/* ── ESTHER — Court Veil ────────────────────────────────────── */
+/* Veil drops from above */
+@keyframes esther-veil-drop {
+  0%   { opacity: 0; transform: scaleY(0.05) translateY(-40px); }
+  22%  { opacity: 0.9; transform: scaleY(1.04) translateY(0); }
+  38%  { opacity: 1; transform: scaleY(1) translateY(0); }
+  /* gentle sway */
+  52%  { transform: scaleY(1) translateX(4px) rotate(0.5deg); }
+  66%  { transform: scaleY(1) translateX(-3px) rotate(-0.3deg); }
+  80%  { opacity: 1; transform: scaleY(1) translateX(0); }
+  100% { opacity: 0; transform: scaleY(0.9) translateY(10px); }
+}
+
+/* ── JUDAH — Phalanx Shield ─────────────────────────────────── */
+/* Shield materializes with a bracing oscillation */
+@keyframes judah-phalanx {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-5deg); }
+  20%  { opacity: 1; transform: scale(1.08) rotate(0deg); }
+  32%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  /* bracing oscillation */
+  46%  { transform: scale(1.02) rotate(2deg); }
+  60%  { transform: scale(1) rotate(-1deg); }
+  72%  { transform: scale(1.01) rotate(1deg); }
+  84%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: scale(0.9) rotate(-3deg); }
+}
+
+/* ── RAMBAM — Philosophical Calm ───────────────────────────── */
+/* Ripple aura expands outward */
+@keyframes rambam-calm {
+  0%   { opacity: 0; transform: scale(0.4); }
+  22%  { opacity: 1; transform: scale(1.06); }
+  38%  { opacity: 1; transform: scale(1); }
+  58%  { opacity: 0.9; transform: scale(1.03); }
+  76%  { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+/* Orbiting Hebrew glyphs pop in and drift */
+@keyframes rambam-glyph-orbit {
+  0%   { opacity: 0; transform: translateX(0) translateY(0) scale(0.5); }
+  20%  { opacity: 1; transform: translateX(4px) translateY(-4px) scale(1.1); }
+  45%  { opacity: 1; transform: translateX(-3px) translateY(2px) scale(1); }
+  70%  { opacity: 0.9; transform: translateX(5px) translateY(-2px) scale(1.05); }
+  88%  { opacity: 0.5; }
+  100% { opacity: 0; transform: translateX(0) translateY(-6px) scale(0.9); }
+}
+
+/* ── GOLDA — Diplomatic Shield ─────────────────────────────── */
+/* Document sheets slide in from left */
+@keyframes golda-doc-slide-left {
+  0%   { opacity: 0; transform: translateX(-80px); }
+  25%  { opacity: 1; transform: translateX(6px); }
+  38%  { opacity: 1; transform: translateX(0); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-20px); }
+}
+/* Document sheets slide in from right */
+@keyframes golda-doc-slide-right {
+  0%   { opacity: 0; transform: translateX(80px); }
+  25%  { opacity: 1; transform: translateX(-6px); }
+  38%  { opacity: 1; transform: translateX(0); }
+  78%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(20px); }
+}
+
+/* ── EINSTEIN — Theory Shield ───────────────────────────────── */
+/* Chalkboard appears with a glow pulse */
+@keyframes einstein-chalkboard {
+  0%   { opacity: 0; transform: scale(0.4) translateY(8px); }
+  22%  { opacity: 1; transform: scale(1.06) translateY(0); }
+  38%  { opacity: 1; transform: scale(1) translateY(0); }
+  /* glow pulse */
+  55%  { filter: brightness(1.4); }
+  65%  { filter: brightness(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.95) translateY(-4px); }
+}

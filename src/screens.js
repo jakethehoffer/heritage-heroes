@@ -256,52 +256,782 @@ var Screens = (function () {
     window.setTimeout(() => { if (el.isConnected) el.remove(); }, 950);
   }
 
-  // Slash flash overlay at the target fighter position — curved sword arc
-  function playAttackFx(targetIdx) {
+  // Per-hero attack FX — dispatches by attacker hero id
+  function playAttackFx(targetIdx, attackerHeroId) {
     if (typeof document === "undefined") return;
     const arena = document.querySelector(".arena");
     if (!arena) return;
     const svgNS = "http://www.w3.org/2000/svg";
-    const xPct = targetIdx === 0 ? 6 : 72;
-    const el = document.createElement("div");
-    el.className = "attack-fx";
-    el.style.left = `${xPct}%`;
-    el.style.top = "10%";
-    el.style.width = "22%";
-    el.style.height = "70%";
-    // Curved sword-arc slash: wide sweeping arc, fades to red at tail
-    el.innerHTML = `<svg viewBox="0 0 80 160" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-      <defs>
-        <linearGradient id="slashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95"/>
-          <stop offset="60%" style="stop-color:#ffffff;stop-opacity:0.8"/>
-          <stop offset="100%" style="stop-color:#cc2200;stop-opacity:0.6"/>
-        </linearGradient>
-      </defs>
-      <!-- main sword arc -->
-      <path d="M10,15 Q55,60 65,145" fill="none" stroke="url(#slashGrad)" stroke-width="9" stroke-linecap="round"/>
-      <!-- secondary arc shimmer -->
-      <path d="M20,10 Q60,55 70,140" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-      <!-- leading edge highlight -->
-      <path d="M5,25 Q45,65 55,155" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
-    </svg>`;
-    arena.appendChild(el);
-    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 360);
+
+    // targetIdx is the defender's player index (0=left, 1=right)
+    // attacker is on the opposite side
+    const targetIsLeft = targetIdx === 0;
+    const attackerIsLeft = !targetIsLeft;
+
+    switch (attackerHeroId) {
+
+      /* ── MOSES — Staff Strike ───────────────────────────────────
+         A tall brown staff appears on Moses' side, arcs down across to the
+         target. Ends with an impact starburst on the target.              */
+      case "moses": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Staff on Moses' side
+        const staffLeft = attackerIsLeft ? "4%" : "auto";
+        const staffRight = attackerIsLeft ? "auto" : "4%";
+        const staff = document.createElement("div");
+        staff.setAttribute("aria-hidden", "true");
+        staff.style.cssText = `position:absolute;top:5%;left:${staffLeft};right:${staffRight};width:12%;height:85%;animation:moses-staff-swing-${attackerIsLeft ? "left" : "right"} 700ms ease-in-out forwards;transform-origin:${attackerIsLeft ? "top left" : "top right"};`;
+        staff.innerHTML = `<svg viewBox="0 0 40 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <!-- staff shaft -->
+          <rect x="17" y="0" width="9" height="185" rx="4" fill="#7a4a1a" stroke="#3a2008" stroke-width="2"/>
+          <!-- wood grain -->
+          <line x1="19" y1="20" x2="19" y2="165" stroke="#9a6030" stroke-width="1.5" opacity="0.5"/>
+          <!-- top knob -->
+          <ellipse cx="21" cy="8" rx="10" ry="7" fill="#9a5a20" stroke="#3a2008" stroke-width="2"/>
+        </svg>`;
+        el.appendChild(staff);
+
+        // Impact starburst on target
+        const impX = targetIsLeft ? "4%" : "74%";
+        const imp = document.createElement("div");
+        imp.setAttribute("aria-hidden", "true");
+        imp.style.cssText = `position:absolute;top:15%;left:${impX};width:20%;height:65%;opacity:0;animation:moses-staff-impact 280ms 540ms ease-out forwards;`;
+        imp.innerHTML = `<svg viewBox="0 0 80 160" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <line x1="40" y1="80" x2="40" y2="12" stroke="#7a4a1a" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="40" y1="80" x2="72" y2="40" stroke="#7a4a1a" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+          <line x1="40" y1="80" x2="76" y2="80" stroke="#7a4a1a" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
+          <line x1="40" y1="80" x2="68" y2="120" stroke="#9a6030" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="40" y1="80" x2="40" y2="148" stroke="#9a6030" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="40" y1="80" x2="12" y2="120" stroke="#9a6030" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="40" y1="80" x2="4"  y2="80" stroke="#7a4a1a" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
+          <line x1="40" y1="80" x2="8"  y2="40" stroke="#7a4a1a" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+          <circle cx="40" cy="80" r="14" fill="#c1462d" opacity="0.35"/>
+        </svg>`;
+        el.appendChild(imp);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 850);
+        return;
+      }
+
+      /* ── DAVID — Shepherd's Sling ───────────────────────────────
+         Tiny twirl wind-up (200ms), then a dark stone arcs across in a low
+         trajectory to the target. Smaller/faster than the special.        */
+      case "david": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Wind-up twirl (small sling circle near David's hand)
+        const twX = attackerIsLeft ? "14%" : "auto";
+        const twRight = attackerIsLeft ? "auto" : "14%";
+        const twirl = document.createElement("div");
+        twirl.setAttribute("aria-hidden", "true");
+        twirl.style.cssText = `position:absolute;top:40%;left:${twX};right:${twRight};width:36px;height:36px;animation:attack-david-twirl 200ms linear forwards;`;
+        twirl.innerHTML = `<svg viewBox="0 0 36 36" width="36" height="36" xmlns="${svgNS}">
+          <circle cx="28" cy="18" r="5" fill="#2a1a0a" stroke="#555" stroke-width="1.5"/>
+          <line x1="18" y1="18" x2="28" y2="18" stroke="#6b4c2a" stroke-width="1.5" opacity="0.8"/>
+        </svg>`;
+        el.appendChild(twirl);
+
+        // Stone projectile (smaller than special, appears at 200ms)
+        const stoneLeft = attackerIsLeft ? "17%" : "auto";
+        const stoneRight = attackerIsLeft ? "auto" : "17%";
+        const stone = document.createElement("div");
+        stone.setAttribute("aria-hidden", "true");
+        stone.style.cssText = `
+          position:absolute;top:42%;left:${stoneLeft};right:${stoneRight};
+          width:14px;height:14px;border-radius:50%;
+          background:radial-gradient(circle at 35% 35%,#555,#1a1005);
+          border:1.5px solid #777;
+          opacity:0;animation:attack-david-stone-${attackerIsLeft ? "left" : "right"} 480ms 200ms ease-in forwards;
+        `;
+        el.appendChild(stone);
+
+        // Small impact puff
+        const impX2 = targetIsLeft ? "6%" : "76%";
+        const imp2 = document.createElement("div");
+        imp2.setAttribute("aria-hidden", "true");
+        imp2.style.cssText = `position:absolute;top:28%;left:${impX2};width:16%;height:50%;opacity:0;animation:attack-david-impact 250ms 660ms ease-out forwards;`;
+        imp2.innerHTML = `<svg viewBox="0 0 60 100" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <line x1="30" y1="50" x2="30" y2="10" stroke="#ffcc00" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+          <line x1="30" y1="50" x2="54" y2="22" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+          <line x1="30" y1="50" x2="58" y2="50" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+          <line x1="30" y1="50" x2="50" y2="78" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="30" y1="50" x2="30" y2="90" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="30" y1="50" x2="10" y2="78" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+          <line x1="30" y1="50" x2="2"  y2="50" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+          <line x1="30" y1="50" x2="6"  y2="22" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+          <ellipse cx="30" cy="82" rx="18" ry="7" fill="#b8a070" opacity="0.35"/>
+        </svg>`;
+        el.appendChild(imp2);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 950);
+        return;
+      }
+
+      /* ── ESTHER — Royal Decree ──────────────────────────────────
+         A gold scroll unfurls in front of Esther, then a thick gold
+         shockwave ring expands outward and hits the target.              */
+      case "esther": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Gold scroll on Esther's side
+        const scrLeft = attackerIsLeft ? "3%" : "auto";
+        const scrRight = attackerIsLeft ? "auto" : "3%";
+        const scroll = document.createElement("div");
+        scroll.setAttribute("aria-hidden", "true");
+        scroll.style.cssText = `position:absolute;top:12%;left:${scrLeft};right:${scrRight};width:18%;height:70%;animation:esther-decree-scroll 350ms ease-out forwards;`;
+        scroll.innerHTML = `<svg viewBox="0 0 60 160" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <!-- scroll body -->
+          <rect x="8" y="20" width="44" height="120" rx="5" fill="${colors.cream}" stroke="${colors.gold}" stroke-width="3"/>
+          <!-- top roll -->
+          <ellipse cx="30" cy="20" rx="22" ry="8" fill="#e8d8a0" stroke="${colors.gold}" stroke-width="2.5"/>
+          <!-- bottom roll -->
+          <ellipse cx="30" cy="140" rx="22" ry="8" fill="#e8d8a0" stroke="${colors.gold}" stroke-width="2.5"/>
+          <!-- text lines -->
+          <rect x="14" y="40" width="28" height="3" rx="1" fill="${colors.navy}" opacity="0.6"/>
+          <rect x="14" y="50" width="22" height="3" rx="1" fill="${colors.navy}" opacity="0.5"/>
+          <rect x="14" y="60" width="26" height="3" rx="1" fill="${colors.navy}" opacity="0.5"/>
+          <!-- "!" sigil -->
+          <rect x="27" y="75" width="6" height="24" rx="2" fill="${colors.gold}" stroke="#7a5210" stroke-width="1"/>
+          <circle cx="30" cy="107" r="4" fill="${colors.gold}" stroke="#7a5210" stroke-width="1"/>
+        </svg>`;
+        el.appendChild(scroll);
+
+        // Gold shockwave ring expanding toward target (starts at 350ms)
+        const waveLeft = attackerIsLeft ? "20%" : "auto";
+        const waveRight = attackerIsLeft ? "auto" : "20%";
+        const wave = document.createElement("div");
+        wave.setAttribute("aria-hidden", "true");
+        wave.style.cssText = `position:absolute;top:15%;left:${waveLeft};right:${waveRight};width:60%;height:70%;opacity:0;animation:esther-decree-wave-${attackerIsLeft ? "left" : "right"} 380ms 350ms ease-out forwards;`;
+        wave.innerHTML = `<svg viewBox="0 0 300 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <ellipse cx="150" cy="100" rx="140" ry="88" fill="none" stroke="${colors.gold}" stroke-width="10" opacity="0.85"/>
+          <ellipse cx="150" cy="100" rx="120" ry="72" fill="none" stroke="#ffe080" stroke-width="5" opacity="0.6"/>
+        </svg>`;
+        el.appendChild(wave);
+
+        // Gold flash on target (at 700ms)
+        const flashX = targetIsLeft ? "2%" : "74%";
+        const flash = document.createElement("div");
+        flash.setAttribute("aria-hidden", "true");
+        flash.style.cssText = `position:absolute;top:5%;left:${flashX};width:22%;height:88%;opacity:0;animation:esther-decree-flash 250ms 700ms ease-out forwards;`;
+        flash.innerHTML = `<svg viewBox="0 0 80 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <radialGradient id="edfG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#ffe060;stop-opacity:0.9"/>
+              <stop offset="60%" style="stop-color:${colors.gold};stop-opacity:0.5"/>
+              <stop offset="100%" style="stop-color:${colors.gold};stop-opacity:0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="40" cy="100" rx="38" ry="95" fill="url(#edfG)"/>
+        </svg>`;
+        el.appendChild(flash);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1000);
+        return;
+      }
+
+      /* ── JUDAH — Spear Thrust ───────────────────────────────────
+         A metal-tipped wooden spear thrusts rapidly from Judah toward the
+         target (~250ms), then retracts (~200ms). Impact sparks.          */
+      case "judah": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Spear shaft + tip
+        const spearLeft = attackerIsLeft ? "0%" : "auto";
+        const spearRight = attackerIsLeft ? "auto" : "0%";
+        const spear = document.createElement("div");
+        spear.setAttribute("aria-hidden", "true");
+        spear.style.cssText = `position:absolute;top:30%;left:${spearLeft};right:${spearRight};width:70%;height:30%;animation:judah-spear-thrust-${attackerIsLeft ? "left" : "right"} 450ms ease-in-out forwards;transform-origin:${attackerIsLeft ? "left" : "right"} center;`;
+        spear.innerHTML = `<svg viewBox="0 0 300 80" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <!-- shaft -->
+          <rect x="30" y="34" width="240" height="12" rx="5" fill="#8a5a20" stroke="#3a2008" stroke-width="2"/>
+          <!-- tip (point) -->
+          <polygon points="${attackerIsLeft ? "280,28 300,40 280,52" : "20,28 0,40 20,52"}" fill="#c0c0c0" stroke="#666" stroke-width="2"/>
+          <!-- shoulder guard -->
+          <rect x="${attackerIsLeft ? "255" : "15"}" y="26" width="16" height="28" rx="2" fill="#888" stroke="#444" stroke-width="1.5"/>
+          <!-- wood grain -->
+          <line x1="30" y1="39" x2="270" y2="39" stroke="#b07840" stroke-width="1" opacity="0.5"/>
+        </svg>`;
+        el.appendChild(spear);
+
+        // Impact sparks at target (at 250ms)
+        const sparkX = targetIsLeft ? "2%" : "72%";
+        const sparks = document.createElement("div");
+        sparks.setAttribute("aria-hidden", "true");
+        sparks.style.cssText = `position:absolute;top:20%;left:${sparkX};width:22%;height:55%;opacity:0;animation:judah-spear-sparks 300ms 250ms ease-out forwards;`;
+        sparks.innerHTML = `<svg viewBox="0 0 80 120" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <line x1="40" y1="60" x2="40" y2="8"  stroke="#c0c0c0" stroke-width="3" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="68" y2="25" stroke="#c0c0c0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="75" y2="60" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="62" y2="95" stroke="#888" stroke-width="2" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="15" y2="95" stroke="#888" stroke-width="2" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="5"  y2="60" stroke="#c0c0c0" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="40" y1="60" x2="12" y2="25" stroke="#c0c0c0" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="40" cy="60" r="8" fill="#ffee80" opacity="0.5"/>
+        </svg>`;
+        el.appendChild(sparks);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 750);
+        return;
+      }
+
+      /* ── RAMBAM — Wisdom Bolt ───────────────────────────────────
+         A glowing gold shin/glyph (ש) appears between the heroes, then
+         shoots toward the target as a gold bolt. Impact: gold ripple ring.*/
+      case "rambam": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Gold glyph in the center
+        const glyph = document.createElement("div");
+        glyph.setAttribute("aria-hidden", "true");
+        glyph.style.cssText = `position:absolute;top:20%;left:35%;width:30%;height:60%;animation:rambam-glyph 280ms ease-out forwards;`;
+        glyph.innerHTML = `<svg viewBox="0 0 80 120" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <filter id="rwGlow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+          <!-- stylised shin (ש): three vertical strokes with shared base -->
+          <rect x="10" y="20" width="8" height="50" rx="3" fill="${colors.gold}" filter="url(#rwGlow)" opacity="0.95"/>
+          <rect x="36" y="10" width="8" height="60" rx="3" fill="${colors.gold}" filter="url(#rwGlow)" opacity="0.95"/>
+          <rect x="62" y="20" width="8" height="50" rx="3" fill="${colors.gold}" filter="url(#rwGlow)" opacity="0.95"/>
+          <!-- shared base bar -->
+          <rect x="8" y="68" width="64" height="8" rx="3" fill="${colors.gold}" opacity="0.9"/>
+          <!-- glow halo -->
+          <ellipse cx="40" cy="50" rx="36" ry="48" fill="none" stroke="#ffe060" stroke-width="4" opacity="0.5"/>
+        </svg>`;
+        el.appendChild(glyph);
+
+        // Gold bolt projectile (appears at 280ms, flies to target)
+        const boltLeft = attackerIsLeft ? "32%" : "auto";
+        const boltRight = attackerIsLeft ? "auto" : "32%";
+        const bolt = document.createElement("div");
+        bolt.setAttribute("aria-hidden", "true");
+        bolt.style.cssText = `position:absolute;top:30%;left:${boltLeft};right:${boltRight};width:36%;height:40%;opacity:0;animation:rambam-bolt-${attackerIsLeft ? "left" : "right"} 300ms 280ms ease-in forwards;`;
+        bolt.innerHTML = `<svg viewBox="0 0 160 80" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <linearGradient id="rboltG" x1="${attackerIsLeft ? "0%" : "100%"}" y1="0%" x2="${attackerIsLeft ? "100%" : "0%"}" y2="0%">
+              <stop offset="0%" style="stop-color:#ffe060;stop-opacity:1"/>
+              <stop offset="60%" style="stop-color:${colors.gold};stop-opacity:0.9"/>
+              <stop offset="100%" style="stop-color:${colors.gold};stop-opacity:0.2"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="80" cy="40" rx="78" ry="24" fill="url(#rboltG)" opacity="0.9"/>
+          <ellipse cx="80" cy="40" rx="50" ry="12" fill="#ffe880" opacity="0.7"/>
+        </svg>`;
+        el.appendChild(bolt);
+
+        // Gold ripple ring impact at target (at 560ms)
+        const ripX = targetIsLeft ? "1%" : "72%";
+        const rip = document.createElement("div");
+        rip.setAttribute("aria-hidden", "true");
+        rip.style.cssText = `position:absolute;top:10%;left:${ripX};width:25%;height:80%;opacity:0;animation:rambam-ripple 280ms 560ms ease-out forwards;`;
+        rip.innerHTML = `<svg viewBox="0 0 100 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <ellipse cx="50" cy="100" rx="46" ry="92" fill="none" stroke="${colors.gold}" stroke-width="8" opacity="0.85"/>
+          <ellipse cx="50" cy="100" rx="34" ry="68" fill="none" stroke="#ffe060" stroke-width="5" opacity="0.6"/>
+          <ellipse cx="50" cy="100" rx="20" ry="40" fill="none" stroke="#fff8c0" stroke-width="3" opacity="0.4"/>
+        </svg>`;
+        el.appendChild(rip);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 900);
+        return;
+      }
+
+      /* ── GOLDA — Iron Word ──────────────────────────────────────
+         Bold "WORD!" in dark navy slams toward target with a gray kinetic
+         shockwave ring expanding on impact.                               */
+      case "golda": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // "WORD!" text block appears then flies toward target
+        const wordLeft = attackerIsLeft ? "8%" : "auto";
+        const wordRight = attackerIsLeft ? "auto" : "8%";
+        const word = document.createElement("div");
+        word.setAttribute("aria-hidden", "true");
+        word.textContent = "WORD!";
+        word.style.cssText = `
+          position:absolute;top:25%;left:${wordLeft};right:${wordRight};
+          font-family:Georgia,serif;font-size:38px;font-weight:900;letter-spacing:-1px;
+          color:${colors.navy};text-shadow:2px 2px 0 #000,-1px -1px 0 #888,0 0 8px rgba(26,42,79,0.5);
+          white-space:nowrap;opacity:0;
+          animation:golda-word-slam-${attackerIsLeft ? "left" : "right"} 650ms ease-in forwards;
+        `;
+        el.appendChild(word);
+
+        // Gray kinetic shockwave at target (at 580ms)
+        const swX = targetIsLeft ? "1%" : "72%";
+        const sw = document.createElement("div");
+        sw.setAttribute("aria-hidden", "true");
+        sw.style.cssText = `position:absolute;top:8%;left:${swX};width:24%;height:84%;opacity:0;animation:golda-shockwave 250ms 580ms ease-out forwards;`;
+        sw.innerHTML = `<svg viewBox="0 0 90 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <ellipse cx="45" cy="100" rx="42" ry="95" fill="none" stroke="#888" stroke-width="10" opacity="0.75"/>
+          <ellipse cx="45" cy="100" rx="30" ry="68" fill="none" stroke="#bbb" stroke-width="5" opacity="0.5"/>
+        </svg>`;
+        el.appendChild(sw);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 900);
+        return;
+      }
+
+      /* ── EINSTEIN — Equation Spark ──────────────────────────────
+         A jagged blue-white lightning bolt zigzags from Einstein to the
+         target. A small "Δ" trails behind. Shorter/less wide than special.*/
+      case "einstein": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        // Lightning bolt path across the arena
+        const boltFromLeft = attackerIsLeft ? "22%" : "0";
+        const boltFromRight = attackerIsLeft ? "0" : "22%";
+        const bolt = document.createElement("div");
+        bolt.setAttribute("aria-hidden", "true");
+        bolt.style.cssText = `
+          position:absolute;top:28%;
+          left:${attackerIsLeft ? "22%" : "0"};right:${attackerIsLeft ? "0" : "22%"};
+          height:40%;opacity:0;
+          animation:einstein-spark-bolt 550ms ease-out forwards;
+          transform-origin:${attackerIsLeft ? "left" : "right"} center;
+        `;
+        bolt.innerHTML = `<svg viewBox="0 0 500 120" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <linearGradient id="esparkG" x1="${attackerIsLeft ? "0%" : "100%"}" y1="0%" x2="${attackerIsLeft ? "100%" : "0%"}" y2="0%">
+              <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1"/>
+              <stop offset="40%" style="stop-color:#80c8ff;stop-opacity:0.95"/>
+              <stop offset="100%" style="stop-color:#2266cc;stop-opacity:0.3"/>
+            </linearGradient>
+          </defs>
+          <!-- zigzag bolt -->
+          <polyline points="${attackerIsLeft
+            ? "0,60 80,20 140,80 220,10 300,75 380,30 460,65 500,55"
+            : "500,60 420,20 360,80 280,10 200,75 120,30 40,65 0,55"
+          }" fill="none" stroke="url(#esparkG)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+          <!-- bright core -->
+          <polyline points="${attackerIsLeft
+            ? "0,60 80,20 140,80 220,10 300,75 380,30 460,65 500,55"
+            : "500,60 420,20 360,80 280,10 200,75 120,30 40,65 0,55"
+          }" fill="none" stroke="white" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" opacity="0.7"/>
+        </svg>`;
+        el.appendChild(bolt);
+
+        // Trailing "Δ" symbol near the attacker
+        const deltaLeft = attackerIsLeft ? "24%" : "auto";
+        const deltaRight = attackerIsLeft ? "auto" : "24%";
+        const delta = document.createElement("div");
+        delta.setAttribute("aria-hidden", "true");
+        delta.textContent = "Δ";
+        delta.style.cssText = `
+          position:absolute;top:18%;left:${deltaLeft};right:${deltaRight};
+          font-family:Georgia,serif;font-size:28px;font-weight:700;
+          color:#80c8ff;text-shadow:0 0 10px rgba(100,180,255,0.9);
+          opacity:0;animation:einstein-spark-delta 550ms ease-out forwards;
+        `;
+        el.appendChild(delta);
+
+        // Spark flash at target (at 450ms)
+        const sfX = targetIsLeft ? "1%" : "72%";
+        const sparkFlash = document.createElement("div");
+        sparkFlash.setAttribute("aria-hidden", "true");
+        sparkFlash.style.cssText = `position:absolute;top:10%;left:${sfX};width:24%;height:80%;opacity:0;animation:einstein-spark-impact 250ms 450ms ease-out forwards;`;
+        sparkFlash.innerHTML = `<svg viewBox="0 0 90 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <radialGradient id="espkiG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9"/>
+              <stop offset="40%" style="stop-color:#80c8ff;stop-opacity:0.7"/>
+              <stop offset="100%" style="stop-color:#2266cc;stop-opacity:0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="45" cy="100" rx="42" ry="94" fill="url(#espkiG)"/>
+        </svg>`;
+        el.appendChild(sparkFlash);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 750);
+        return;
+      }
+
+      default: {
+        // Generic fallback: original curved white→red arc slash
+        const xPct = targetIdx === 0 ? 6 : 72;
+        const el = document.createElement("div");
+        el.className = "attack-fx";
+        el.style.left = `${xPct}%`;
+        el.style.top = "10%";
+        el.style.width = "22%";
+        el.style.height = "70%";
+        el.innerHTML = `<svg viewBox="0 0 80 160" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <linearGradient id="slashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95"/>
+              <stop offset="60%" style="stop-color:#ffffff;stop-opacity:0.8"/>
+              <stop offset="100%" style="stop-color:#cc2200;stop-opacity:0.6"/>
+            </linearGradient>
+          </defs>
+          <path d="M10,15 Q55,60 65,145" fill="none" stroke="url(#slashGrad)" stroke-width="9" stroke-linecap="round"/>
+          <path d="M20,10 Q60,55 70,140" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+          <path d="M5,25 Q45,65 55,155" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+        </svg>`;
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 360);
+        return;
+      }
+    }
   }
 
-  // Shield bubble overlay on the defending fighter — larger, more visible force-field
-  function playDefendFx(playerIdx) {
+  // Per-hero defend FX — dispatches by defender hero id
+  function playDefendFx(playerIdx, defenderHeroId) {
     if (typeof document === "undefined") return;
     const arena = document.querySelector(".arena");
     if (!arena) return;
-    const xPct = playerIdx === 0 ? 15 : 85;
-    const el = document.createElement("div");
-    el.className = "defend-shield";
-    // top ~55% = center-mass of the fighter
-    el.style.left = `${xPct}%`;
-    el.style.top = "55%";
-    arena.appendChild(el);
-    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1350);
+    const svgNS = "http://www.w3.org/2000/svg";
+    const isLeft = playerIdx === 0;
+
+    switch (defenderHeroId) {
+
+      /* ── MOSES — Pillar of Cloud ────────────────────────────────
+         3–5 overlapping white ellipses puff in around Moses, grow then
+         settle with a subtle drift. Soft outline.                         */
+      case "moses": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const cLeft = isLeft ? "0%" : "auto";
+        const cRight = isLeft ? "auto" : "0%";
+        const cloud = document.createElement("div");
+        cloud.setAttribute("aria-hidden", "true");
+        cloud.style.cssText = `position:absolute;top:2%;left:${cLeft};right:${cRight};width:30%;height:90%;animation:moses-cloud 1200ms ease-out forwards;`;
+        cloud.innerHTML = `<svg viewBox="0 0 110 280" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <!-- overlapping cloud puffs -->
+          <ellipse cx="55" cy="140" rx="50" ry="70" fill="white" stroke="#ddd" stroke-width="2" opacity="0.88"/>
+          <ellipse cx="30" cy="100" rx="38" ry="55" fill="white" stroke="#ddd" stroke-width="2" opacity="0.82"/>
+          <ellipse cx="80" cy="100" rx="36" ry="52" fill="white" stroke="#ddd" stroke-width="2" opacity="0.82"/>
+          <ellipse cx="55" cy="65"  rx="30" ry="42" fill="white" stroke="#ddd" stroke-width="2" opacity="0.78"/>
+          <ellipse cx="30" cy="170" rx="28" ry="40" fill="white" stroke="#ddd" stroke-width="1.5" opacity="0.7"/>
+          <ellipse cx="80" cy="170" rx="26" ry="38" fill="white" stroke="#ddd" stroke-width="1.5" opacity="0.7"/>
+          <!-- soft inner glow -->
+          <ellipse cx="55" cy="120" rx="36" ry="52" fill="white" opacity="0.3"/>
+        </svg>`;
+        el.appendChild(cloud);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── DAVID — Lion's Cloak ───────────────────────────────────
+         A tawny-gold cloak/fur wraps in from one side (~300ms wrap) then
+         settles. Triangular fur tufts along the bottom.                   */
+      case "david": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const clkLeft = isLeft ? "0%" : "auto";
+        const clkRight = isLeft ? "auto" : "0%";
+        const cloak = document.createElement("div");
+        cloak.setAttribute("aria-hidden", "true");
+        cloak.style.cssText = `position:absolute;top:5%;left:${clkLeft};right:${clkRight};width:28%;height:88%;animation:david-cloak-wrap-${isLeft ? "left" : "right"} 1200ms ease-out forwards;transform-origin:${isLeft ? "right" : "left"} center;`;
+        cloak.innerHTML = `<svg viewBox="0 0 100 260" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <linearGradient id="dcG" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#c8922a;stop-opacity:0.9"/>
+              <stop offset="60%" style="stop-color:#a07010;stop-opacity:0.85"/>
+              <stop offset="100%" style="stop-color:#785008;stop-opacity:0.7"/>
+            </linearGradient>
+          </defs>
+          <!-- main cloak body -->
+          <path d="M20,0 L80,0 Q90,60 85,140 Q80,200 70,240 L50,255 L30,240 Q20,200 15,140 Q10,60 20,0Z" fill="url(#dcG)" stroke="#5a3a05" stroke-width="2.5"/>
+          <!-- shoulder drape left -->
+          <path d="M20,0 Q5,20 8,60 Q12,80 20,80 Q14,50 20,0Z" fill="#c8922a" stroke="#5a3a05" stroke-width="2"/>
+          <!-- shoulder drape right -->
+          <path d="M80,0 Q95,20 92,60 Q88,80 80,80 Q86,50 80,0Z" fill="#c8922a" stroke="#5a3a05" stroke-width="2"/>
+          <!-- fur tufts at bottom -->
+          <polygon points="30,238 38,258 46,238" fill="#d4a020" stroke="#7a5210" stroke-width="1.5"/>
+          <polygon points="44,242 52,260 60,242" fill="#c8922a" stroke="#7a5210" stroke-width="1.5"/>
+          <polygon points="54,238 62,258 70,238" fill="#d4a020" stroke="#7a5210" stroke-width="1.5"/>
+          <!-- mane texture lines -->
+          <path d="M38,20 Q35,60 36,100" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.4"/>
+          <path d="M50,15 Q48,55 49,100" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.4"/>
+          <path d="M62,20 Q65,60 63,100" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.4"/>
+        </svg>`;
+        el.appendChild(cloak);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── ESTHER — Court Veil ────────────────────────────────────
+         A translucent gold veil drops from above. Decorative jewel dots
+         along the bottom. Sways gently.                                   */
+      case "esther": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const vLeft = isLeft ? "0%" : "auto";
+        const vRight = isLeft ? "auto" : "0%";
+        const veil = document.createElement("div");
+        veil.setAttribute("aria-hidden", "true");
+        veil.style.cssText = `position:absolute;top:0;left:${vLeft};right:${vRight};width:28%;height:95%;animation:esther-veil-drop 1200ms ease-out forwards;transform-origin:top center;`;
+        veil.innerHTML = `<svg viewBox="0 0 100 300" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <linearGradient id="evG" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:${colors.gold};stop-opacity:0.5"/>
+              <stop offset="70%" style="stop-color:#ffe090;stop-opacity:0.4"/>
+              <stop offset="100%" style="stop-color:${colors.gold};stop-opacity:0.25"/>
+            </linearGradient>
+          </defs>
+          <!-- veil body -->
+          <rect x="5" y="0" width="90" height="280" fill="url(#evG)" rx="4"/>
+          <!-- vertical decorative stripes -->
+          <line x1="30" y1="0" x2="30" y2="280" stroke="${colors.gold}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+          <line x1="50" y1="0" x2="50" y2="280" stroke="${colors.gold}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+          <line x1="70" y1="0" x2="70" y2="280" stroke="${colors.gold}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+          <!-- bottom jewel dots -->
+          <circle cx="15"  cy="272" r="4" fill="${colors.gold}" opacity="0.85"/>
+          <circle cx="28"  cy="278" r="3.5" fill="#ffe080" opacity="0.85"/>
+          <circle cx="41"  cy="272" r="4" fill="${colors.gold}" opacity="0.85"/>
+          <circle cx="54"  cy="278" r="3.5" fill="#ffe080" opacity="0.85"/>
+          <circle cx="67"  cy="272" r="4" fill="${colors.gold}" opacity="0.85"/>
+          <circle cx="80"  cy="278" r="3.5" fill="#ffe080" opacity="0.85"/>
+          <circle cx="90"  cy="272" r="4" fill="${colors.gold}" opacity="0.85"/>
+          <!-- border -->
+          <rect x="5" y="0" width="90" height="280" fill="none" stroke="${colors.gold}" stroke-width="2.5" rx="4" opacity="0.7"/>
+        </svg>`;
+        el.appendChild(veil);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── JUDAH — Phalanx Shield ─────────────────────────────────
+         A solid round bronze shield with a gold menorah etched in the
+         center materializes in front of Judah. Slight oscillation.        */
+      case "judah": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const shLeft = isLeft ? "8%" : "auto";
+        const shRight = isLeft ? "auto" : "8%";
+        const shield = document.createElement("div");
+        shield.setAttribute("aria-hidden", "true");
+        shield.style.cssText = `position:absolute;top:10%;left:${shLeft};right:${shRight};width:22%;height:78%;animation:judah-phalanx 1200ms ease-out forwards;`;
+        shield.innerHTML = `<svg viewBox="0 0 100 220" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <radialGradient id="jpshG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#c8922a;stop-opacity:1"/>
+              <stop offset="55%" style="stop-color:#9a6810;stop-opacity:1"/>
+              <stop offset="100%" style="stop-color:#7a4808;stop-opacity:1"/>
+            </radialGradient>
+          </defs>
+          <!-- shield body (rounded rect / oval) -->
+          <ellipse cx="50" cy="110" rx="46" ry="104" fill="url(#jpshG)" stroke="#5a3a05" stroke-width="4"/>
+          <!-- outer rim -->
+          <ellipse cx="50" cy="110" rx="46" ry="104" fill="none" stroke="${colors.gold}" stroke-width="5" opacity="0.9"/>
+          <ellipse cx="50" cy="110" rx="38" ry="92" fill="none" stroke="#9a6810" stroke-width="2" opacity="0.6"/>
+          <!-- menorah (simplified chanukiah) -->
+          <!-- central stem -->
+          <rect x="48" y="70" width="4" height="70" fill="${colors.gold}" stroke="#5a3a05" stroke-width="1"/>
+          <!-- arms left/right pairs -->
+          <line x1="50" y1="120" x2="24" y2="120" stroke="${colors.gold}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="24" y1="120" x2="24" y2="90"  stroke="${colors.gold}" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="115" x2="34" y2="115" stroke="${colors.gold}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="34" y1="115" x2="34" y2="88"  stroke="${colors.gold}" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="120" x2="76" y2="120" stroke="${colors.gold}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="76" y1="120" x2="76" y2="90"  stroke="${colors.gold}" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="115" x2="66" y2="115" stroke="${colors.gold}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="66" y1="115" x2="66" y2="88"  stroke="${colors.gold}" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- base -->
+          <rect x="36" y="136" width="28" height="6" rx="2" fill="${colors.gold}" stroke="#5a3a05" stroke-width="1"/>
+          <!-- shamash (center tall) flame -->
+          <path d="M50,70 Q47,64 48,57 Q50,61 50,55 Q52,61 52,57 Q53,64 50,70Z" fill="#ff9900" opacity="0.9"/>
+        </svg>`;
+        el.appendChild(shield);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── RAMBAM — Philosophical Calm ────────────────────────────
+         Soft cyan-blue aura (concentric ripple circles) emanates from
+         Rambam, with 2–3 floating Hebrew-letter glyphs orbiting slowly.  */
+      case "rambam": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const aLeft = isLeft ? "0%" : "auto";
+        const aRight = isLeft ? "auto" : "0%";
+        const aura = document.createElement("div");
+        aura.setAttribute("aria-hidden", "true");
+        aura.style.cssText = `position:absolute;top:0%;left:${aLeft};right:${aRight};width:30%;height:100%;animation:rambam-calm 1200ms ease-out forwards;`;
+        aura.innerHTML = `<svg viewBox="0 0 110 300" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <radialGradient id="rcalmG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#40c0d0;stop-opacity:0.0"/>
+              <stop offset="50%" style="stop-color:#40c0d0;stop-opacity:0.18"/>
+              <stop offset="100%" style="stop-color:#40c0d0;stop-opacity:0.0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="55" cy="150" rx="52" ry="145" fill="url(#rcalmG)"/>
+          <!-- ripple rings -->
+          <ellipse cx="55" cy="150" rx="50" ry="140" fill="none" stroke="#40c0d0" stroke-width="4" opacity="0.7"/>
+          <ellipse cx="55" cy="150" rx="38" ry="108" fill="none" stroke="#60d8e8" stroke-width="3" opacity="0.55"/>
+          <ellipse cx="55" cy="150" rx="26" ry="74"  fill="none" stroke="#80e8f8" stroke-width="2.5" opacity="0.45"/>
+        </svg>`;
+        el.appendChild(aura);
+
+        // Orbiting Hebrew-ish glyphs (3 letters at different heights)
+        const letters = ["מ", "ח", "ש"];
+        const offsets = ["8%", "42%", "74%"];
+        const glyphLeftBase = isLeft ? 2 : "auto";
+        const glyphRightBase = isLeft ? "auto" : 2;
+        letters.forEach((letter, i) => {
+          const g = document.createElement("div");
+          g.setAttribute("aria-hidden", "true");
+          g.textContent = letter;
+          g.style.cssText = `
+            position:absolute;
+            top:${offsets[i]};
+            left:${isLeft ? `${4 + i * 6}%` : "auto"};
+            right:${isLeft ? "auto" : `${4 + i * 6}%`};
+            font-family:serif;font-size:22px;font-weight:700;
+            color:#40c0d0;text-shadow:0 0 8px rgba(64,192,208,0.8);
+            opacity:0;
+            animation:rambam-glyph-orbit 1200ms ${i * 120}ms ease-out forwards;
+          `;
+          el.appendChild(g);
+        });
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── GOLDA — Diplomatic Shield ──────────────────────────────
+         2–3 cream document sheets with ink lines + red stamp circle slide
+         in from the side and form a barrier in front of Golda.            */
+      case "golda": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const docData = [
+          { left: isLeft ? "2%"  : "auto", right: isLeft ? "auto" : "2%",  top: "8%",  width: "18%", height: "68%", delay: 0,   rot: isLeft ? -5 : 5  },
+          { left: isLeft ? "8%"  : "auto", right: isLeft ? "auto" : "8%",  top: "12%", width: "18%", height: "65%", delay: 100, rot: 0                },
+          { left: isLeft ? "14%" : "auto", right: isLeft ? "auto" : "14%", top: "8%",  width: "18%", height: "68%", delay: 200, rot: isLeft ? 4 : -4  },
+        ];
+
+        docData.forEach((d, i) => {
+          const doc = document.createElement("div");
+          doc.setAttribute("aria-hidden", "true");
+          doc.style.cssText = `
+            position:absolute;top:${d.top};left:${d.left};right:${d.right};
+            width:${d.width};height:${d.height};
+            opacity:0;transform:rotate(${d.rot}deg);
+            animation:golda-doc-slide-${isLeft ? "left" : "right"} 1200ms ${d.delay}ms ease-out forwards;
+          `;
+          doc.innerHTML = `<svg viewBox="0 0 60 160" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+            <!-- paper body -->
+            <rect x="2" y="2" width="56" height="156" rx="3" fill="#f5f0e0" stroke="#c8b870" stroke-width="2"/>
+            <!-- ink text lines -->
+            <rect x="8"  y="18" width="34" height="3" rx="1" fill="#333" opacity="0.55"/>
+            <rect x="8"  y="27" width="28" height="3" rx="1" fill="#333" opacity="0.45"/>
+            <rect x="8"  y="36" width="32" height="3" rx="1" fill="#333" opacity="0.5"/>
+            <rect x="8"  y="45" width="26" height="3" rx="1" fill="#333" opacity="0.45"/>
+            <rect x="8"  y="54" width="30" height="3" rx="1" fill="#333" opacity="0.45"/>
+            <rect x="8"  y="63" width="20" height="3" rx="1" fill="#333" opacity="0.4"/>
+            <rect x="8"  y="72" width="32" height="3" rx="1" fill="#333" opacity="0.45"/>
+            <rect x="8"  y="81" width="28" height="3" rx="1" fill="#333" opacity="0.4"/>
+            <!-- red stamp circle -->
+            <circle cx="38" cy="120" r="14" fill="none" stroke="#cc2200" stroke-width="3" opacity="0.8"/>
+            <circle cx="38" cy="120" r="10" fill="none" stroke="#cc2200" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.6"/>
+            <text x="38" y="124" text-anchor="middle" font-size="8" font-weight="bold" fill="#cc2200" opacity="0.8">OK</text>
+          </svg>`;
+          el.appendChild(doc);
+        });
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      /* ── EINSTEIN — Theory Shield ───────────────────────────────
+         A small dark-green chalkboard rectangle appears in front of
+         Einstein with two lines of equations. Brief glow pulse.           */
+      case "einstein": {
+        const el = document.createElement("div");
+        el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
+
+        const cbLeft = isLeft ? "4%" : "auto";
+        const cbRight = isLeft ? "auto" : "4%";
+        const board = document.createElement("div");
+        board.setAttribute("aria-hidden", "true");
+        board.style.cssText = `position:absolute;top:15%;left:${cbLeft};right:${cbRight};width:24%;height:65%;animation:einstein-chalkboard 1200ms ease-out forwards;`;
+        board.innerHTML = `<svg viewBox="0 0 90 170" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <defs>
+            <filter id="ecbGlow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+          <!-- board body -->
+          <rect x="2" y="2" width="86" height="166" rx="4" fill="#1a4a1a" stroke="#0a2a0a" stroke-width="3"/>
+          <!-- chalk tray -->
+          <rect x="5" y="158" width="80" height="7" rx="2" fill="#3a2a10" stroke="#1a1a0a" stroke-width="1.5"/>
+          <!-- wood frame -->
+          <rect x="2" y="2" width="86" height="166" rx="4" fill="none" stroke="#5a4010" stroke-width="3"/>
+          <!-- equation line 1 (∇·E = ρ/ε₀) -->
+          <text x="8" y="65" font-family="serif" font-size="12" fill="white" opacity="0.9">&#x2207;&#xB7;E = &#x3C1;/&#x3B5;&#x2080;</text>
+          <!-- equation line 2 (F = ma) -->
+          <text x="22" y="100" font-family="serif" font-size="14" fill="white" opacity="0.9">F = ma</text>
+          <!-- glow outline -->
+          <rect x="2" y="2" width="86" height="166" rx="4" fill="none" stroke="#40c040" stroke-width="3" opacity="0.5" filter="url(#ecbGlow)"/>
+        </svg>`;
+        el.appendChild(board);
+
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+        return;
+      }
+
+      default: {
+        // Generic fallback: original blue shield bubble
+        const xPct = playerIdx === 0 ? 15 : 85;
+        const el = document.createElement("div");
+        el.className = "defend-shield";
+        el.style.left = `${xPct}%`;
+        el.style.top = "55%";
+        arena.appendChild(el);
+        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1350);
+        return;
+      }
+    }
   }
 
   // Color tokens for FX (mirrors Render.colors)

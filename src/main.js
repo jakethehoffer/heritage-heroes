@@ -230,7 +230,7 @@ var Main = (function () {
         Screens.showDamageNumber(pIdx, delta, "damage");
         // Play attack slash FX on the hit target for basic attacks
         if (move === "attack") {
-          Screens.playAttackFx(pIdx);
+          Screens.playAttackFx(pIdx, activeHeroId);
         }
       } else if (delta < 0) {
         // This player was healed (negative delta = HP gained)
@@ -239,7 +239,7 @@ var Main = (function () {
     });
 
     if (move === "defend") {
-      Screens.playDefendFx(idx);
+      Screens.playDefendFx(idx, activeHeroId);
     }
 
     if (state.match.winner !== null) {
