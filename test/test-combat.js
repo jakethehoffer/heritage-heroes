@@ -340,3 +340,29 @@ test("arcadeOrder: for david omits david but includes moses", () => {
   assert.ok(order.includes("moses"));
   assert.strictEqual(order.length, 6);
 });
+
+test("burn KO at start of turn prevents move from executing", () => {
+  const s = Combat.createMatch("judah", "moses");
+  // Apply menorah flame, then set Moses to 8 HP so next burn tick KOs him
+  Combat.applyMove(s, "special"); // Moses: 92 HP, burn=3
+  s.players[1].hp = 8;
+  const logBefore = s.log.length;
+  // Moses's turn: burn tick takes him from 8 -> 0, sets winner
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.winner, 0, "Judah wins via burn KO");
+  // Only the burn-damage log entry should be added (not Moses's attack entry)
+  assert.strictEqual(s.log.length, logBefore + 1, "only burn log entry added, no post-KO move logged");
+  assert.strictEqual(s.players[0].hp, s.players[0].maxHp, "Judah unharmed by Moses's dead-man attack");
+});
+
+test("Esther's Reversal blocks Judah's Menorah Flame burn entirely", () => {
+  const s = Combat.createMatch("esther", "judah");
+  Combat.applyMove(s, "special"); // Esther reversal
+  // Judah's Menorah Flame: 8 dmg + burn=3. Reversal should redirect dmg AND skip burn.
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[0].statuses.burn, undefined, "no burn on Esther");
+  // Esther unharmed
+  assert.strictEqual(s.players[0].hp, s.players[0].maxHp);
+  // Judah took bounced damage (8 * 1.5 = 12)
+  assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 12);
+});

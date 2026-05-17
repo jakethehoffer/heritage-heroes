@@ -101,7 +101,7 @@ const Screens = (function () {
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
       : renderMoveButtons(activeHero, active);
 
-    const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")} 's turn`;
+    const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")}'s turn`;
 
     return `
 <section class="screen screen-battle">
@@ -164,7 +164,7 @@ const Screens = (function () {
         return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins this round.</h2>
-  <p class="tagline">Your run ends here. ${Render.escapeHtml(playerHeroId)} fought ${state.arcade.defeated.length} of 6.</p>
+  <p class="tagline">Your run ends here. ${Render.escapeHtml(Heroes.byId(playerHeroId).name)} defeated ${state.arcade.defeated.length} of 6 opponents.</p>
   <div class="result-buttons">
     <button data-action="arcade-retry">Try Again</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>

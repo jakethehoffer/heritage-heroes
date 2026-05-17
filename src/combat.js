@@ -31,6 +31,8 @@ const Combat = (function () {
 
     if (typeof p.statuses.burn === "number" && p.statuses.burn > 0) {
       p.hp = Math.max(0, p.hp - 8);
+      const hero = Heroes.byId(p.heroId);
+      state.log.push(`${hero.name} takes 8 burn damage!`);
       p.statuses.burn -= 1;
       if (p.statuses.burn === 0) delete p.statuses.burn;
       if (p.hp === 0 && state.winner === null) {
@@ -59,8 +61,8 @@ const Combat = (function () {
       return;
     }
     if (heroId === "judah") {
-      dealDamage(state, activeIdx, enemyIdx, 8);
-      enemy.statuses.burn = 3;
+      const wasReversed = dealDamage(state, activeIdx, enemyIdx, 8);
+      if (!wasReversed) enemy.statuses.burn = 3;
       return;
     }
     if (heroId === "rambam") {
@@ -81,6 +83,7 @@ const Combat = (function () {
   function applyMove(state, moveType) {
     if (state.winner !== null) return;
     tickStartOfTurn(state);
+    if (state.winner !== null) return;
 
     const activeIdx = state.activePlayer;
     const enemyIdx = 1 - activeIdx;
@@ -147,7 +150,7 @@ const Combat = (function () {
       if (attacker.hp === 0 && state.winner === null) {
         state.winner = toIdx;
       }
-      return;
+      return true;
     }
 
     // 2. Defend halves
@@ -167,6 +170,7 @@ const Combat = (function () {
       attacker.hp = Math.max(0, attacker.hp - counterDmg);
       if (attacker.hp === 0 && state.winner === null) state.winner = toIdx;
     }
+    return false;
   }
 
   function endTurn(state) {

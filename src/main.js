@@ -204,8 +204,7 @@ const Main = (function () {
     }
     render();
     // Auto-trigger AI on next tick if it's their turn
-    if (state.controllers[state.match.activePlayer] === "ai" ||
-        Combat.isCharging(state.match, state.match.activePlayer)) {
+    if (state.controllers[state.match.activePlayer] === "ai") {
       window.setTimeout(aiStep, 700);
     }
   }
