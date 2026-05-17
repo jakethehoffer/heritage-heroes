@@ -2553,3 +2553,142 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
     font-size: 26px;
   }
 }
+
+/* ── Settings page ─────────────────────────────────────────────────────── */
+.screen-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  margin: 0 auto;
+  gap: 24px;
+  padding: 24px 16px;
+}
+
+.screen-settings h2 {
+  font-size: 32px;
+  color: var(--ink);
+  margin: 0;
+}
+
+.settings-group {
+  width: 100%;
+  background: var(--cream);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--terracotta, #c0440a);
+  text-align: left;
+}
+
+.settings-help {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0.65;
+  line-height: 1.4;
+}
+
+/* Sound toggle button */
+.settings-toggle {
+  align-self: flex-start;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 10px 28px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-toggle.on {
+  background: #4a7c4e;
+  color: #fff;
+  border-color: #2e5c32;
+}
+
+.settings-toggle.off {
+  background: #888;
+  color: #fff;
+  border-color: #666;
+}
+
+/* Animation speed radio group */
+.settings-radio-group {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.settings-radio {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 8px;
+  border: 2px solid var(--gold);
+  background: var(--cream);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-radio.selected {
+  background: var(--terracotta, #c0440a);
+  color: #fff;
+  border-color: var(--terracotta, #c0440a);
+}
+
+/* Danger zone for reset */
+.settings-danger {
+  border-color: #cc2200;
+}
+
+.settings-danger h3 {
+  color: #cc2200;
+}
+
+.settings-reset {
+  align-self: flex-start;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 2px solid #991a00;
+  background: #cc2200;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-reset:hover {
+  background: #991a00;
+}
+
+/* Generic danger button (used in confirm overlay) */
+button.danger {
+  background: #cc2200;
+  color: #fff;
+  border: 2px solid #991a00;
+}
+
+button.danger:hover {
+  background: #991a00;
+}
+
+@media (max-width: 480px) {
+  .settings-radio-group {
+    flex-direction: column;
+  }
+  .settings-radio {
+    width: 100%;
+  }
+}

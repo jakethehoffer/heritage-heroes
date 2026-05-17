@@ -1,7 +1,7 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result
-    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile'
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all'
     profileHeroId: null,
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade' | 'study' | 'endless'
@@ -146,6 +146,7 @@ var Main = (function () {
     else if (state.screen === "hall") body = Screens.renderHall(state);
     else if (state.screen === "endless-continue") body = Screens.renderEndlessContinue(state);
     else if (state.screen === "endless-result")   body = Screens.renderEndlessResult(state);
+    else if (state.screen === "settings")         body = Screens.renderSettings(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -167,6 +168,7 @@ var Main = (function () {
     if (state.overlay === "quit")        overlay = Screens.renderQuitConfirm(state);
     if (state.overlay === "trivia")      overlay = Screens.renderTriviaOverlay(state, state.trivia);
     if (state.overlay === "reset-stats") overlay = Screens.renderResetStatsConfirm();
+    if (state.overlay === "reset-all")   overlay = Screens.renderResetAllConfirm();
     if (state.overlay === "profile")     overlay = Screens.renderProfile(state, state.profileHeroId);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
@@ -273,6 +275,46 @@ var Main = (function () {
         render();
         return;
       }
+
+      case "open-settings":
+        state.screen = "settings";
+        render();
+        return;
+
+      case "set-anim-speed": {
+        const speed = target.dataset.speed;
+        if (speed === "slow" || speed === "normal" || speed === "fast") {
+          state.save.animSpeed = speed;
+          Storage.save(getStore(), state.save);
+        }
+        render();
+        return;
+      }
+
+      case "reset-all-prompt":
+        state.overlay = "reset-all";
+        render();
+        return;
+
+      case "confirm-reset-all": {
+        const store = getStore();
+        if (store) Storage.resetAll(store);
+        state.save = store ? Storage.load(store) : Storage.defaults();
+        // Clear in-memory volatile state
+        state.triviaUsed = { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] };
+        state.currentMatchLowHp = { 0: false, 1: false };
+        state.triviaStreak = 0;
+        state.bossIntroShown = false;
+        state.overlay = null;
+        state.screen = "title";
+        render();
+        return;
+      }
+
+      case "cancel-reset-all":
+        state.overlay = null;
+        render();
+        return;
 
       case "toggle-sound":
         state.save.sound = !state.save.sound;
@@ -775,7 +817,7 @@ var Main = (function () {
     }
 
     if (state.match.winner !== null) {
-      window.setTimeout(onMatchEnd, 1500);
+      window.setTimeout(onMatchEnd, scaledDelay(1500));
       return;
     }
 
@@ -786,7 +828,7 @@ var Main = (function () {
       if (move === "special" || isUnleash) delay = 2200;
       else if (move === "defend") delay = 1500;
       else delay = 1800;
-      window.setTimeout(aiStep, delay);
+      window.setTimeout(aiStep, scaledDelay(delay));
     }
   }
 
@@ -942,6 +984,13 @@ var Main = (function () {
     startNextArcadeMatch();
   }
 
+  function scaledDelay(baseMs) {
+    const speed = state.save && state.save.animSpeed;
+    if (speed === "slow") return Math.round(baseMs * 2.0);
+    if (speed === "fast") return Math.round(baseMs * 0.6);
+    return baseMs; // normal
+  }
+
   // Consume the active player's turn without any combat effect (fumbled trivia).
   // Pushes a log entry, advances the turn, re-renders, and schedules AI if needed.
   function _fumbleTurn(heroId) {
@@ -954,7 +1003,7 @@ var Main = (function () {
     state.match.turnNumber = (state.match.turnNumber || 0) + 1;
     render();
     if (state.controllers[state.match.activePlayer] === "ai") {
-      window.setTimeout(aiStep, 1500);
+      window.setTimeout(aiStep, scaledDelay(1500));
     }
   }
 

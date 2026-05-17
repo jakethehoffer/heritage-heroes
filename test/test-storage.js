@@ -356,3 +356,61 @@ test("endless achievements default to false", () => {
   assert.strictEqual(data.achievements.endlessMarathon, false);
   assert.strictEqual(data.achievements.endlessLegend,   false);
 });
+
+// ── animSpeed ─────────────────────────────────────────────────────────────
+test("animSpeed defaults to 'normal'", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.animSpeed, "normal");
+});
+
+test("animSpeed round-trips a valid value via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.animSpeed = "fast";
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.animSpeed, "fast");
+
+  // Also test 'slow'
+  reloaded.animSpeed = "slow";
+  Storage.save(s, reloaded);
+  const reloaded2 = Storage.load(s);
+  assert.strictEqual(reloaded2.animSpeed, "slow");
+});
+
+test("animSpeed rejects invalid value and falls back to 'normal'", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.animSpeed = "warp9";
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.animSpeed, "normal");
+});
+
+test("Storage.resetAll wipes save back to defaults", () => {
+  const s = fakeStore();
+  // First, accumulate some non-default state
+  const data = Storage.load(s);
+  data.sound = true;
+  data.animSpeed = "fast";
+  data.stats.matchesPlayed = 42;
+  data.achievements.firstWin = true;
+  Storage.save(s, data);
+
+  // Confirm it was saved
+  const before = Storage.load(s);
+  assert.strictEqual(before.sound, true);
+  assert.strictEqual(before.animSpeed, "fast");
+  assert.strictEqual(before.stats.matchesPlayed, 42);
+  assert.strictEqual(before.achievements.firstWin, true);
+
+  // Reset
+  Storage.resetAll(s);
+
+  // Confirm everything is back to defaults
+  const after = Storage.load(s);
+  assert.strictEqual(after.sound, false);
+  assert.strictEqual(after.animSpeed, "normal");
+  assert.strictEqual(after.stats.matchesPlayed, 0);
+  assert.strictEqual(after.achievements.firstWin, false);
+});

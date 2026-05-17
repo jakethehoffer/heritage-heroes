@@ -14,6 +14,7 @@ var Storage = (function () {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       endlessHighScore: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
+      animSpeed: "normal",
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
@@ -65,6 +66,9 @@ var Storage = (function () {
           }
         }
         if (typeof parsed.sound === "boolean") out.sound = parsed.sound;
+        if (parsed.animSpeed === "slow" || parsed.animSpeed === "normal" || parsed.animSpeed === "fast") {
+          out.animSpeed = parsed.animSpeed;
+        }
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;
         if (parsed.specialsUnlocked && typeof parsed.specialsUnlocked === "object") {
@@ -203,8 +207,12 @@ var Storage = (function () {
     return { isNewBest, previousBest };
   }
 
-  return { load, save, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
-           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun };
+  function resetAll(store) {
+    try { store.setItem(KEY, JSON.stringify(defaults())); } catch (_) { /* silent */ }
+  }
+
+  return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
+           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

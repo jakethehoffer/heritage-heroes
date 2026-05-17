@@ -70,7 +70,7 @@ var Screens = (function () {
     <button data-action="open-hall" class="secondary">Hall of Heroes</button>
     <button data-action="view-stats" class="secondary">View Stats</button>
     <button data-action="show-help" class="secondary">How to Play</button>
-    <button data-action="toggle-sound" class="secondary">${state.save && state.save.sound ? "Sound: ON" : "Sound: OFF"}</button>
+    <button data-action="open-settings" class="secondary">Settings</button>
   </div>
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
@@ -2592,6 +2592,58 @@ var Screens = (function () {
 </div>`;
   }
 
+  function renderSettings(state) {
+    const soundOn = state.save && state.save.sound;
+    const animSpeed = (state.save && state.save.animSpeed) || "normal";
+    return `
+<section class="screen screen-settings">
+  <h2>Settings</h2>
+
+  <div class="settings-group">
+    <h3>Sound</h3>
+    <button data-action="toggle-sound" class="settings-toggle ${soundOn ? "on" : "off"}">
+      ${soundOn ? "ON" : "OFF"}
+    </button>
+    <p class="settings-help">Plays sound effects, music, and trivia feedback.</p>
+  </div>
+
+  <div class="settings-group">
+    <h3>Animation Speed</h3>
+    <div class="settings-radio-group">
+      <button data-action="set-anim-speed" data-speed="slow"
+              class="settings-radio ${animSpeed === "slow" ? "selected" : ""}">Slow</button>
+      <button data-action="set-anim-speed" data-speed="normal"
+              class="settings-radio ${animSpeed === "normal" ? "selected" : ""}">Normal</button>
+      <button data-action="set-anim-speed" data-speed="fast"
+              class="settings-radio ${animSpeed === "fast" ? "selected" : ""}">Fast</button>
+    </div>
+    <p class="settings-help">Slow gives more time between AI turns. Fast cuts wait time roughly in half.</p>
+  </div>
+
+  <div class="settings-group settings-danger">
+    <h3>Reset</h3>
+    <button data-action="reset-all-prompt" class="settings-reset">Reset All Progress</button>
+    <p class="settings-help">Wipes every save: stats, achievements, masteries, endless high scores, settings. Cannot be undone.</p>
+  </div>
+
+  <button data-action="goto-title" class="back">&larr; Back</button>
+</section>`;
+  }
+
+  function renderResetAllConfirm() {
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>Reset Everything?</h3>
+    <p>This wipes ALL progress including stats, mastery, achievements, endless high scores, and settings. It cannot be undone.</p>
+    <div class="overlay-buttons">
+      <button data-action="cancel-reset-all" class="secondary">Cancel</button>
+      <button data-action="confirm-reset-all" class="danger">Yes, wipe everything</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
@@ -2599,6 +2651,7 @@ var Screens = (function () {
     renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
     renderBossIntro, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
+    renderSettings, renderResetAllConfirm,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,
