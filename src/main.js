@@ -200,24 +200,30 @@ var Main = (function () {
 
     const lastLog = state.match.log[state.match.log.length - 1] || "";
     const kind = wasSpecialOrCharge ? "special" : move;
+    const isUnleash = wasSpecialOrCharge && lastLog.toLowerCase().includes("unleash");
+    const isChargeTick = wasSpecialOrCharge && !isUnleash && move === "charge";
+
+    // Compute HP deltas BEFORE re-rendering (so we use the pre/post snapshot)
+    const deltas = state.match.players.map((p, i) => hpBefore[i] - p.hp);
+
+    // CRITICAL: render BEFORE applying animations. render() does
+    // root.innerHTML = ... which destroys every existing DOM node, so any
+    // animation class or FX overlay applied before render() gets wiped out
+    // before it can paint. Render first → fresh DOM → then animate.
+    render();
+
+    // Now apply visual feedback to the freshly-rendered DOM.
     Screens.animateAction(idx, kind);
     if (lastLog) Screens.showCallout(lastLog);
     Sfx.play(move === "attack" ? "attack" : move === "defend" ? "defend" : activeHeroId);
 
-    // Determine if this is a charge tick (Einstein winding up) vs unleash
-    const isUnleash = wasSpecialOrCharge && lastLog.toLowerCase().includes("unleash");
-    const isChargeTick = wasSpecialOrCharge && !isUnleash && move === "charge";
-
-    // Play per-special visual FX
     if (move === "special" || isUnleash) {
       Screens.playSpecialFx(idx, activeHeroId);
     } else if (isChargeTick && activeHeroId === "einstein") {
       Screens.playChargeFx(idx);
     }
 
-    // Compute per-player HP deltas and show damage/heal feedback
-    state.match.players.forEach((p, pIdx) => {
-      const delta = hpBefore[pIdx] - p.hp;
+    deltas.forEach((delta, pIdx) => {
       if (delta > 0) {
         // This player took damage
         Screens.flashHit(pIdx);
@@ -232,7 +238,6 @@ var Main = (function () {
       }
     });
 
-    // Show shield bubble on defender
     if (move === "defend") {
       Screens.playDefendFx(idx);
     }
@@ -241,7 +246,7 @@ var Main = (function () {
       window.setTimeout(onMatchEnd, 1500);
       return;
     }
-    render();
+
     // Auto-trigger AI on next tick if it's their turn
     // Delays account for the full animation budget
     if (state.controllers[state.match.activePlayer] === "ai") {
