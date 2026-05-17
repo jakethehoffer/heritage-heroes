@@ -654,3 +654,62 @@ test("music and sfx round-trip independently via save/load", () => {
   assert.strictEqual(reloaded2.music, true,  "music=true should round-trip");
   assert.strictEqual(reloaded2.sfx,   false, "sfx=false should round-trip");
 });
+
+// ── Hero Matchup Tracking ─────────────────────────────────────────────────
+
+test("matchups defaults to empty object", () => {
+  const data = Storage.load(fakeStore());
+  assert.ok(data.matchups !== null && typeof data.matchups === "object" && !Array.isArray(data.matchups),
+    "matchups should be an object");
+  assert.strictEqual(Object.keys(data.matchups).length, 0, "matchups should start empty");
+});
+
+test("recordMatchup initializes a missing key and increments wins on a win", () => {
+  const s = fakeStore();
+  Storage.recordMatchup(s, "moses", "einstein", true);
+  const data = Storage.load(s);
+  assert.ok(data.matchups["moses|einstein"], "moses|einstein key should exist");
+  assert.strictEqual(data.matchups["moses|einstein"].wins,   1);
+  assert.strictEqual(data.matchups["moses|einstein"].losses, 0);
+});
+
+test("recordMatchup increments losses for a loss", () => {
+  const s = fakeStore();
+  Storage.recordMatchup(s, "david", "esther", false);
+  const data = Storage.load(s);
+  assert.strictEqual(data.matchups["david|esther"].wins,   0);
+  assert.strictEqual(data.matchups["david|esther"].losses, 1);
+});
+
+test("matchup keys are directional: moses|einstein and einstein|moses are separate counters", () => {
+  const s = fakeStore();
+  Storage.recordMatchup(s, "moses", "einstein", true);   // moses played, won
+  Storage.recordMatchup(s, "einstein", "moses", false);  // einstein played, lost
+  const data = Storage.load(s);
+  // moses|einstein: 1 win, 0 losses
+  assert.strictEqual(data.matchups["moses|einstein"].wins,   1);
+  assert.strictEqual(data.matchups["moses|einstein"].losses, 0);
+  // einstein|moses: 0 wins, 1 loss
+  assert.strictEqual(data.matchups["einstein|moses"].wins,   0);
+  assert.strictEqual(data.matchups["einstein|moses"].losses, 1);
+});
+
+test("matchups round-trip via save/load and malformed entries are filtered out", () => {
+  const s = fakeStore();
+  // Manually craft a save with one valid and two invalid matchup entries
+  const raw = JSON.stringify({
+    matchups: {
+      "moses|david":    { wins: 3, losses: 1 },   // valid
+      "BAD|KEY":        { wins: 1, losses: 0 },   // uppercase — invalid key
+      "esther|judah":   { wins: "two", losses: 0 } // non-integer wins — invalid value
+    }
+  });
+  s.setItem("heritageHeroes.save", raw);
+  const data = Storage.load(s);
+  // Only the valid entry survives
+  assert.ok(data.matchups["moses|david"], "valid entry should survive");
+  assert.strictEqual(data.matchups["moses|david"].wins,   3);
+  assert.strictEqual(data.matchups["moses|david"].losses, 1);
+  assert.strictEqual(data.matchups["BAD|KEY"],     undefined, "uppercase key should be filtered");
+  assert.strictEqual(data.matchups["esther|judah"], undefined, "non-integer wins should be filtered");
+});

@@ -2637,6 +2637,35 @@ var Screens = (function () {
 </div>`;
   }
 
+  function _matchupInsights(matchups) {
+    const entries = Object.entries(matchups).map(function([key, record]) {
+      const parts = key.split("|");
+      const playerId = parts[0];
+      const opponentId = parts[1];
+      const total = record.wins + record.losses;
+      const winRate = total > 0 ? record.wins / total : 0;
+      return { playerId, opponentId, wins: record.wins, losses: record.losses, total, winRate };
+    });
+
+    const totalCount = entries.length;
+
+    // Sort by frequency descending; take top 5
+    const top = entries.slice().sort(function(a, b) { return b.total - a.total; }).slice(0, 5);
+
+    // Best/worst require min 2 matches for stability
+    const stable = entries.filter(function(e) { return e.total >= 2; });
+    const best = stable.length > 0 ? stable.slice().sort(function(a, b) {
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.total - a.total;
+    })[0] : null;
+    const worst = stable.length > 0 ? stable.slice().sort(function(a, b) {
+      if (a.winRate !== b.winRate) return a.winRate - b.winRate;
+      return b.total - a.total;
+    })[0] : null;
+
+    return { totalCount, top, best, worst };
+  }
+
   function renderStats(state) {
     const save = state.save || {};
     const stats = save.stats || { matchesPlayed: 0, matchesWon: 0, triviaCorrect: 0, triviaTotal: 0, perHero: {} };
@@ -2739,6 +2768,52 @@ var Screens = (function () {
     <h3>Heroes</h3>
     <div class="stats-table">${heroRows}</div>
   </div>
+
+  ${(function() {
+    const matchups = save.matchups || {};
+    const insights = _matchupInsights(matchups);
+    if (insights.totalCount === 0) return "";
+    const highlightsHtml = (insights.best || insights.worst) ? `
+<div class="matchup-highlights">
+  ${insights.best ? `<p class="matchup-highlight">
+    <span class="matchup-highlight-icon">🏆</span>
+    <span class="matchup-highlight-label">Best matchup:</span>
+    <strong>${Render.escapeHtml(Heroes.byId(insights.best.playerId).name)} vs ${Render.escapeHtml(Heroes.byId(insights.best.opponentId).name)}</strong>
+    (${insights.best.wins}-${insights.best.losses})
+  </p>` : ""}
+  ${insights.worst ? `<p class="matchup-highlight">
+    <span class="matchup-highlight-icon">😬</span>
+    <span class="matchup-highlight-label">Worst matchup:</span>
+    <strong>${Render.escapeHtml(Heroes.byId(insights.worst.playerId).name)} vs ${Render.escapeHtml(Heroes.byId(insights.worst.opponentId).name)}</strong>
+    (${insights.worst.wins}-${insights.worst.losses})
+  </p>` : ""}
+</div>` : "";
+    const topRowsHtml = insights.top.map(function(m) {
+      const playerHero = Heroes.byId(m.playerId);
+      const opponentHero = Heroes.byId(m.opponentId);
+      if (!playerHero || !opponentHero) return "";
+      return `
+<div class="matchup-row">
+  <div class="matchup-portraits">
+    <div class="matchup-portrait">${Render.renderHero({ heroId: m.playerId, pose: "idle", facing: "right" })}</div>
+    <span class="matchup-vs">vs</span>
+    <div class="matchup-portrait">${Render.renderHero({ heroId: m.opponentId, pose: "idle", facing: "left" })}</div>
+  </div>
+  <div class="matchup-info">
+    <p class="matchup-names">${Render.escapeHtml(playerHero.name)} vs ${Render.escapeHtml(opponentHero.name)}</p>
+    <p class="matchup-record">${m.wins}-${m.losses}</p>
+  </div>
+</div>`;
+    }).join("");
+    return `
+<div class="stats-section stats-matchups">
+  <h3>Hero Matchups</h3>
+  <p class="stats-section-subtitle">${insights.totalCount} unique matchup${insights.totalCount === 1 ? "" : "s"} played</p>
+  ${highlightsHtml}
+  <p class="matchup-top-label">Top Matchups by Frequency</p>
+  <div class="matchup-list">${topRowsHtml}</div>
+</div>`;
+  })()}
 
   <div class="stats-section">
     <h3>Achievements</h3>

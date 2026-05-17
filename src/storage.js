@@ -60,7 +60,8 @@ var Storage = (function () {
         currentStreak: 0,       // cached; recomputed on demand
         bestStreak: 0,          // all-time best consecutive-day streak
         lifetimeCompletions: 0  // total challenges ever completed
-      }
+      },
+      matchups: {}  // empty object; lazily populated
     };
   }
 
@@ -151,6 +152,17 @@ var Storage = (function () {
         }
         if (Number.isInteger(parsed.tournamentsWon) && parsed.tournamentsWon >= 0) {
           out.tournamentsWon = parsed.tournamentsWon;
+        }
+        // matchups — validate key format and integer fields
+        if (parsed.matchups && typeof parsed.matchups === "object" && !Array.isArray(parsed.matchups)) {
+          const keyPattern = /^[a-z]+\|[a-z]+$/;
+          for (const [k, v] of Object.entries(parsed.matchups)) {
+            if (keyPattern.test(k) && v && typeof v === "object" &&
+                Number.isInteger(v.wins) && v.wins >= 0 &&
+                Number.isInteger(v.losses) && v.losses >= 0) {
+              out.matchups[k] = { wins: v.wins, losses: v.losses };
+            }
+          }
         }
         // daily challenge data
         if (parsed.daily && typeof parsed.daily === "object") {
@@ -341,9 +353,25 @@ var Storage = (function () {
     return data;
   }
 
+  // Record a per-matchup result. playerHeroId is slot 0's hero; opponentHeroId is slot 1's hero.
+  // won is a boolean: true if player (slot 0) won.
+  function recordMatchup(store, playerHeroId, opponentHeroId, won) {
+    const data = load(store);
+    const key = playerHeroId + "|" + opponentHeroId;
+    if (!data.matchups[key]) data.matchups[key] = { wins: 0, losses: 0 };
+    if (won) {
+      data.matchups[key].wins += 1;
+    } else {
+      data.matchups[key].losses += 1;
+    }
+    save(store, data);
+    return data;
+  }
+
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
-           recordMatchHistory, recordDailyCompletion, dailyStats, recordTournamentWin };
+           recordMatchHistory, recordDailyCompletion, dailyStats, recordTournamentWin,
+           recordMatchup };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

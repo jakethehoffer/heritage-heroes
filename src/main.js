@@ -1295,6 +1295,11 @@ var Main = (function () {
       const t = state.tournament;
 
       if (t.currentMatch === "semi1") {
+        // Record matchup before returning
+        if (store) {
+          Storage.recordMatchup(store, state.match.players[0].heroId, state.match.players[1].heroId, playerWon);
+          state.save = Storage.load(store);
+        }
         if (!playerWon) {
           t.eliminatedBy = state.match.players[1].heroId;
           state.screen = "tournament-result";
@@ -1314,6 +1319,11 @@ var Main = (function () {
       }
 
       if (t.currentMatch === "final") {
+        // Record matchup before returning
+        if (store) {
+          Storage.recordMatchup(store, state.match.players[0].heroId, state.match.players[1].heroId, playerWon);
+          state.save = Storage.load(store);
+        }
         if (!playerWon) {
           t.eliminatedBy = state.match.players[1].heroId;
           state.screen = "tournament-result";
@@ -1350,6 +1360,14 @@ var Main = (function () {
         const dailyAchKeys = checkAchievements();
         applyAchievements(dailyAchKeys);
       }
+      // Record matchup
+      if (store) {
+        const playerHero  = state.match.players[0].heroId;
+        const opponentHero = state.match.players[1].heroId;
+        const playerWon0  = state.match.winner === 0;
+        Storage.recordMatchup(store, playerHero, opponentHero, playerWon0);
+        state.save = Storage.load(store);
+      }
       // Record history entry
       if (store) {
         Storage.recordMatchHistory(store, _buildHistoryEntry());
@@ -1369,6 +1387,15 @@ var Main = (function () {
       // Record match stats in global storage
       if (store) {
         Storage.recordMatch(store, winnerHero, loserHero);
+        state.save = Storage.load(store);
+      }
+
+      // Record matchup (directional: slot 0 is player)
+      if (store) {
+        const playerHero  = state.match.players[0].heroId;
+        const opponentHero = state.match.players[1].heroId;
+        const playerWon   = state.match.winner === 0;
+        Storage.recordMatchup(store, playerHero, opponentHero, playerWon);
         state.save = Storage.load(store);
       }
 
@@ -1441,6 +1468,15 @@ var Main = (function () {
     // Record match result in stats (winner is the match winner, not necessarily the player)
     if (store) {
       Storage.recordMatch(store, winnerHero, loserHero);
+      state.save = Storage.load(store);
+    }
+
+    // Record matchup (directional: slot 0 is always "player")
+    if (store) {
+      const playerHero  = state.match.players[0].heroId;
+      const opponentHero = state.match.players[1].heroId;
+      const playerWon   = state.match.winner === 0;
+      Storage.recordMatchup(store, playerHero, opponentHero, playerWon);
       state.save = Storage.load(store);
     }
 
