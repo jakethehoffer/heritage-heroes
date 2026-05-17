@@ -140,6 +140,77 @@ const Screens = (function () {
     `;
   }
 
+  const ARCADE_ENDINGS = {
+    moses:    "Moses leads the heroes out across history, his staff aglow.",
+    david:    "King David's sling has felled every giant. The harp plays into the night.",
+    esther:   "Queen Esther's wit turned every challenge back on itself. Her people are saved again.",
+    judah:    "Judah Maccabee rededicates the temple. The lights of victory burn for eight nights.",
+    rambam:   "Maimonides closes the great book. Wisdom outlasts the sword.",
+    golda:    "Golda lights one more cigarette and signs the day's papers. The nation endures.",
+    einstein: "Einstein bows from the lectern. The equations balance once more."
+  };
+
+  function renderResult(state) {
+    const match = state.match;
+    const winnerIdx = match.winner;
+    const winnerHero = Heroes.byId(match.players[winnerIdx].heroId);
+    const loserHero  = Heroes.byId(match.players[1 - winnerIdx].heroId);
+
+    if (state.mode === "arcade") {
+      const playerHeroId = state.arcade.playerHeroId;
+      const playerSlot = match.players.findIndex(p => p.heroId === playerHeroId);
+      const playerWon = winnerIdx === playerSlot;
+      if (!playerWon) {
+        return `
+<section class="screen screen-result">
+  <h2>${Render.escapeHtml(winnerHero.name)} wins this round.</h2>
+  <p class="tagline">Your run ends here. ${Render.escapeHtml(playerHeroId)} fought ${state.arcade.defeated.length} of 6.</p>
+  <div class="result-buttons">
+    <button data-action="arcade-retry">Try Again</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+      }
+      const remaining = state.arcade.remaining.length;
+      if (remaining === 0) {
+        return renderArcadeEnding(playerHeroId);
+      }
+      return `
+<section class="screen screen-result">
+  <h2>${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}!</h2>
+  <p class="tagline">${remaining} opponent${remaining === 1 ? "" : "s"} left.</p>
+  <div class="result-buttons">
+    <button data-action="arcade-next">Next Opponent</button>
+    <button data-action="goto-title" class="secondary">Quit Run</button>
+  </div>
+</section>`;
+    }
+
+    return `
+<section class="screen screen-result">
+  <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
+  <p class="tagline">${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}.</p>
+  <div class="result-buttons">
+    <button data-action="rematch">Play Again</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+  }
+
+  function renderArcadeEnding(heroId) {
+    const hero = Heroes.byId(heroId);
+    const ending = ARCADE_ENDINGS[heroId] || "Victory.";
+    return `
+<section class="screen screen-result screen-ending">
+  <h2>${Render.escapeHtml(hero.name)} prevails!</h2>
+  <p class="ending">${Render.escapeHtml(ending)}</p>
+  <p class="tagline">Arcade Ladder complete.</p>
+  <div class="result-buttons">
+    <button data-action="goto-title">Main Menu</button>
+  </div>
+</section>`;
+  }
+
   function animateAction(playerIdx, kind) {
     if (typeof document === "undefined") return;
     const fighter = document.querySelector(playerIdx === 0 ? ".fighter-left" : ".fighter-right");
@@ -163,7 +234,7 @@ const Screens = (function () {
     window.setTimeout(() => { if (node.isConnected) node.remove(); }, 1200);
   }
 
-  return { renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle, animateAction, showCallout };
+  return { renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle, animateAction, showCallout, renderResult };
 })();
 
 if (typeof module !== "undefined") module.exports = Screens;

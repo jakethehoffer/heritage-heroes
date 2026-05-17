@@ -163,3 +163,7 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 .fighter-left.act-special  { transform: translateX(60px) translateY(-12px) scale(1.05); }
 .fighter-right.act-special { transform: translateX(-60px) translateY(-12px) scale(1.05); }
 .fighter-left.act-defend, .fighter-right.act-defend { transform: scale(0.95); }
+
+.screen-result h2 { font-size: 40px; color: var(--terracotta); }
+.result-buttons { display: flex; gap: 16px; }
+.screen-ending .ending { font-size: 22px; font-style: italic; max-width: 600px; text-align: center; color: var(--navy); }
