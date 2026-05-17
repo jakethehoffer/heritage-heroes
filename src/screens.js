@@ -215,10 +215,82 @@ var Screens = (function () {
     if (typeof document === "undefined") return;
     const fighter = document.querySelector(playerIdx === 0 ? ".fighter-left" : ".fighter-right");
     if (!fighter) return;
-    fighter.classList.remove("act-attack", "act-defend", "act-special");
+    fighter.classList.remove("act-attack", "act-defend", "act-special", "act-hit");
     void fighter.offsetWidth; // force reflow to restart animation
     fighter.classList.add(`act-${kind}`);
-    window.setTimeout(() => fighter.classList.remove(`act-${kind}`), 700);
+    const duration = kind === "special" ? 700 : kind === "defend" ? 600 : 430;
+    window.setTimeout(() => fighter.classList.remove(`act-${kind}`), duration);
+  }
+
+  // Apply a hit-shake class to the fighter who took damage
+  function flashHit(playerIdx) {
+    if (typeof document === "undefined") return;
+    const fighter = document.querySelector(playerIdx === 0 ? ".fighter-left" : ".fighter-right");
+    if (!fighter) return;
+    fighter.classList.remove("act-hit");
+    void fighter.offsetWidth;
+    fighter.classList.add("act-hit");
+    window.setTimeout(() => fighter.classList.remove("act-hit"), 400);
+  }
+
+  // Show a floating damage/heal number over the target fighter
+  function showDamageNumber(playerIdx, amount, kind) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+    // Position: left fighter center ~15%, right fighter center ~85%
+    const xPct = playerIdx === 0 ? 15 : 85;
+    const el = document.createElement("div");
+    el.className = "damage-number";
+    el.style.left = `${xPct}%`;
+    el.style.top = "30%";
+    if (kind === "heal") {
+      el.style.color = "#44cc44";
+      el.textContent = `+${amount}`;
+    } else {
+      // Color by magnitude
+      el.style.color = amount <= 10 ? "#ffffff" : amount <= 25 ? "#ff9900" : "#ff2222";
+      el.textContent = `-${amount}`;
+    }
+    arena.appendChild(el);
+    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 950);
+  }
+
+  // Slash flash overlay at the target fighter position
+  function playAttackFx(targetIdx) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+    const svgNS = "http://www.w3.org/2000/svg";
+    const xPct = targetIdx === 0 ? 10 : 75;
+    const el = document.createElement("div");
+    el.className = "attack-fx";
+    el.style.left = `${xPct}%`;
+    el.style.top = "20%";
+    el.style.width = "18%";
+    el.style.height = "55%";
+    el.innerHTML = `<svg viewBox="0 0 60 100" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+      <line x1="10" y1="10" x2="50" y2="45" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.95"/>
+      <line x1="22" y1="5"  x2="55" y2="55" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+      <line x1="5"  y1="30" x2="38" y2="70" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+    </svg>`;
+    arena.appendChild(el);
+    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 320);
+  }
+
+  // Shield bubble overlay on the defending fighter
+  function playDefendFx(playerIdx) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+    const xPct = playerIdx === 0 ? 15 : 85;
+    const el = document.createElement("div");
+    el.className = "defend-shield";
+    // top ~60% = chest level of the fighter
+    el.style.left = `${xPct}%`;
+    el.style.top = "60%";
+    arena.appendChild(el);
+    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1350);
   }
 
   // Color tokens for FX (mirrors Render.colors)
@@ -244,11 +316,11 @@ var Screens = (function () {
 
     switch (heroId) {
       case "moses": {
-        // Horizontal wave sweeping from Moses's side across the arena
+        // Horizontal wave sweeping from Moses's side across the arena — 80% wide
         el.className += " special-fx-wave";
         el.style.cssText = `
-          position:absolute; bottom:10%; left:${isLeft ? "0" : "auto"}; right:${isLeft ? "auto" : "0"};
-          width:60%; height:30%; z-index:6; pointer-events:none;
+          position:absolute; bottom:8%; left:${isLeft ? "0" : "auto"}; right:${isLeft ? "auto" : "0"};
+          width:80%; height:38%; z-index:6; pointer-events:none;
           animation: fx-wave-sweep 1200ms ease-out forwards;
           transform-origin: ${isLeft ? "left" : "right"} center;
         `;
@@ -285,11 +357,11 @@ var Screens = (function () {
         break;
       }
       case "judah": {
-        // Orange/red flame shapes on opponent's position
+        // Orange/red flame shapes on opponent's position — taller
         el.className += " special-fx-flame";
         el.style.cssText = `
-          position:absolute; bottom:5%; ${isLeft ? "right:2%" : "left:2%"};
-          width:26%; height:80%; z-index:6; pointer-events:none;
+          position:absolute; bottom:0%; ${isLeft ? "right:1%" : "left:1%"};
+          width:30%; height:95%; z-index:6; pointer-events:none;
           animation: fx-flame-burst 1200ms ease-out forwards;
         `;
         el.innerHTML = `<svg viewBox="0 0 80 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
@@ -336,18 +408,18 @@ var Screens = (function () {
         break;
       }
       case "einstein": {
-        // Big yellow lightning bolt streaking across arena to opponent
+        // Big yellow lightning bolt streaking across arena to opponent — wider strokes
         el.className += " special-fx-bolt";
         el.style.cssText = `
-          position:absolute; top:15%; left:0; right:0;
-          height:60%; z-index:6; pointer-events:none;
+          position:absolute; top:10%; left:0; right:0;
+          height:70%; z-index:6; pointer-events:none;
           animation: fx-bolt-strike 1200ms ease-out forwards;
         `;
         el.innerHTML = `<svg viewBox="0 0 400 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
           <polyline points="${isLeft ? "80,20 200,90 160,100 300,180" : "320,20 200,90 240,100 100,180"}"
-            fill="none" stroke="#ffdd00" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>
+            fill="none" stroke="#ffdd00" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>
           <polyline points="${isLeft ? "80,20 200,90 160,100 300,180" : "320,20 200,90 240,100 100,180"}"
-            fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" opacity="0.7"/>
+            fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.75"/>
         </svg>`;
         break;
       }
@@ -460,7 +532,8 @@ var Screens = (function () {
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton,
-    animateAction, showCallout, playSpecialFx, playChargeFx
+    animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
+    showCallout, playSpecialFx, playChargeFx
   };
 })();
 

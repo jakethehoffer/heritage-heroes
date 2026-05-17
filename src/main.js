@@ -187,12 +187,17 @@ var Main = (function () {
     const idx = state.match.activePlayer;
     const activeHeroId = state.match.players[idx].heroId;
     const wasSpecialOrCharge = (move === "special" || move === "charge");
+
+    // Snapshot HP before applying move so we can compute damage deltas
+    const hpBefore = state.match.players.map(p => p.hp);
+
     try {
       Combat.applyMove(state.match, move);
     } catch (err) {
       console.warn(err);
       return;
     }
+
     const lastLog = state.match.log[state.match.log.length - 1] || "";
     const kind = wasSpecialOrCharge ? "special" : move;
     Screens.animateAction(idx, kind);
@@ -210,15 +215,40 @@ var Main = (function () {
       Screens.playChargeFx(idx);
     }
 
+    // Compute per-player HP deltas and show damage/heal feedback
+    state.match.players.forEach((p, pIdx) => {
+      const delta = hpBefore[pIdx] - p.hp;
+      if (delta > 0) {
+        // This player took damage
+        Screens.flashHit(pIdx);
+        Screens.showDamageNumber(pIdx, delta, "damage");
+        // Play attack slash FX on the hit target for basic attacks
+        if (move === "attack") {
+          Screens.playAttackFx(pIdx);
+        }
+      } else if (delta < 0) {
+        // This player was healed (negative delta = HP gained)
+        Screens.showDamageNumber(pIdx, Math.abs(delta), "heal");
+      }
+    });
+
+    // Show shield bubble on defender
+    if (move === "defend") {
+      Screens.playDefendFx(idx);
+    }
+
     if (state.match.winner !== null) {
       window.setTimeout(onMatchEnd, 1500);
       return;
     }
     render();
     // Auto-trigger AI on next tick if it's their turn
-    // After special/charge-unleash give extra time for FX to resolve
+    // Delays account for the full animation budget
     if (state.controllers[state.match.activePlayer] === "ai") {
-      const delay = (move === "special" || isUnleash) ? 2000 : 1500;
+      let delay;
+      if (move === "special" || isUnleash) delay = 2200;
+      else if (move === "defend") delay = 1500;
+      else delay = 1800;
       window.setTimeout(aiStep, delay);
     }
   }
