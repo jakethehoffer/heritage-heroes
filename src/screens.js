@@ -163,6 +163,10 @@ var Screens = (function () {
       <h3>Tournament</h3>
       <p>Single-elimination bracket. Beat two opponents in a row to be crowned Champion.</p>
     </button>
+    <button data-action="start-spectator" class="mode-card">
+      <h3>Spectator</h3>
+      <p>Pick two heroes and watch them battle. No commitment &mdash; just see how the AI personalities clash.</p>
+    </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
 </section>`;
@@ -195,6 +199,8 @@ var Screens = (function () {
       ? "Pick a hero for your Endless run."
       : state.mode === "tournament"
       ? "Pick your hero for the Tournament"
+      : state.mode === "spectator"
+      ? (state.selecting === 1 ? "Spectator: pick Hero A" : "Spectator: pick Hero B")
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
@@ -270,6 +276,7 @@ var Screens = (function () {
 
     const charging = Combat.isCharging(match, match.activePlayer);
     const isHumanTurn = state.controllers[match.activePlayer] === "human";
+    const isSpectator = state.mode === "spectator";
     const moveButtons = charging
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
       : renderMoveButtons(activeHero, active);
@@ -308,7 +315,9 @@ var Screens = (function () {
     </div>
   </div>
   <div class="turn-banner">${Render.escapeHtml(turnLabel)}</div>
-  <div class="moves-row">${isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`}</div>
+  <div class="moves-row">${isSpectator
+    ? `<div class="spectator-indicator"><span class="spectator-icon">&#x1F440;</span><span>Spectating &mdash; AI is playing both sides</span></div>`
+    : (isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`)}</div>
   <div class="move-log">${match.log.slice(-5).map(l => `<div>${Render.escapeHtml(l)}</div>`).join("")}</div>
   <div class="battle-bottom-buttons">
     <button data-action="pause-battle" class="back">&#x23F8; Pause</button>
@@ -483,6 +492,20 @@ var Screens = (function () {
   ${recap}
   <div class="result-buttons">
     ${playerWon ? `<button data-action="share-daily" class="share-btn">&#x1F4E8; Share this challenge</button>` : ""}
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+    }
+
+    if (state.mode === "spectator") {
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+      return `
+<section class="screen screen-result">
+  <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
+  <p class="tagline">A Spectator battle has concluded.</p>
+  ${recap}
+  <div class="result-buttons">
+    <button data-action="start-spectator">Watch Another</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;

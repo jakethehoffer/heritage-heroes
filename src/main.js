@@ -19,7 +19,7 @@ var Main = (function () {
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
     profileHeroId: null,
     tutorialStep: 0,
-    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily'
+    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily' | 'tournament' | 'spectator'
     difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
@@ -756,6 +756,7 @@ var Main = (function () {
         return;
       }
 
+      case "start-spectator": startSpectator(); return;
       case "start-tournament": startTournament(); return;
       case "begin-tournament": beginTournament(); return;
       case "continue-to-final": continueToFinal(); return;
@@ -934,6 +935,16 @@ var Main = (function () {
     render();
   }
 
+  function startSpectator() {
+    state.mode = "spectator";
+    state.controllers = ["ai", "ai"];
+    state.selecting = 1;
+    state.picks = { 1: null, 2: null };
+    state.difficulty = "normal";
+    state.screen = "charselect";
+    render();
+  }
+
   function beginTournament() {
     const t = state.tournament;
     t.currentMatch = "semi1";
@@ -1011,6 +1022,25 @@ var Main = (function () {
       };
       state.screen = "tournament-bracket";
       render();
+      return;
+    }
+
+    if (state.mode === "spectator") {
+      if (state.selecting === 1) {
+        state.selecting = 2;
+        render();
+        return;
+      }
+      // Both picked — start the match with both controllers as AI
+      state.matchStats = _freshMatchStats();
+      state.bossIntroShown = true;
+      state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+      state.screen = "battle";
+      render();
+      // Schedule first AI move (both controllers are AI)
+      if (state.controllers[0] === "ai") {
+        state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
+      }
       return;
     }
 
@@ -1327,6 +1357,13 @@ var Main = (function () {
   function onMatchEnd() {
     Sfx.play("victory");
     const store = getStore();
+
+    // Spectator mode: no stats, no achievements, no matchup recording — just show result
+    if (state.mode === "spectator") {
+      state.screen = "result";
+      render();
+      return;
+    }
 
     const winnerIdx  = state.match.winner;
     const winnerHero = state.match.players[winnerIdx].heroId;
