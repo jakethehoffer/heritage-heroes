@@ -53,3 +53,27 @@ button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--sha
 button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
 button:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
 button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 var(--shadow); }
+
+.callout {
+  position: absolute;
+  top: 40%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--cream);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px 28px;
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  box-shadow: 6px 6px 0 var(--shadow);
+  z-index: 10;
+  animation: callout-pop 1200ms ease-out forwards;
+}
+@keyframes callout-pop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  40%  { transform: translate(-50%, -50%) scale(1); }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -55%) scale(0.95); }
+}
