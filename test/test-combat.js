@@ -239,8 +239,8 @@ test("Rambam's Healing Touch: caps at maxHp", () => {
 test("Golda's Resolve: doubles damage on her next Basic Attack only", () => {
   const s = Combat.createMatch("golda", "moses");
   Combat.applyMove(s, "special"); // Golda Resolve
-  Combat.applyMove(s, "defend");  // Moses defends — irrelevant
-  // Golda attacks: 10 doubled = 20. Moses no defend. Hits for 20.
+  Combat.applyMove(s, "attack");  // Moses attacks Golda (irrelevant to assertion)
+  // Golda attacks: 10 doubled = 20. Hits Moses for 20.
   Combat.applyMove(s, "attack");
   assert.strictEqual(s.players[1].hp, 100 - 20);
   assert.strictEqual(s.players[0].statuses.doubleNextAttack, undefined);

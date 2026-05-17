@@ -109,8 +109,6 @@ const Combat = (function () {
       if (active.statuses.doubleNextAttack) {
         dmg = dmg * 2;
         delete active.statuses.doubleNextAttack;
-        // Resolve bypasses the opponent's defend
-        delete state.players[enemyIdx].statuses.defend;
       }
       dealDamage(state, activeIdx, enemyIdx, dmg);
       state.log.push(`${hero.name} uses ${hero.moves.attack.name}.`);
