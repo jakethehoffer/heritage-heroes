@@ -19,7 +19,10 @@ var Main = (function () {
     // Achievement tracking (in-memory per session/match)
     triviaStreak: 0,        // consecutive correct trivia answers
     currentMatchLowHp: { 0: false, 1: false },  // per-match low-HP flag per player slot
-    bossIntroShown: false   // reset at start of each arcade run
+    bossIntroShown: false,  // reset at start of each arcade run
+    // Title screen featured hero rotation
+    titleFeaturedIndex: 0,  // index into Heroes.list for currently featured hero
+    titleFeaturedTimer: null // interval id, cleared when leaving title
   };
 
   function _freshMatchStats() {
@@ -92,6 +95,8 @@ var Main = (function () {
     state.save = Storage.load(store);
     Sfx.setMuted(!state.save.sound);
     Sfx.preload();
+    // Randomise starting featured hero so each session feels fresh
+    state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
@@ -104,6 +109,21 @@ var Main = (function () {
 
   function render() {
     const root = document.getElementById("root");
+
+    // Clear featured hero timer when leaving the title screen
+    if (state.screen !== "title" && state.titleFeaturedTimer) {
+      clearInterval(state.titleFeaturedTimer);
+      state.titleFeaturedTimer = null;
+    }
+
+    // Start featured hero rotation timer when on title screen
+    if (state.screen === "title" && !state.titleFeaturedTimer) {
+      state.titleFeaturedTimer = setInterval(function () {
+        state.titleFeaturedIndex = (state.titleFeaturedIndex + 1) % Heroes.list.length;
+        if (state.screen === "title") render();
+      }, 8000);
+    }
+
     let body;
     if (state.screen === "title")       body = Screens.renderTitle(state);
     else if (state.screen === "mode")   body = Screens.renderModeSelect(state);

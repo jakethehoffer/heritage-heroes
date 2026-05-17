@@ -1614,6 +1614,211 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 }
 
 /* ============================================================
+   TITLE SCREEN POLISH — Featured Hero, Sparkles, Pulse
+   ============================================================ */
+
+/* ── Title h1 pulse ─────────────────────────────────────── */
+.screen-title h1 {
+  animation: title-pulse 4s ease-in-out infinite;
+}
+@keyframes title-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.02); }
+}
+
+/* ── Title sparkles container + keyframe ────────────────── */
+.screen-title {
+  position: relative;
+  overflow: hidden;
+}
+
+.title-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.sparkle {
+  position: absolute;
+  left: var(--x);
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0;
+  box-shadow: 0 0 6px var(--gold), 0 0 12px var(--gold);
+  animation: sparkle-rise var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes sparkle-rise {
+  0%   { opacity: 0;   transform: translate(0, 0) scale(0.5); }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.6; transform: translate(40px, -90vh) scale(1); }
+  100% { opacity: 0;   transform: translate(60px, -100vh) scale(0.5); }
+}
+
+/* ── Featured Hero panel ────────────────────────────────── */
+.featured-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--shadow);
+  padding: 18px 22px;
+  max-width: 520px;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  z-index: 1;
+  animation: featured-fade-in 400ms ease-out;
+  transition: transform 80ms, box-shadow 80ms;
+}
+.featured-hero:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--shadow);
+}
+
+@keyframes featured-fade-in {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.featured-portrait {
+  flex-shrink: 0;
+  width: 110px;
+  height: 110px;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.featured-portrait svg {
+  width: 100%;
+  height: 100%;
+}
+
+.featured-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.featured-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.featured-name {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  color: var(--navy);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.featured-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.featured-dates {
+  font-size: 12px;
+  color: var(--ink);
+  opacity: 0.65;
+}
+
+.featured-quote {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--navy);
+  opacity: 0.85;
+  margin: 2px 0 0;
+  line-height: 1.4;
+  border-left: 3px solid var(--gold);
+  padding-left: 8px;
+}
+
+.featured-cta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--terracotta);
+  margin: 4px 0 0;
+}
+
+/* ── Featured Hero responsive: stack on mobile ──────────── */
+@media (max-width: 560px) {
+  .featured-hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+    gap: 12px;
+  }
+  .featured-quote {
+    border-left: none;
+    padding-left: 0;
+    border-top: 2px solid var(--gold);
+    padding-top: 6px;
+  }
+  .featured-meta {
+    justify-content: center;
+  }
+}
+
+/* ============================================================
+   IDLE HERO BREATHING — Battle fighters + Character select
+   ============================================================ */
+
+/* ── Battle screen: subtle bob on idle fighters ─────────── */
+.fighter {
+  animation: hero-breathing 3s ease-in-out infinite;
+}
+@keyframes hero-breathing {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
+/* Action classes have higher specificity and their own animation,
+   so they naturally override the breathing. No extra rules needed. */
+
+/* ── Character select / Hall portraits: slight idle bob ─── */
+.hero-portrait svg {
+  animation: portrait-idle 4s ease-in-out infinite;
+}
+@keyframes portrait-idle {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-2px); }
+}
+
+/* Stagger so all cards don't bob in sync */
+.hero-grid .hero-card:nth-child(odd) .hero-portrait svg  { animation-delay: -1.5s; }
+.hero-grid .hero-card:nth-child(3n)  .hero-portrait svg  { animation-delay: -0.8s; }
+
+/* Hall of Heroes portrait idle bob */
+.hall-portrait svg {
+  animation: portrait-idle 4s ease-in-out infinite;
+}
+.hall-grid .hall-hero-card:nth-child(odd) .hall-portrait svg  { animation-delay: -1.5s; }
+.hall-grid .hall-hero-card:nth-child(3n)  .hall-portrait svg  { animation-delay: -0.8s; }
+
+/* ============================================================
    RESPONSIVE — Mobile + Tablet
    ============================================================ */
 

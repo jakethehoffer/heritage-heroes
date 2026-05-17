@@ -15,10 +15,44 @@ var Screens = (function () {
     } else if (masteredCount > 0) {
       masteryLine = `<p class="mastered-count">&#x1F31F; Mastered: ${masteredCount} of 7 heroes</p>`;
     }
+
+    // Featured hero panel
+    const featuredIdx = (typeof state.titleFeaturedIndex === "number") ? state.titleFeaturedIndex : 0;
+    const featuredHero = Heroes.list[featuredIdx] || Heroes.list[0];
+    const featuredId = featuredHero.id;
+    const isMastered = !!(mastered[featuredId]);
+    const featuredPortrait = Render.renderHero({ heroId: featuredId, pose: "idle", facing: "right" });
+    const featuredPanel = `
+<div class="featured-hero" data-action="view-profile" data-hero="${featuredId}" role="button" tabindex="0" aria-label="View ${Render.escapeHtml(featuredHero.name)}'s profile">
+  <div class="featured-portrait">${featuredPortrait}</div>
+  <div class="featured-info">
+    <p class="featured-label">FEATURED HERO</p>
+    <h3 class="featured-name">${Render.escapeHtml(featuredHero.name)}${isMastered ? " &#x1F31F;" : ""}</h3>
+    <div class="featured-meta">
+      <span class="era">${Render.escapeHtml(featuredHero.era)}</span>
+      ${featuredHero.profile && featuredHero.profile.dates ? `<span class="featured-dates">${Render.escapeHtml(featuredHero.profile.dates)}</span>` : ""}
+    </div>
+    ${featuredHero.profile && featuredHero.profile.quote ? `<p class="featured-quote">&ldquo;${Render.escapeHtml(featuredHero.profile.quote)}&rdquo;</p>` : ""}
+    <p class="featured-cta">Click to learn more &rarr;</p>
+  </div>
+</div>`;
+
+    const sparkles = `
+<div class="title-sparkles" aria-hidden="true">
+  <span class="sparkle" style="--x:10%;--dur:12s;--delay:0s"></span>
+  <span class="sparkle" style="--x:25%;--dur:14s;--delay:2s"></span>
+  <span class="sparkle" style="--x:42%;--dur:11s;--delay:4s"></span>
+  <span class="sparkle" style="--x:60%;--dur:13s;--delay:1s"></span>
+  <span class="sparkle" style="--x:77%;--dur:15s;--delay:3s"></span>
+  <span class="sparkle" style="--x:90%;--dur:12s;--delay:5s"></span>
+</div>`;
+
     return `
 <section class="screen screen-title">
+  ${sparkles}
   <h1>Heritage Heroes</h1>
   <p class="tagline">A turn-based duel through history.</p>
+  ${featuredPanel}
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
     <button data-action="open-hall" class="secondary">Hall of Heroes</button>
