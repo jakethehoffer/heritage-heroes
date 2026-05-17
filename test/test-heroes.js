@@ -41,9 +41,9 @@ test("every hero trivia is an array with at least 1 entry, each entry well-forme
   }
 });
 
-test("every hero has exactly 10 trivia questions", () => {
+test("every hero has exactly 20 trivia questions", () => {
   for (const h of Heroes.list) {
-    assert.strictEqual(h.trivia.length, 10, `${h.id}: should have 10 trivia questions`);
+    assert.strictEqual(h.trivia.length, 20, `${h.id}: should have 20 trivia questions`);
   }
 });
 
@@ -66,19 +66,19 @@ test("pickTrivia returns a valid trivia result from the hero's pool", () => {
   assert.strictEqual(result0.index, 0, "rng=0 picks index 0");
   assert.strictEqual(result0.trivia, Heroes.byId("moses").trivia[0], "trivia matches pool entry at index 0");
 
-  // Deterministic RNG that returns 0.99 → picks last available index (index 9 when pool is [0..9])
+  // Deterministic RNG that returns 0.99 → picks last available index (index 19 when pool is [0..19])
   const result99 = Heroes.pickTrivia("moses", [], () => 0.99);
-  assert.strictEqual(result99.index, 9, "rng=0.99 with empty used picks last index");
-  assert.strictEqual(result99.trivia, Heroes.byId("moses").trivia[9], "rng=0.99 picks last entry");
+  assert.strictEqual(result99.index, 19, "rng=0.99 with empty used picks last index");
+  assert.strictEqual(result99.trivia, Heroes.byId("moses").trivia[19], "rng=0.99 picks last entry");
 
   // Returns null for unknown hero
   assert.strictEqual(Heroes.pickTrivia("nobody", []), null, "unknown hero returns null");
 });
 
 test("pickTrivia uses Math.random when no rng provided", () => {
-  // Just verify it returns a valid result on 10 calls (cycling through used)
+  // Just verify it returns a valid result on 20 calls (cycling through used)
   const used = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     const result = Heroes.pickTrivia("david", used);
     assert.ok(result !== null);
     assert.ok(Heroes.byId("david").trivia.includes(result.trivia));
@@ -99,7 +99,7 @@ test("pickTrivia no-recycle: all 10 indices appear exactly once before any repea
     seen.add(result.index);
     used.push(result.index);
   }
-  assert.strictEqual(seen.size, pool.length, "all 10 distinct indices should have been returned");
+  assert.strictEqual(seen.size, pool.length, "all 20 distinct indices should have been returned");
 
   // After exhaustion, pickTrivia picks from the full pool again (exhausted === true on the last pick)
   // Simulate the reset: pass an empty used array as the caller would after exhausted

@@ -72,6 +72,66 @@ var Heroes = (function () {
           options: ["A lion", "A flame", "A snake", "A tree"],
           correctIndex: 2,
           explanation: "At the burning bush, Moses’s staff turned into a snake. He later used it to perform miracles, including parting the Red Sea."
+        },
+        {
+          question: "Who built the Golden Calf while Moses was on Mount Sinai?",
+          options: ["Aaron", "Joshua", "Caleb", "Joseph"],
+          correctIndex: 0,
+          explanation: "Aaron made the Golden Calf when the impatient Israelites demanded a visible god. Moses shattered the first tablets in anger when he saw it."
+        },
+        {
+          question: "What did the Israelites eat in the desert that fell from heaven?",
+          options: ["Manna", "Quail", "Honey", "Bread"],
+          correctIndex: 0,
+          explanation: "Manna was a flake-like food that appeared with the morning dew each day. The Israelites ate it for the entire 40 years of wandering."
+        },
+        {
+          question: "How old was Moses when he died, according to tradition?",
+          options: ["70", "100", "120", "150"],
+          correctIndex: 2,
+          explanation: "Tradition holds Moses lived to 120 years — the source of the Jewish birthday blessing ‘until 120!’"
+        },
+        {
+          question: "What was the final and most devastating plague of Egypt?",
+          options: ["Hail", "Locusts", "Darkness", "Death of the firstborn"],
+          correctIndex: 3,
+          explanation: "The death of the Egyptian firstborn finally convinced Pharaoh to release the Israelites. The Israelites marked their doorposts with lamb’s blood to be ‘passed over.’"
+        },
+        {
+          question: "Which Jewish holiday celebrates the Exodus from Egypt?",
+          options: ["Hanukkah", "Passover", "Sukkot", "Shavuot"],
+          correctIndex: 1,
+          explanation: "Passover (Pesach) commemorates the Exodus. Jews retell the story each year at a Seder meal and abstain from leavened bread."
+        },
+        {
+          question: "What flat unleavened bread is eaten on Passover to remember the rushed Exodus?",
+          options: ["Pita", "Latkes", "Matzah", "Challah"],
+          correctIndex: 2,
+          explanation: "Matzah is eaten because the Israelites had no time for bread to rise as they fled Egypt. It’s also called the ‘bread of affliction.’"
+        },
+        {
+          question: "What did Moses encounter in the burning bush narrative?",
+          options: ["A talking serpent", "A bush burning without being consumed", "A pillar of fire", "A floating tablet"],
+          correctIndex: 1,
+          explanation: "Moses encountered a bush that burned without burning up, from which God spoke to him and assigned him to free the Israelites."
+        },
+        {
+          question: "What request does Moses repeatedly make to Pharaoh?",
+          options: ["Better food", "Let my people go", "More land", "Free trade"],
+          correctIndex: 1,
+          explanation: "Moses, speaking for God, demands ‘Let my people go!’ Pharaoh refuses ten times, triggering each plague in turn."
+        },
+        {
+          question: "Who, besides Aaron, was a sibling of Moses?",
+          options: ["Miriam", "Sarah", "Leah", "Esther"],
+          correctIndex: 0,
+          explanation: "Miriam was Moses’s older sister. She watched over baby Moses in the Nile basket and later led the women in song after crossing the Red Sea."
+        },
+        {
+          question: "Where did Moses die, never having entered the Promised Land?",
+          options: ["Mount Sinai", "Mount Nebo", "Mount Carmel", "Mount Zion"],
+          correctIndex: 1,
+          explanation: "Moses died on Mount Nebo (in modern-day Jordan), where God allowed him to see the Promised Land before he died."
         }
       ]
     },
@@ -147,6 +207,66 @@ var Heroes = (function () {
           options: ["The High Priest", "Moses", "The future Messiah", "Abraham"],
           correctIndex: 2,
           explanation: "Jewish tradition holds that the Messiah will descend from the House of David — ‘Mashiach ben David.’"
+        },
+        {
+          question: "David’s beloved wife and his great moral failure involved which woman?",
+          options: ["Michal", "Abigail", "Bathsheba", "Ruth"],
+          correctIndex: 2,
+          explanation: "David committed adultery with Bathsheba and arranged the death of her husband Uriah — a defining moral lapse for which the prophet Nathan rebuked him."
+        },
+        {
+          question: "Which prophet famously confronted King David about his sin?",
+          options: ["Samuel", "Nathan", "Elijah", "Isaiah"],
+          correctIndex: 1,
+          explanation: "Nathan told David the parable of the rich man who stole the poor man’s lamb, then declared ‘You are the man,’ confronting him with his guilt."
+        },
+        {
+          question: "Which of David’s sons led a rebellion against him?",
+          options: ["Solomon", "Absalom", "Adonijah", "Amnon"],
+          correctIndex: 1,
+          explanation: "Absalom led a violent rebellion against his father David. He was killed when his long hair caught in an oak tree branch."
+        },
+        {
+          question: "David’s father was named:",
+          options: ["Jacob", "Jesse", "Aaron", "Samuel"],
+          correctIndex: 1,
+          explanation: "Jesse was David’s father, of the tribe of Judah. The prophecy of a messianic ‘shoot from the stump of Jesse’ (Isaiah 11) refers to this lineage."
+        },
+        {
+          question: "David belonged to which of the Twelve Tribes of Israel?",
+          options: ["Levi", "Judah", "Benjamin", "Reuben"],
+          correctIndex: 1,
+          explanation: "David was from the tribe of Judah. The Jewish people take their name from this tribe."
+        },
+        {
+          question: "David reigned as king for approximately how many years?",
+          options: ["10", "25", "40", "70"],
+          correctIndex: 2,
+          explanation: "David reigned 40 years total — first seven over Judah from Hebron, then 33 over all Israel from Jerusalem."
+        },
+        {
+          question: "Goliath fought on behalf of which people?",
+          options: ["Romans", "Philistines", "Egyptians", "Persians"],
+          correctIndex: 1,
+          explanation: "Goliath was a Philistine champion from Gath. The Philistines were a coastal people who repeatedly fought Israel during this era."
+        },
+        {
+          question: "David’s wife who saved him from her father King Saul was:",
+          options: ["Michal", "Abigail", "Bathsheba", "Sarah"],
+          correctIndex: 0,
+          explanation: "Michal, Saul’s daughter and David’s first wife, lowered David out a window to escape her father’s assassins."
+        },
+        {
+          question: "David’s son who succeeded him and built the First Temple was:",
+          options: ["Absalom", "Adonijah", "Solomon", "Jonathan"],
+          correctIndex: 2,
+          explanation: "Solomon became king after David and built the First Temple in Jerusalem, fulfilling David’s dream that had been forbidden to David himself."
+        },
+        {
+          question: "In Jewish liturgy, David is credited with composing many of the:",
+          options: ["Proverbs", "Psalms (Tehillim)", "Lamentations", "Daily prayers"],
+          correctIndex: 1,
+          explanation: "Tradition attributes most of the 150 Psalms (Tehillim) to David, including the famous ‘The Lord is my shepherd’ (Psalm 23)."
         }
       ]
     },
@@ -222,6 +342,66 @@ var Heroes = (function () {
           options: ["Egyptian", "Persian", "Greek", "Roman"],
           correctIndex: 1,
           explanation: "Esther was queen of the Persian Empire under King Ahasuerus, who many scholars identify with the historical Xerxes I."
+        },
+        {
+          question: "What command did Mordecai refuse to obey, enraging Haman?",
+          options: ["To convert religion", "To bow down to Haman", "To pay extra tax", "To leave Susa"],
+          correctIndex: 1,
+          explanation: "Mordecai refused to bow down to Haman, and Haman's wounded pride led him to plot the destruction of all the Jews of Persia."
+        },
+        {
+          question: "Mordecai saved the king's life by uncovering what plot?",
+          options: ["A theft", "An assassination conspiracy", "A tax fraud", "A foreign invasion"],
+          correctIndex: 1,
+          explanation: "Mordecai overheard two of the king's eunuchs plotting to assassinate him, reported it, and was eventually rewarded — much to Haman's frustration."
+        },
+        {
+          question: "Haman's plot decreed that all Jews would be killed on what date?",
+          options: ["13th of Adar", "25th of Kislev", "10th of Tishrei", "14th of Nisan"],
+          correctIndex: 0,
+          explanation: "Haman cast lots ('purim') and chose the 13th of Adar for his planned massacre. The Jews instead defended themselves successfully on that day, and Purim is celebrated on the 14th."
+        },
+        {
+          question: "What special scroll is read aloud at Purim?",
+          options: ["The Torah", "The Megillah (Book of Esther)", "The Haggadah", "The Mishnah"],
+          correctIndex: 1,
+          explanation: "The Megillat Esther (Scroll of Esther) is read aloud twice — once at night and once in the morning — during Purim."
+        },
+        {
+          question: "Esther approached the king with her plea by first inviting him to:",
+          options: ["A military council", "A banquet", "A wedding", "A debate"],
+          correctIndex: 1,
+          explanation: "Esther invited the king and Haman to two banquets. At the second, she revealed her Jewish identity and exposed Haman's plot."
+        },
+        {
+          question: "The Persian queen Esther replaced was named:",
+          options: ["Vashti", "Sarah", "Bathsheba", "Jezebel"],
+          correctIndex: 0,
+          explanation: "Vashti refused to appear before the king's drunken party and was banished. A beauty contest to find her replacement made Esther queen."
+        },
+        {
+          question: "Which Purim mitzvah involves helping those in need?",
+          options: ["Lighting candles", "Building a sukkah", "Giving gifts to the poor (Matanot LaEvyonim)", "Blowing the shofar"],
+          correctIndex: 2,
+          explanation: "Purim has four mitzvot: hearing the Megillah, festive meal, gifts of food to friends (mishloach manot), and gifts to the poor (matanot la'evyonim)."
+        },
+        {
+          question: "The Book of Esther is notable for not explicitly mentioning:",
+          options: ["The king", "Persia", "God", "Jews"],
+          correctIndex: 2,
+          explanation: "The Book of Esther is one of only two books in the Hebrew Bible that do not contain God's name (the other is Song of Songs), yet God's hand is seen throughout the story."
+        },
+        {
+          question: "What did Haman build that he himself was ultimately hanged on?",
+          options: ["A gallows", "A throne", "A sword stand", "A tower"],
+          correctIndex: 0,
+          explanation: "Haman built a 50-cubit-tall gallows intending to hang Mordecai. After his plot was exposed, the king ordered Haman hanged on his own gallows."
+        },
+        {
+          question: "In which modern country was the Persian Empire of Esther's time primarily located?",
+          options: ["Iraq", "Iran", "Egypt", "Greece"],
+          correctIndex: 1,
+          explanation: "The Achaemenid Persian Empire was centered in modern-day Iran. Its capitals included Susa (Shushan), Persepolis, and Ecbatana."
         }
       ]
     },
@@ -297,6 +477,66 @@ var Heroes = (function () {
           options: ["The parting of the sea", "Manna from heaven", "Oil burning for eight days", "Walls of Jericho falling"],
           correctIndex: 2,
           explanation: "When the Maccabees rededicated the Temple, only one day’s worth of pure oil was found, but it miraculously burned for eight days — long enough to prepare more."
+        },
+        {
+          question: "Judah Maccabee’s father, who began the revolt, was named:",
+          options: ["Mattathias", "Aaron", "Saul", "Eleazar"],
+          correctIndex: 0,
+          explanation: "Mattathias, an aged priest, killed a Jew who was about to sacrifice to a Greek god, sparking the revolt. His five sons, including Judah, carried it forward."
+        },
+        {
+          question: "What does the Hebrew word ‘Maccabee’ likely mean?",
+          options: ["Hammer", "Wisdom", "Light", "King"],
+          correctIndex: 0,
+          explanation: "Maccabee likely comes from ‘maqqaba’ meaning ‘hammer’ — describing Judah’s military style. Another theory: it’s an acronym for ‘Who is like You among the gods, O Lord?’"
+        },
+        {
+          question: "What ruler banned Jewish practice and desecrated the Temple, sparking the revolt?",
+          options: ["Pharaoh", "Antiochus IV Epiphanes", "Julius Caesar", "Cyrus the Great"],
+          correctIndex: 1,
+          explanation: "Antiochus IV Epiphanes outlawed Jewish religion, sacrificed pigs in the Temple, and demanded Jews worship Greek gods — triggering the Maccabean revolt."
+        },
+        {
+          question: "How many candles are on a chanukiah (Hanukkah menorah)?",
+          options: ["7", "8", "9", "12"],
+          correctIndex: 2,
+          explanation: "A chanukiah has 9 holders: 8 for the days of Hanukkah plus the shamash (‘helper’), used to light the others."
+        },
+        {
+          question: "The ‘helper’ candle on the chanukiah is called the:",
+          options: ["Shamash", "Kiddush", "Mezuzah", "Etrog"],
+          correctIndex: 0,
+          explanation: "The shamash sits higher or apart from the others. Its job is to kindle the eight Hanukkah lights — the Hanukkah lights themselves can’t be used for any other purpose."
+        },
+        {
+          question: "What do the four Hebrew letters on a dreidel stand for?",
+          options: ["The names of the prophets", "’A great miracle happened there’", "The kings of Israel", "The four matriarchs"],
+          correctIndex: 1,
+          explanation: "Nun-Gimel-Hei-Shin stands for ‘Nes Gadol Hayah Sham’ — A great miracle happened there. In Israel, the last letter is Pei for ‘Po’ (here)."
+        },
+        {
+          question: "How many days are in the holiday of Hanukkah?",
+          options: ["3", "5", "7", "8"],
+          correctIndex: 3,
+          explanation: "Hanukkah lasts 8 days and nights, commemorating the miracle that one day’s oil burned for 8."
+        },
+        {
+          question: "The Maccabees rededicated which sacred building in Jerusalem?",
+          options: ["The First Temple", "The Second Temple", "The Tabernacle", "A new synagogue"],
+          correctIndex: 1,
+          explanation: "The Maccabees recaptured and rededicated the Second Temple, which had been built by Jews returning from Babylonian exile and later defiled by Antiochus."
+        },
+        {
+          question: "The Maccabees founded a dynasty that ruled Judea for about how long?",
+          options: ["20 years", "100 years", "300 years", "500 years"],
+          correctIndex: 1,
+          explanation: "The Hasmonean dynasty, founded by the Maccabees, ruled an independent Jewish kingdom for roughly 100 years (140–63 BCE) until Roman conquest."
+        },
+        {
+          question: "Which special prayer of thanksgiving is added on Hanukkah?",
+          options: ["Sh’ma", "Al HaNissim", "Aleinu", "Kaddish"],
+          correctIndex: 1,
+          explanation: "Al HaNissim (‘For the miracles’) is added to the Amidah prayer and Birkat HaMazon (grace after meals) during Hanukkah and Purim."
         }
       ]
     },
@@ -372,6 +612,66 @@ var Heroes = (function () {
           options: ["Hebrew", "Aramaic", "Arabic", "Latin"],
           correctIndex: 2,
           explanation: "Maimonides wrote his philosophical works in Judeo-Arabic — Arabic written in Hebrew letters — the everyday language of educated Jews in Muslim lands."
+        },
+        {
+          question: "Maimonides's family was forced to flee Spain due to persecution by the:",
+          options: ["Romans", "Almohads", "Visigoths", "Crusaders"],
+          correctIndex: 1,
+          explanation: "The Almohad dynasty, fanatical Muslim Berbers, conquered Cordoba in 1148 and forced Jews and Christians to convert, flee, or die. Maimonides's family fled."
+        },
+        {
+          question: "Maimonides is famously buried in:",
+          options: ["Cairo", "Cordoba", "Tiberias", "Jerusalem"],
+          correctIndex: 2,
+          explanation: "Maimonides died in Egypt in 1204 but was buried in Tiberias, Israel. His grave remains a place of pilgrimage today."
+        },
+        {
+          question: "The Mishneh Torah is organized into how many books?",
+          options: ["5", "9", "14", "21"],
+          correctIndex: 2,
+          explanation: "The Mishneh Torah has 14 books — its name (Yad HaChazakah, 'The Mighty Hand') alludes to the numerical value of 14."
+        },
+        {
+          question: "Maimonides articulated how many fundamental principles of Jewish faith?",
+          options: ["7", "10", "13", "18"],
+          correctIndex: 2,
+          explanation: "Maimonides's 13 Principles include God's unity, prophecy, and resurrection. They appear in many siddurim and are sung as the hymn 'Yigdal.'"
+        },
+        {
+          question: "The Hebrew title of 'Guide for the Perplexed' is:",
+          options: ["Moreh Nevuchim", "Sefer HaMitzvot", "Zohar", "Talmud"],
+          correctIndex: 0,
+          explanation: "Moreh Nevuchim (or Moreh HaNevuchim) was originally written in Judeo-Arabic and later translated to Hebrew. It addresses educated Jews struggling to reconcile philosophy with faith."
+        },
+        {
+          question: "Maimonides codified how many commandments (mitzvot) from the Torah?",
+          options: ["100", "248", "365", "613"],
+          correctIndex: 3,
+          explanation: "Maimonides catalogued 613 commandments in his Sefer HaMitzvot: 248 positive (do this) and 365 negative (don't do that) — matching the days of the year and bones of the body."
+        },
+        {
+          question: "Maimonides's brother David, a jewel trader, died:",
+          options: ["In a famine", "In a shipwreck", "In battle", "Of old age"],
+          correctIndex: 1,
+          explanation: "David's death in a shipwreck devastated Moses (Maimonides), who fell ill from grief for a year. After David's death, Moses had to support the family through medicine."
+        },
+        {
+          question: "Maimonides served as personal physician to the court of which Muslim leader?",
+          options: ["Saladin", "Suleiman", "Akbar", "Mehmed the Conqueror"],
+          correctIndex: 0,
+          explanation: "Maimonides was physician to al-Fadil, vizier to Saladin (the Muslim leader who recaptured Jerusalem from the Crusaders). He may have treated Saladin himself."
+        },
+        {
+          question: "Maimonides famously argued that descriptions of God in the Torah should not be understood:",
+          options: ["Allegorically", "Literally / physically", "Philosophically", "Historically"],
+          correctIndex: 1,
+          explanation: "Maimonides rejected anthropomorphic descriptions of God. When the Torah speaks of God's 'hand' or 'face,' he insists these are metaphors — God has no physical form."
+        },
+        {
+          question: "In which language did Maimonides write the Mishneh Torah?",
+          options: ["Arabic", "Aramaic", "Hebrew", "Latin"],
+          correctIndex: 2,
+          explanation: "Maimonides wrote the Mishneh Torah in clear Mishnaic Hebrew so any educated Jew could understand it — unusual for his time, when scholarly works were often in Aramaic or Arabic."
         }
       ]
     },
@@ -447,6 +747,66 @@ var Heroes = (function () {
           options: ["1972", "1974", "1977", "1979"],
           correctIndex: 1,
           explanation: "Meir resigned in April 1974, taking responsibility for Israel’s lack of preparation for the Yom Kippur War."
+        },
+        {
+          question: "Golda Meir’s birth surname was:",
+          options: ["Meir", "Mabovitch", "Cohen", "Levin"],
+          correctIndex: 1,
+          explanation: "Born Goldie Mabovitch in Kiev, she later took her husband’s surname Meyerson — and Hebraicized it to Meir (‘illuminator’) in 1956 at Ben-Gurion’s request."
+        },
+        {
+          question: "In what year did Golda Meir die?",
+          options: ["1969", "1974", "1978", "1985"],
+          correctIndex: 2,
+          explanation: "Golda Meir died of lymphoma in December 1978 in Jerusalem, four years after stepping down as Prime Minister."
+        },
+        {
+          question: "Golda Meir trained and worked as a teacher in:",
+          options: ["Tel Aviv", "Kiev", "Milwaukee, Wisconsin", "Chicago, Illinois"],
+          correctIndex: 2,
+          explanation: "Golda trained at the Milwaukee Normal School and taught in Milwaukee public schools before emigrating to Palestine in 1921."
+        },
+        {
+          question: "In what year did Golda Meir immigrate to Mandate Palestine?",
+          options: ["1906", "1921", "1948", "1956"],
+          correctIndex: 1,
+          explanation: "Golda emigrated in 1921, joining a Zionist labor movement and eventually settling on Kibbutz Merhavia in northern Palestine."
+        },
+        {
+          question: "What is a ‘kibbutz’ (such as Merhavia, where young Golda lived)?",
+          options: ["A type of meal", "A collective farm", "A city", "A military base"],
+          correctIndex: 1,
+          explanation: "A kibbutz is a collective community in Israel, traditionally agricultural, where everything was shared. Many of Israel’s founding leaders lived on kibbutzim."
+        },
+        {
+          question: "Golda Meir was one of the signers of which historic document?",
+          options: ["The British Mandate", "Israel’s Declaration of Independence (1948)", "The Camp David Accords", "UN Resolution 181"],
+          correctIndex: 1,
+          explanation: "Golda Meir was one of 24 women and 13 men who signed Israel’s Declaration of Independence on May 14, 1948."
+        },
+        {
+          question: "Her Hebrew surname ‘Meir’ means:",
+          options: ["Illuminator (one who shines)", "Defender", "Builder", "Warrior"],
+          correctIndex: 0,
+          explanation: "Meir means ‘one who illuminates’ — a name fitting her trailblazing role as Israel’s first female head of government."
+        },
+        {
+          question: "Golda Meir was Israel’s first ambassador to:",
+          options: ["The United States", "The Soviet Union", "The United Kingdom", "Egypt"],
+          correctIndex: 1,
+          explanation: "She served as Israel’s first ambassador to Moscow in 1948–1949. Her visit to a Moscow synagogue on Rosh Hashanah drew 50,000 cheering Soviet Jews."
+        },
+        {
+          question: "Golda Meir was succeeded as Prime Minister by:",
+          options: ["Menachem Begin", "Yitzhak Rabin", "Shimon Peres", "Ariel Sharon"],
+          correctIndex: 1,
+          explanation: "Yitzhak Rabin (a former general and Israel’s first native-born PM) succeeded Golda in 1974 after her resignation."
+        },
+        {
+          question: "Golda Meir often described herself with the famous self-deprecating quip that she was just a:",
+          options: ["Tough old grandmother", "Schoolteacher from Milwaukee", "Stubborn farmer", "Politician’s wife"],
+          correctIndex: 1,
+          explanation: "Golda often described herself as ‘just a schoolteacher from Milwaukee’ — emphasizing her humble American roots over her political stature."
         }
       ]
     },
@@ -522,6 +882,66 @@ var Heroes = (function () {
           options: ["1905", "1915", "1921", "1933"],
           correctIndex: 2,
           explanation: "Einstein won the 1921 Nobel Prize in Physics for his explanation of the photoelectric effect — given in 1922 because the 1921 prize was initially withheld."
+        },
+        {
+          question: "Einstein famously said 'God does not ___ with the universe.'",
+          options: ["argue", "play dice", "hide", "draw"],
+          correctIndex: 1,
+          explanation: "Einstein resisted the randomness of quantum mechanics, writing 'God does not play dice with the universe.' Niels Bohr reportedly replied: 'Stop telling God what to do.'"
+        },
+        {
+          question: "Einstein's 1905 'miracle year' produced how many groundbreaking papers?",
+          options: ["1", "2", "4", "10"],
+          correctIndex: 2,
+          explanation: "In 1905 Einstein published four world-changing papers: on the photoelectric effect, Brownian motion, special relativity, and the mass-energy equivalence (E=mc²)."
+        },
+        {
+          question: "Before he became a famous professor, Einstein worked at the Swiss:",
+          options: ["Train station", "Patent Office", "Postal Service", "University library"],
+          correctIndex: 1,
+          explanation: "Einstein worked as a patent examiner in Bern (1902–1909), evaluating electrical inventions. He completed his miracle-year papers in his spare time."
+        },
+        {
+          question: "Einstein left Germany permanently in which year and why?",
+          options: ["1914 / WWI broke out", "1923 / Lost his job", "1933 / Hitler came to power", "1945 / End of WWII"],
+          correctIndex: 2,
+          explanation: "Einstein was visiting the U.S. when Hitler took power in 1933. As a Jew and pacifist, he renounced his German citizenship and never returned."
+        },
+        {
+          question: "Einstein's iconic photograph captures him:",
+          options: ["Smiling", "Sticking out his tongue", "Sleeping at a desk", "Writing equations"],
+          correctIndex: 1,
+          explanation: "On his 72nd birthday (March 14, 1951), tired of smiling for cameras, Einstein stuck out his tongue at photographer Arthur Sasse. The photo became one of the most famous of the 20th century."
+        },
+        {
+          question: "After Einstein died, what was secretly preserved for scientific study?",
+          options: ["His heart", "His brain", "His eyes", "His hands"],
+          correctIndex: 1,
+          explanation: "Pathologist Thomas Harvey removed Einstein's brain during autopsy in 1955 without family permission. Studies of it have shown unusual structural features."
+        },
+        {
+          question: "Einstein played which musical instrument well into adulthood?",
+          options: ["Piano", "Violin", "Cello", "Guitar"],
+          correctIndex: 1,
+          explanation: "Einstein played the violin (and piano) his entire life. He said if he hadn't been a physicist, he would have been a musician."
+        },
+        {
+          question: "Einstein supported which of these causes?",
+          options: ["Pacifism", "Civil rights", "Zionism", "All of the above"],
+          correctIndex: 3,
+          explanation: "Einstein was an outspoken pacifist (until WWII), a vocal supporter of civil rights for Black Americans, and a committed cultural Zionist who helped found Hebrew University."
+        },
+        {
+          question: "Einstein was offered (and declined) the presidency of which country?",
+          options: ["United States", "Israel", "Switzerland", "Germany"],
+          correctIndex: 1,
+          explanation: "After Chaim Weizmann's death in 1952, Israel offered Einstein the largely ceremonial presidency. He declined, saying he had no aptitude for human relations."
+        },
+        {
+          question: "The fundamental physical theory that Einstein's work directly enabled is:",
+          options: ["Genetics", "Plate tectonics", "Nuclear physics and quantum theory", "Evolution"],
+          correctIndex: 2,
+          explanation: "Einstein's E=mc² is the foundational equation of nuclear physics. His photoelectric-effect paper was a cornerstone of quantum theory, even though he was uneasy with quantum mechanics's interpretation."
         }
       ]
     }
