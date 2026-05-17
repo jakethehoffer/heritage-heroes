@@ -138,3 +138,134 @@ test("totalMastered returns correct count after marking several heroes", () => {
   Storage.markMastered(s, "rambam");
   assert.strictEqual(Storage.totalMastered(s), 3);
 });
+
+// ── Stats defaults ─────────────────────────────────────────────────────────
+test("stats defaults to all zeros", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.stats.matchesPlayed, 0);
+  assert.strictEqual(data.stats.matchesWon,    0);
+  assert.strictEqual(data.stats.triviaCorrect, 0);
+  assert.strictEqual(data.stats.triviaTotal,   0);
+});
+
+test("stats.perHero defaults all heroes to all zeros", () => {
+  const data = Storage.load(fakeStore());
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  for (const id of heroIds) {
+    const ph = data.stats.perHero[id];
+    assert.ok(ph, `perHero[${id}] should exist`);
+    assert.strictEqual(ph.played,       0, `${id}.played`);
+    assert.strictEqual(ph.won,          0, `${id}.won`);
+    assert.strictEqual(ph.triviaCorrect,0, `${id}.triviaCorrect`);
+    assert.strictEqual(ph.triviaTotal,  0, `${id}.triviaTotal`);
+  }
+});
+
+// ── recordMatch ────────────────────────────────────────────────────────────
+test("recordMatch increments global matchesPlayed and matchesWon by 1", () => {
+  const s = fakeStore();
+  Storage.recordMatch(s, "moses", "david");
+  const data = Storage.load(s);
+  assert.strictEqual(data.stats.matchesPlayed, 1);
+  assert.strictEqual(data.stats.matchesWon,    1);
+});
+
+test("recordMatch increments perHero played and won for winner, played only for loser", () => {
+  const s = fakeStore();
+  Storage.recordMatch(s, "moses", "david");
+  const data = Storage.load(s);
+  assert.strictEqual(data.stats.perHero.moses.played, 1);
+  assert.strictEqual(data.stats.perHero.moses.won,    1);
+  assert.strictEqual(data.stats.perHero.david.played, 1);
+  assert.strictEqual(data.stats.perHero.david.won,    0);
+});
+
+test("recordMatch accumulates across multiple calls", () => {
+  const s = fakeStore();
+  Storage.recordMatch(s, "esther", "judah");
+  Storage.recordMatch(s, "esther", "golda");
+  const data = Storage.load(s);
+  assert.strictEqual(data.stats.matchesPlayed,         2);
+  assert.strictEqual(data.stats.matchesWon,            2);
+  assert.strictEqual(data.stats.perHero.esther.played, 2);
+  assert.strictEqual(data.stats.perHero.esther.won,    2);
+  assert.strictEqual(data.stats.perHero.judah.played,  1);
+  assert.strictEqual(data.stats.perHero.golda.played,  1);
+});
+
+// ── recordTrivia ───────────────────────────────────────────────────────────
+test("recordTrivia increments triviaTotal globally and perHero", () => {
+  const s = fakeStore();
+  Storage.recordTrivia(s, "rambam", false);
+  const data = Storage.load(s);
+  assert.strictEqual(data.stats.triviaTotal,             1);
+  assert.strictEqual(data.stats.triviaCorrect,           0);
+  assert.strictEqual(data.stats.perHero.rambam.triviaTotal,   1);
+  assert.strictEqual(data.stats.perHero.rambam.triviaCorrect, 0);
+});
+
+test("recordTrivia increments triviaCorrect when wasCorrect=true", () => {
+  const s = fakeStore();
+  Storage.recordTrivia(s, "golda", true);
+  const data = Storage.load(s);
+  assert.strictEqual(data.stats.triviaCorrect,             1);
+  assert.strictEqual(data.stats.perHero.golda.triviaCorrect, 1);
+});
+
+// ── unlockAchievement ─────────────────────────────────────────────────────
+test("unlockAchievement flips only the targeted achievement key", () => {
+  const s = fakeStore();
+  Storage.unlockAchievement(s, "firstWin");
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.firstWin, true);
+  // all others still false
+  const keys = ["arcadeChampion","hardChampion","heroOfThePeople","triviaApprentice",
+                 "triviaScholar","triviaSage","heritageScholar","streakOf5","streakOf10",
+                 "comeback","centurion"];
+  for (const k of keys) {
+    assert.strictEqual(data.achievements[k], false, `${k} should still be false`);
+  }
+});
+
+test("unlockAchievement is idempotent (second call is a no-op)", () => {
+  const s = fakeStore();
+  Storage.unlockAchievement(s, "centurion");
+  Storage.unlockAchievement(s, "centurion");
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.centurion, true);
+});
+
+// ── achievements defaults ─────────────────────────────────────────────────
+test("achievements defaults to all false", () => {
+  const data = Storage.load(fakeStore());
+  for (const key of Object.keys(data.achievements)) {
+    assert.strictEqual(data.achievements[key], false, `${key} should default false`);
+  }
+});
+
+test("achievements round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.achievements.firstWin      = true;
+  data.achievements.arcadeChampion = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.achievements.firstWin,       true);
+  assert.strictEqual(reloaded.achievements.arcadeChampion, true);
+  assert.strictEqual(reloaded.achievements.centurion,      false);
+});
+
+// ── hardCleared ───────────────────────────────────────────────────────────
+test("hardCleared defaults to false", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.hardCleared, false);
+});
+
+test("hardCleared round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.hardCleared = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.hardCleared, true);
+});

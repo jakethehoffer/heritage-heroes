@@ -21,6 +21,7 @@ var Screens = (function () {
   <p class="tagline">A turn-based duel through history.</p>
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
+    <button data-action="view-stats" class="secondary">View Stats</button>
     <button data-action="show-help" class="secondary">How to Play</button>
     <button data-action="toggle-sound" class="secondary">${state.save && state.save.sound ? "Sound: ON" : "Sound: OFF"}</button>
   </div>
@@ -2085,13 +2086,176 @@ var Screens = (function () {
 </section>`;
   }
 
+  // ── Achievement metadata ──────────────────────────────────────────────────
+  const ACHIEVEMENT_LIST = [
+    { key: "firstWin",         title: "First Steps",            description: "Win your first match",                              icon: "🏅" },
+    { key: "arcadeChampion",   title: "Arcade Champion",        description: "Complete the Arcade Ladder",                        icon: "🏆" },
+    { key: "hardChampion",     title: "Hard-Mode Champion",     description: "Complete the Arcade Ladder on Hard difficulty",      icon: "💎" },
+    { key: "heroOfThePeople",  title: "Hero of the People",     description: "Win at least one match with every hero",            icon: "🌟" },
+    { key: "triviaApprentice", title: "Trivia Apprentice",      description: "Answer 10 trivia questions correctly",              icon: "📚" },
+    { key: "triviaScholar",    title: "Trivia Scholar",         description: "Answer 50 trivia questions correctly",              icon: "📖" },
+    { key: "triviaSage",       title: "Trivia Sage",            description: "Answer 150 trivia questions correctly",             icon: "🧙" },
+    { key: "heritageScholar",  title: "Heritage Scholar",       description: "Master all 7 heroes",                               icon: "🎓" },
+    { key: "streakOf5",        title: "Hot Streak",             description: "Answer 5 trivia questions correctly in a row",      icon: "🔥" },
+    { key: "streakOf10",       title: "On Fire",                description: "Answer 10 trivia questions correctly in a row",     icon: "⚡" },
+    { key: "comeback",         title: "Comeback Kid",           description: "Win a match after dropping below 20 HP",           icon: "💪" },
+    { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯" }
+  ];
+
+  // ── Achievement toast queue ───────────────────────────────────────────────
+  let _toastQueue = [];
+  let _toastBusy  = false;
+
+  function _drainToastQueue() {
+    if (_toastBusy || _toastQueue.length === 0) return;
+    const key = _toastQueue.shift();
+    _toastBusy = true;
+    showAchievementToast(key, () => {
+      _toastBusy = false;
+      _drainToastQueue();
+    });
+  }
+
+  function queueAchievementToast(key) {
+    _toastQueue.push(key);
+    _drainToastQueue();
+  }
+
+  function showAchievementToast(key, onDone) {
+    if (typeof document === "undefined") { if (onDone) onDone(); return; }
+    const meta = ACHIEVEMENT_LIST.find(a => a.key === key);
+    if (!meta) { if (onDone) onDone(); return; }
+
+    const el = document.createElement("div");
+    el.className = "achievement-toast";
+    el.innerHTML = `
+      <span class="toast-icon">${meta.icon}</span>
+      <div class="toast-body">
+        <div class="toast-title">Achievement Unlocked: ${Render.escapeHtml(meta.title)}</div>
+        <div class="toast-desc">${Render.escapeHtml(meta.description)}</div>
+      </div>`;
+    document.body.appendChild(el);
+
+    // Slide in
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => { el.classList.add("toast-visible"); });
+    });
+
+    const HOLD = 3000;
+    window.setTimeout(() => {
+      el.classList.remove("toast-visible");
+      el.addEventListener("transitionend", () => {
+        if (el.isConnected) el.remove();
+        if (onDone) onDone();
+      }, { once: true });
+      // Fallback if transitionend doesn't fire
+      window.setTimeout(() => { if (el.isConnected) el.remove(); if (onDone) onDone(); }, 600);
+    }, HOLD);
+  }
+
+  // ── Stats screen ─────────────────────────────────────────────────────────
+  function renderStats(state) {
+    const save = state.save || {};
+    const stats = save.stats || { matchesPlayed: 0, matchesWon: 0, triviaCorrect: 0, triviaTotal: 0, perHero: {} };
+    const achievements = save.achievements || {};
+    const mastered = save.mastered || {};
+
+    const winRate = stats.matchesPlayed > 0
+      ? Math.round((stats.matchesWon / stats.matchesPlayed) * 100)
+      : 0;
+    const accuracy = stats.triviaTotal > 0
+      ? Math.round((stats.triviaCorrect / stats.triviaTotal) * 100)
+      : 0;
+
+    const heroRows = Heroes.list.map(h => {
+      const ph = (stats.perHero && stats.perHero[h.id]) || { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
+      const hWinRate = ph.played > 0 ? Math.round((ph.won / ph.played) * 100) : 0;
+      const hAcc     = ph.triviaTotal > 0 ? Math.round((ph.triviaCorrect / ph.triviaTotal) * 100) : 0;
+      const masteredStar = mastered[h.id] ? " ⭐" : "";
+      const portrait = Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" });
+      return `
+<div class="stats-hero-row">
+  <div class="stats-hero-portrait">${portrait}</div>
+  <div class="stats-hero-name">${Render.escapeHtml(h.name)}${masteredStar}</div>
+  <div class="stats-hero-nums">
+    <span>Played: ${ph.played}</span>
+    <span>Won: ${ph.won} (${hWinRate}%)</span>
+    <span>Trivia: ${ph.triviaCorrect}/${ph.triviaTotal} (${hAcc}%)</span>
+  </div>
+</div>`;
+    }).join("");
+
+    const achievementCards = ACHIEVEMENT_LIST.map(a => {
+      const unlocked = !!achievements[a.key];
+      const cls = unlocked ? "achievement-card" : "achievement-card locked";
+      const lockOverlay = unlocked ? "" : `<div class="achievement-lock">🔒</div>`;
+      return `
+<div class="${cls}">
+  <div class="achievement-icon">${a.icon}</div>
+  <div class="achievement-title">${Render.escapeHtml(a.title)}</div>
+  <div class="achievement-desc">${Render.escapeHtml(a.description)}</div>
+  ${lockOverlay}
+</div>`;
+    }).join("");
+
+    return `
+<section class="screen stats-screen">
+  <h2>Your Heritage</h2>
+  <button data-action="goto-title" class="back">&larr; Back to Menu</button>
+
+  <div class="stats-section">
+    <h3>Overall</h3>
+    <div class="stats-overall">
+      <div>Matches played: <strong>${stats.matchesPlayed}</strong></div>
+      <div>Matches won: <strong>${stats.matchesWon}</strong> (${winRate}% win rate)</div>
+      <div>Trivia answered: <strong>${stats.triviaTotal}</strong></div>
+      <div>Trivia correct: <strong>${stats.triviaCorrect}</strong> (${accuracy}% accuracy)</div>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <h3>Heroes</h3>
+    <div class="stats-table">${heroRows}</div>
+  </div>
+
+  <div class="stats-section">
+    <h3>Achievements</h3>
+    <div class="achievement-grid">${achievementCards}</div>
+  </div>
+
+  <div class="stats-section danger-zone">
+    <h3>Danger Zone</h3>
+    <p>Reset all stats and achievements. This cannot be undone.</p>
+    <button data-action="confirm-reset-stats" class="secondary">Reset All Stats</button>
+  </div>
+
+  <button data-action="goto-title" class="back">&larr; Back to Menu</button>
+</section>`;
+  }
+
+  function renderResetStatsConfirm() {
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>Reset All Stats?</h3>
+    <p>This will permanently erase all match stats, trivia counts, and achievements. It cannot be undone.</p>
+    <div class="overlay-buttons">
+      <button data-action="cancel-reset-stats" class="secondary">Cancel</button>
+      <button data-action="do-reset-stats">Reset Everything</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
-    renderStudySession, renderStudyResult,
+    renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
-    showCallout, playSpecialFx, playChargeFx
+    showCallout, playSpecialFx, playChargeFx,
+    queueAchievementToast, showAchievementToast,
+    ACHIEVEMENT_LIST
   };
 })();
 

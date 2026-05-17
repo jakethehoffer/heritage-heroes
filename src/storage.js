@@ -3,14 +3,42 @@ var Storage = (function () {
 
   const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
+  function _defaultPerHero() {
+    const obj = {};
+    for (const id of HERO_IDS) obj[id] = { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
+    return obj;
+  }
+
   function defaults() {
     return {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
       tutorialSeen: false,
       hardUnlocked: false,
+      hardCleared: false,
       specialsUnlocked: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false },
-      mastered: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false }
+      mastered: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false },
+      stats: {
+        matchesPlayed: 0,
+        matchesWon: 0,
+        triviaCorrect: 0,
+        triviaTotal: 0,
+        perHero: _defaultPerHero()
+      },
+      achievements: {
+        firstWin:         false,
+        arcadeChampion:   false,
+        hardChampion:     false,
+        heroOfThePeople:  false,
+        triviaApprentice: false,
+        triviaScholar:    false,
+        triviaSage:       false,
+        heritageScholar:  false,
+        streakOf5:        false,
+        streakOf10:       false,
+        comeback:         false,
+        centurion:        false
+      }
     };
   }
 
@@ -40,6 +68,33 @@ var Storage = (function () {
           for (const id of HERO_IDS) {
             if (typeof parsed.mastered[id] === "boolean") {
               out.mastered[id] = parsed.mastered[id];
+            }
+          }
+        }
+        if (typeof parsed.hardCleared === "boolean") out.hardCleared = parsed.hardCleared;
+        // stats deep-merge
+        if (parsed.stats && typeof parsed.stats === "object") {
+          if (Number.isInteger(parsed.stats.matchesPlayed)) out.stats.matchesPlayed = parsed.stats.matchesPlayed;
+          if (Number.isInteger(parsed.stats.matchesWon))    out.stats.matchesWon    = parsed.stats.matchesWon;
+          if (Number.isInteger(parsed.stats.triviaCorrect)) out.stats.triviaCorrect = parsed.stats.triviaCorrect;
+          if (Number.isInteger(parsed.stats.triviaTotal))   out.stats.triviaTotal   = parsed.stats.triviaTotal;
+          if (parsed.stats.perHero && typeof parsed.stats.perHero === "object") {
+            for (const id of HERO_IDS) {
+              const ph = parsed.stats.perHero[id];
+              if (ph && typeof ph === "object") {
+                if (Number.isInteger(ph.played))       out.stats.perHero[id].played       = ph.played;
+                if (Number.isInteger(ph.won))          out.stats.perHero[id].won          = ph.won;
+                if (Number.isInteger(ph.triviaCorrect)) out.stats.perHero[id].triviaCorrect = ph.triviaCorrect;
+                if (Number.isInteger(ph.triviaTotal))  out.stats.perHero[id].triviaTotal  = ph.triviaTotal;
+              }
+            }
+          }
+        }
+        // achievements boolean merge
+        if (parsed.achievements && typeof parsed.achievements === "object") {
+          for (const key of Object.keys(out.achievements)) {
+            if (typeof parsed.achievements[key] === "boolean") {
+              out.achievements[key] = parsed.achievements[key];
             }
           }
         }
@@ -83,7 +138,47 @@ var Storage = (function () {
     return Object.values(data.mastered).filter(Boolean).length;
   }
 
-  return { load, save, incrementArcadeWin, unlockSpecial, markMastered, totalMastered };
+  // Record the end of a match. winnerHeroId and loserHeroId are hero id strings.
+  function recordMatch(store, winnerHeroId, loserHeroId) {
+    const data = load(store);
+    data.stats.matchesPlayed += 1;
+    data.stats.matchesWon   += 1;
+    if (Object.prototype.hasOwnProperty.call(data.stats.perHero, winnerHeroId)) {
+      data.stats.perHero[winnerHeroId].played += 1;
+      data.stats.perHero[winnerHeroId].won    += 1;
+    }
+    if (Object.prototype.hasOwnProperty.call(data.stats.perHero, loserHeroId)) {
+      data.stats.perHero[loserHeroId].played += 1;
+    }
+    save(store, data);
+    return data;
+  }
+
+  // Record a trivia answer. heroId is the hero whose question was asked.
+  function recordTrivia(store, heroId, wasCorrect) {
+    const data = load(store);
+    data.stats.triviaTotal += 1;
+    if (wasCorrect) data.stats.triviaCorrect += 1;
+    if (Object.prototype.hasOwnProperty.call(data.stats.perHero, heroId)) {
+      data.stats.perHero[heroId].triviaTotal += 1;
+      if (wasCorrect) data.stats.perHero[heroId].triviaCorrect += 1;
+    }
+    save(store, data);
+    return data;
+  }
+
+  // Idempotently unlock an achievement by key. Returns the updated save.
+  function unlockAchievement(store, key) {
+    const data = load(store);
+    if (data.achievements[key] === false) {
+      data.achievements[key] = true;
+      save(store, data);
+    }
+    return data;
+  }
+
+  return { load, save, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
+           recordMatch, recordTrivia, unlockAchievement };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

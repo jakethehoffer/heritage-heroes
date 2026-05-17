@@ -1,7 +1,7 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result
-    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia'
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats'
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade' | 'study'
     difficulty: "normal",   // 'normal' | 'hard'
@@ -13,7 +13,10 @@ var Main = (function () {
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
-    study: null             // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
+    study: null,            // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
+    // Achievement tracking (in-memory per session/match)
+    triviaStreak: 0,        // consecutive correct trivia answers
+    currentMatchLowHp: { 0: false, 1: false }  // per-match low-HP flag per player slot
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -27,6 +30,47 @@ var Main = (function () {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  // ── Achievement check ─────────────────────────────────────────────────────
+  // Returns an array of newly-unlocked achievement keys (not yet in save.achievements).
+  function checkAchievements() {
+    const save   = state.save;
+    const stats  = save.stats;
+    const ach    = save.achievements;
+    const newKeys = [];
+
+    function tryUnlock(key, condition) {
+      if (!ach[key] && condition) newKeys.push(key);
+    }
+
+    tryUnlock("firstWin",         stats.matchesWon >= 1);
+    tryUnlock("arcadeChampion",   Object.values(save.arcade).some(n => n >= 1));
+    tryUnlock("hardChampion",     !!save.hardCleared);
+    tryUnlock("heroOfThePeople",  Object.values(stats.perHero).every(ph => ph.won >= 1));
+    tryUnlock("triviaApprentice", stats.triviaCorrect >= 10);
+    tryUnlock("triviaScholar",    stats.triviaCorrect >= 50);
+    tryUnlock("triviaSage",       stats.triviaCorrect >= 150);
+    tryUnlock("heritageScholar",  Object.values(save.mastered).every(Boolean));
+    tryUnlock("streakOf5",        state.triviaStreak >= 5);
+    tryUnlock("streakOf10",       state.triviaStreak >= 10);
+    tryUnlock("centurion",        stats.matchesPlayed >= 100);
+    // "comeback" is handled explicitly in onMatchEnd
+
+    return newKeys;
+  }
+
+  // Unlock achievements, save, and fire toasts.
+  function applyAchievements(keys) {
+    const store = getStore();
+    if (!store) return;
+    for (const key of keys) {
+      Storage.unlockAchievement(store, key);
+      state.save.achievements[key] = true;
+      if (typeof Screens !== "undefined" && Screens.queueAchievementToast) {
+        Screens.queueAchievementToast(key);
+      }
+    }
   }
 
   function boot() {
@@ -56,12 +100,14 @@ var Main = (function () {
     else if (state.screen === "result") body = Screens.renderResult(state);
     else if (state.screen === "study") body = Screens.renderStudySession(state);
     else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
+    else if (state.screen === "stats") body = Screens.renderStats(state);
 
     let overlay = "";
-    if (state.overlay === "tutorial") overlay = Screens.renderTutorial(state.tutorialStep);
-    if (state.overlay === "help")     overlay = Screens.renderHelp();
-    if (state.overlay === "quit")     overlay = Screens.renderQuitConfirm(state);
-    if (state.overlay === "trivia")   overlay = Screens.renderTriviaOverlay(state, state.trivia);
+    if (state.overlay === "tutorial")    overlay = Screens.renderTutorial(state.tutorialStep);
+    if (state.overlay === "help")        overlay = Screens.renderHelp();
+    if (state.overlay === "quit")        overlay = Screens.renderQuitConfirm(state);
+    if (state.overlay === "trivia")      overlay = Screens.renderTriviaOverlay(state, state.trivia);
+    if (state.overlay === "reset-stats") overlay = Screens.renderResetStatsConfirm();
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -122,6 +168,33 @@ var Main = (function () {
         Storage.save(getStore(), state.save);
         render();
         return;
+      case "view-stats":
+        state.screen = "stats";
+        render();
+        return;
+
+      case "confirm-reset-stats":
+        state.overlay = "reset-stats";
+        render();
+        return;
+
+      case "cancel-reset-stats":
+        state.overlay = null;
+        render();
+        return;
+
+      case "do-reset-stats": {
+        const fresh = Storage.defaults();
+        state.save.stats        = fresh.stats;
+        state.save.achievements = fresh.achievements;
+        state.save.hardCleared  = false;
+        Storage.save(getStore(), state.save);
+        state.save = Storage.load(getStore());
+        state.overlay = null;
+        render();
+        return;
+      }
+
       case "toggle-sound":
         state.save.sound = !state.save.sound;
         Sfx.setMuted(!state.save.sound);
@@ -135,6 +208,23 @@ var Main = (function () {
         const isCorrect = chosenIdx === state.trivia.correctIndex;
         state.trivia.phase = "result";
         state.trivia.chosenIndex = chosenIdx;
+
+        // Record trivia stat and update streak
+        const tStore = getStore();
+        if (tStore) {
+          Storage.recordTrivia(tStore, state.trivia.heroId, isCorrect);
+          state.save = Storage.load(tStore);
+        }
+        if (isCorrect) {
+          state.triviaStreak += 1;
+        } else {
+          state.triviaStreak = 0;
+        }
+
+        // Check achievements after trivia
+        const triviaAch = checkAchievements();
+        applyAchievements(triviaAch);
+
         render();
         return;
       }
@@ -158,7 +248,8 @@ var Main = (function () {
       }
 
       case "trivia-skip": {
-        // Skip is treated the same as a wrong answer — turn is consumed
+        // Skip resets streak
+        state.triviaStreak = 0;
         const skipHeroId = state.trivia ? state.trivia.heroId : null;
         state.overlay = null;
         state.trivia = null;
@@ -295,6 +386,7 @@ var Main = (function () {
       if (state.controllers[1] === "ai") {
         const choices = HERO_ORDER.filter(id => id !== heroId);
         state.picks[2] = choices[Math.floor(Math.random() * choices.length)];
+        state.currentMatchLowHp = { 0: false, 1: false };
         state.match = Combat.createMatch(state.picks[1], state.picks[2]);
         state.screen = "battle";
         render();
@@ -305,6 +397,7 @@ var Main = (function () {
       return;
     }
     // Both human and both picked → begin
+    state.currentMatchLowHp = { 0: false, 1: false };
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
     state.screen = "battle";
     render();
@@ -313,6 +406,7 @@ var Main = (function () {
   function startNextArcadeMatch() {
     const opponent = state.arcade.remaining[0];
     const hardMode = state.difficulty === "hard";
+    state.currentMatchLowHp = { 0: false, 1: false };
     state.match = Combat.createMatch(
       state.arcade.playerHeroId,
       opponent,
@@ -418,6 +512,11 @@ var Main = (function () {
         if (move === "attack") {
           Screens.playAttackFx(pIdx, activeHeroId);
         }
+        // Track low-HP flag for comeback achievement
+        const newHp = state.match.players[pIdx].hp;
+        if (newHp < 20 && !state.currentMatchLowHp[pIdx]) {
+          state.currentMatchLowHp[pIdx] = true;
+        }
       } else if (delta < 0) {
         // This player was healed (negative delta = HP gained)
         Screens.showDamageNumber(pIdx, Math.abs(delta), "heal");
@@ -446,30 +545,66 @@ var Main = (function () {
 
   function onMatchEnd() {
     Sfx.play("victory");
+    const store = getStore();
+
+    const winnerIdx  = state.match.winner;
+    const winnerHero = state.match.players[winnerIdx].heroId;
+    const loserHero  = state.match.players[1 - winnerIdx].heroId;
+    const newAchKeys = [];
+
     if (state.mode === "arcade") {
       const playerSlot = state.match.players.findIndex(p => p.heroId === state.arcade.playerHeroId);
-      const playerWon = state.match.winner === playerSlot;
+      const playerWon  = state.match.winner === playerSlot;
       if (playerWon) {
         const beaten = state.arcade.remaining.shift();
         state.arcade.defeated.push(beaten);
         if (state.arcade.remaining.length === 0) {
-          // Whole ladder complete
-          Storage.incrementArcadeWin(getStore(), state.arcade.playerHeroId);
+          // Whole arcade ladder complete
+          Storage.incrementArcadeWin(store, state.arcade.playerHeroId);
+          // Track hard mode clear
+          if (state.difficulty === "hard" && store) {
+            const tmpData = Storage.load(store);
+            tmpData.hardCleared = true;
+            Storage.save(store, tmpData);
+          }
           // Check if this is the first time hard mode gets unlocked
           const wasAlreadyUnlocked = state.save && state.save.hardUnlocked;
           if (!wasAlreadyUnlocked) {
-            // Snapshot before reload: mark firstClear so the ending screen celebrates
             state.arcade.firstClear = true;
           }
-          state.save = Storage.load(getStore());
+          state.save = Storage.load(store);
           // Unlock hard mode if not already unlocked
           if (!state.save.hardUnlocked) {
             state.save.hardUnlocked = true;
-            Storage.save(getStore(), state.save);
+            Storage.save(store, state.save);
           }
         }
       }
     }
+
+    // Record match result in stats (winner is the match winner, not necessarily the player)
+    if (store) {
+      Storage.recordMatch(store, winnerHero, loserHero);
+      state.save = Storage.load(store);
+    }
+
+    // Determine if the human player won (slot 0 in quick/arcade, always player 1)
+    const humanSlot = state.controllers.indexOf("human");
+    const humanWon  = humanSlot !== -1 && state.match.winner === humanSlot;
+
+    // Comeback achievement: human won AND their HP dropped below 20 this match
+    if (humanWon && state.currentMatchLowHp[humanSlot] && !state.save.achievements.comeback) {
+      newAchKeys.push("comeback");
+    }
+
+    // Reset per-match low-HP flags for the next match
+    state.currentMatchLowHp = { 0: false, 1: false };
+
+    // Check all other achievements
+    newAchKeys.push(...checkAchievements());
+
+    applyAchievements(newAchKeys);
+
     state.screen = "result";
     render();
   }
@@ -498,6 +633,7 @@ var Main = (function () {
   }
 
   function rematch() {
+    state.currentMatchLowHp = { 0: false, 1: false };
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
     state.screen = "battle";
     render();
