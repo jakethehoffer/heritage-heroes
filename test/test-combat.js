@@ -344,20 +344,19 @@ test("AI Moses: falls back to 40/35/25 split when rng is high on first roll", ()
 });
 
 // append
-test("arcadeOrder: returns the other 7 heroes in a fixed order", () => {
+test("arcadeOrder: returns the other 6 heroes in a fixed order", () => {
   const order = Combat.arcadeOrder("moses");
-  assert.strictEqual(order.length, 7);
+  assert.strictEqual(order.length, 6);
   assert.ok(!order.includes("moses"));
   // Order must be stable
   assert.deepStrictEqual(order, Combat.arcadeOrder("moses"));
 });
 
-test("arcadeOrder: for david omits david but includes moses and samson", () => {
+test("arcadeOrder: for david omits david but includes moses", () => {
   const order = Combat.arcadeOrder("david");
   assert.ok(!order.includes("david"));
   assert.ok(order.includes("moses"));
-  assert.ok(order.includes("samson"));
-  assert.strictEqual(order.length, 7);
+  assert.strictEqual(order.length, 6);
 });
 
 test("burn KO at start of turn prevents move from executing", () => {
@@ -684,96 +683,4 @@ test("Boss Esther twist: Reversal reflects at 2.0x instead of 1.5x", () => {
   Combat.applyMove(s, "attack");
   assert.strictEqual(s.players[0].hp, s.players[0].maxHp, "Esther unharmed");
   assert.strictEqual(s.players[1].hp, 100 - 20, "Moses takes 20 reflected (2x)");
-});
-
-// ─── Samson tests ────────────────────────────────────────────────────────────
-
-test("Samson's special: deals 30 damage to opponent and 12 to self", () => {
-  const s = Combat.createMatch("samson", "moses"); // Moses 100 HP, Samson 110 HP
-  Combat.applyMove(s, "special"); // Collapse the Pillars
-  assert.strictEqual(s.players[1].hp, 100 - 30, "opponent takes 30 damage");
-  assert.strictEqual(s.players[0].hp, 110 - 12, "Samson takes 12 self-damage");
-});
-
-test("Samson's special: boss twist deals 40 to opponent and 18 to self", () => {
-  const s = Combat.createMatch("samson", "moses", { bossSlot: 0 });
-  // Boss Samson: maxHp = round(110 * 1.25) = 138, damageMultiplier=1.20
-  const samsonMaxHp = Math.round(110 * 1.25);
-  assert.strictEqual(s.players[0].maxHp, samsonMaxHp, "boss HP boosted");
-  Combat.applyMove(s, "special");
-  // Opponent dmg = Math.round(40 * 1.20) = 48; self dmg = 18 (constant)
-  const expectedOppDmg = Math.round(40 * 1.20);
-  assert.strictEqual(s.players[1].hp, 100 - expectedOppDmg, "opponent takes 40 * 1.20 damage");
-  assert.strictEqual(s.players[0].hp, samsonMaxHp - 18, "Samson takes 18 self-damage (constant, not multiplied)");
-});
-
-test("Samson's special: self-damage can KO Samson (opponent wins)", () => {
-  const s = Combat.createMatch("samson", "moses");
-  s.players[0].hp = 10; // Samson has only 10 HP — 12 self-damage will KO him
-  s.players[1].hp = 50; // Opponent survives the 30 damage
-  Combat.applyMove(s, "special");
-  assert.strictEqual(s.players[0].hp, 0, "Samson KOs himself");
-  assert.strictEqual(s.winner, 1, "opponent (moses, slot 1) wins when Samson self-KOs");
-});
-
-test("Samson's special: self-damage log entry is appended", () => {
-  const s = Combat.createMatch("samson", "moses");
-  Combat.applyMove(s, "special");
-  // Log should include both the normal move log and the self-hit log
-  const selfHitLog = s.log.find(l => l.includes("12") && l.toLowerCase().includes("pillar"));
-  assert.ok(selfHitLog, "log should include self-damage message about collapsing pillars");
-});
-
-test("Samson's special: enters 3-turn cooldown after use", () => {
-  const s = Combat.createMatch("samson", "moses");
-  Combat.applyMove(s, "special");
-  assert.strictEqual(s.players[0].specialCooldown, 3);
-});
-
-// ─── Samson AI personality tests ─────────────────────────────────────────────
-
-test("AI Samson: uses special when HP < 30% of maxHp and special available (any rng)", () => {
-  const s = Combat.createMatch("samson", "moses");
-  // Samson maxHp=110; 30% = 33; set hp=30 to trigger last-resort
-  s.players[0].hp = 30;
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "special");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "special");
-});
-
-test("AI Samson: does NOT force special above 30% HP threshold", () => {
-  const s = Combat.createMatch("samson", "moses");
-  // 30% of 110 = 33; hp=34 is above threshold
-  s.players[0].hp = 34;
-  // rng=0.0 -> < 0.55 -> attack
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0), "attack");
-});
-
-test("AI Samson: does NOT force special when HP < 30% but cooldown > 0", () => {
-  const s = Combat.createMatch("samson", "moses");
-  s.players[0].hp = 20;
-  s.players[0].specialCooldown = 2; // on cooldown
-  // Should fall through to cooldown branch: 70% attack, 30% defend
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.70), "defend");
-});
-
-test("AI Samson: when special on cooldown uses 70/30 attack/defend split", () => {
-  const s = Combat.createMatch("samson", "moses");
-  s.players[0].specialCooldown = 2;
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.70), "defend");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "defend");
-});
-
-test("AI Samson: normal play uses 55/15/30 attack/defend/special split", () => {
-  const s = Combat.createMatch("samson", "moses");
-  s.players[0].hp = 100; // above 30% threshold
-  // rng < 0.55 -> attack
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.54), "attack");
-  // 0.55 <= rng < 0.70 -> defend
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.55), "defend");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69), "defend");
-  // rng >= 0.70 -> special
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.70), "special");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "special");
 });

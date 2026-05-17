@@ -76,47 +76,6 @@ var Stages = (function () {
         <text x="${W / 2}" y="130" font-family="Georgia,serif" font-size="48" fill="${C.cream}" text-anchor="middle">E = m c²</text>
         <text x="${W / 2}" y="190" font-family="Georgia,serif" font-size="22" fill="${C.cream}" opacity="0.7" text-anchor="middle">∇·E = ρ/ε₀</text>
       `);
-    },
-    "philistine-temple"() {
-      return frame(`
-        <!-- Mediterranean sky background -->
-        <rect width="${W}" height="${H}" fill="#e8ddc8"/>
-        <!-- Stone block floor -->
-        <rect y="240" width="${W}" height="60" fill="#c8b890" stroke="${C.ink}" stroke-width="2"/>
-        <!-- Floor stone block lines -->
-        <line x1="0" y1="256" x2="${W}" y2="256" stroke="#a09070" stroke-width="1.5" opacity="0.6"/>
-        <line x1="0" y1="270" x2="${W}" y2="270" stroke="#a09070" stroke-width="1.5" opacity="0.6"/>
-        <line x1="160" y1="240" x2="160" y2="300" stroke="#a09070" stroke-width="1" opacity="0.5"/>
-        <line x1="320" y1="240" x2="320" y2="300" stroke="#a09070" stroke-width="1" opacity="0.5"/>
-        <line x1="480" y1="240" x2="480" y2="300" stroke="#a09070" stroke-width="1" opacity="0.5"/>
-        <line x1="640" y1="240" x2="640" y2="300" stroke="#a09070" stroke-width="1" opacity="0.5"/>
-        <!-- Roof beam spanning above columns -->
-        <rect x="40" y="48" width="720" height="28" fill="#c8b078" stroke="${C.ink}" stroke-width="3"/>
-        <!-- Roof beam detail lines -->
-        <line x1="40" y1="60" x2="760" y2="60" stroke="#a09050" stroke-width="1.5" opacity="0.5"/>
-        <!-- Column 1 -->
-        <rect x="68" y="76" width="44" height="164" fill="#d8c898" stroke="${C.ink}" stroke-width="3"/>
-        <rect x="64" y="72" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <rect x="64" y="232" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <!-- Column 2 -->
-        <rect x="218" y="76" width="44" height="164" fill="#d8c898" stroke="${C.ink}" stroke-width="3"/>
-        <rect x="214" y="72" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <rect x="214" y="232" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <!-- Column 3 (center) — subtle crack foreshadowing the collapse -->
-        <rect x="378" y="76" width="44" height="164" fill="#d8c898" stroke="${C.ink}" stroke-width="3"/>
-        <rect x="374" y="72" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <rect x="374" y="232" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <!-- crack on central column -->
-        <path d="M400,100 Q404,118 398,136 Q402,150 396,168" fill="none" stroke="#8a7040" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
-        <!-- Column 4 -->
-        <rect x="538" y="76" width="44" height="164" fill="#d8c898" stroke="${C.ink}" stroke-width="3"/>
-        <rect x="534" y="72" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <rect x="534" y="232" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <!-- Column 5 -->
-        <rect x="688" y="76" width="44" height="164" fill="#d8c898" stroke="${C.ink}" stroke-width="3"/>
-        <rect x="684" y="72" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-        <rect x="684" y="232" width="52" height="10" fill="#c8b878" stroke="${C.ink}" stroke-width="2"/>
-      `);
     }
   };
 

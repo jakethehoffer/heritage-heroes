@@ -10,10 +10,10 @@ var Screens = (function () {
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
     const masteredCount = Object.values(mastered).filter(Boolean).length;
     let masteryLine = "";
-    if (masteredCount === 8) {
-      masteryLine = `<p class="scholar-banner">&#x1F31F; HERITAGE SCHOLAR &mdash; All 8 heroes mastered!</p>`;
+    if (masteredCount === 7) {
+      masteryLine = `<p class="scholar-banner">&#x1F31F; HERITAGE SCHOLAR &mdash; All 7 heroes mastered!</p>`;
     } else if (masteredCount > 0) {
-      masteryLine = `<p class="mastered-count">&#x1F31F; Mastered: ${masteredCount} of 8 heroes</p>`;
+      masteryLine = `<p class="mastered-count">&#x1F31F; Mastered: ${masteredCount} of 7 heroes</p>`;
     }
     return `
 <section class="screen screen-title">
@@ -41,7 +41,7 @@ var Screens = (function () {
     </button>
     <button data-action="start-arcade" class="mode-card">
       <h3>Arcade Ladder</h3>
-      <p>Pick a hero, beat all seven others one by one.</p>
+      <p>Pick a hero, beat all six others one by one.</p>
     </button>
     <button data-action="start-study" class="mode-card">
       <h3>Study Mode</h3>
@@ -192,8 +192,7 @@ var Screens = (function () {
     judah:    "Judah Maccabee rededicates the temple. The lights of victory burn for eight nights.",
     rambam:   "Maimonides closes the great book. Wisdom outlasts the sword.",
     golda:    "Golda lights one more cigarette and signs the day's papers. The nation endures.",
-    einstein: "Einstein bows from the lectern. The equations balance once more.",
-    samson:   "Samson stands amid the rubble, hair uncut, his vow fulfilled. The Judges' era ends in thunder."
+    einstein: "Einstein bows from the lectern. The equations balance once more."
   };
 
   function renderResult(state) {
@@ -210,7 +209,7 @@ var Screens = (function () {
         return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins this round.</h2>
-  <p class="tagline">Your run ends here. ${Render.escapeHtml(Heroes.byId(playerHeroId).name)} defeated ${state.arcade.defeated.length} of 7 opponents.</p>
+  <p class="tagline">Your run ends here. ${Render.escapeHtml(Heroes.byId(playerHeroId).name)} defeated ${state.arcade.defeated.length} of 6 opponents.</p>
   <div class="result-buttons">
     <button data-action="arcade-retry">Try Again</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
@@ -260,7 +259,7 @@ var Screens = (function () {
       const hero = Heroes.byId(heroId);
       const isBeaten = idx < arcade.defeated.length;
       const isCurrent = heroId === currentOpponent && !isBeaten;
-      const isBoss = idx === 6; // last opponent (index 6 of 7)
+      const isBoss = idx === 5; // last opponent (index 5 of 6)
       const isUpcoming = !isBeaten && !isCurrent;
 
       let nodeClass = "roadmap-node";
@@ -299,8 +298,7 @@ var Screens = (function () {
     judah:    "Menorah Flame burn lasts 4 turns instead of 3",
     rambam:   "Healing Touch restores 30 HP instead of 20",
     golda:    "Diplomatic Shield counter is 10 instead of 5",
-    einstein: "E=mc² charges in 1 turn instead of 2",
-    samson:   "Collapse the Pillars deals 40 damage to opponent + 18 to self (instead of 30 + 12)"
+    einstein: "E=mc² charges in 1 turn instead of 2"
   };
 
   function renderBossIntro(state) {
@@ -822,48 +820,6 @@ var Screens = (function () {
         return;
       }
 
-      /* ── SAMSON — Mighty Strike ─────────────────────────────────
-         A thick curved jawbone/fist shape arcs down from above onto the
-         target (~150° swing), ending with a brown shockwave ring.          */
-      case "samson": {
-        const el = document.createElement("div");
-        el.setAttribute("aria-hidden", "true");
-        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
-
-        // Jawbone arc — appears above the target and swings down
-        const jawLeft = targetIsLeft ? "0%" : "60%";
-        const jaw = document.createElement("div");
-        jaw.setAttribute("aria-hidden", "true");
-        jaw.style.cssText = `position:absolute;top:0%;left:${jawLeft};width:38%;height:85%;animation:samson-jawbone-swing-${targetIsLeft ? "left" : "right"} 500ms ease-in-out forwards;transform-origin:${targetIsLeft ? "right" : "left"} top;`;
-        jaw.innerHTML = `<svg viewBox="0 0 140 240" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <!-- curved jawbone shape -->
-          <path d="M70,10 Q120,30 130,90 Q138,150 100,210" fill="none" stroke="#d8caa0" stroke-width="14" stroke-linecap="round"/>
-          <path d="M70,10 Q120,30 130,90 Q138,150 100,210" fill="none" stroke="#f0e8c8" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
-          <!-- teeth bumps along the jaw -->
-          <circle cx="102" cy="52" r="6" fill="#c0b080" stroke="#a08040" stroke-width="1.5"/>
-          <circle cx="115" cy="90" r="6" fill="#c0b080" stroke="#a08040" stroke-width="1.5"/>
-          <circle cx="122" cy="130" r="6" fill="#c0b080" stroke="#a08040" stroke-width="1.5"/>
-          <circle cx="118" cy="168" r="6" fill="#c0b080" stroke="#a08040" stroke-width="1.5"/>
-        </svg>`;
-        el.appendChild(jaw);
-
-        // Brown shockwave ring at impact point (at 400ms)
-        const swL = targetIsLeft ? "1%" : "62%";
-        const swRing = document.createElement("div");
-        swRing.setAttribute("aria-hidden", "true");
-        swRing.style.cssText = `position:absolute;top:30%;left:${swL};width:36%;height:60%;opacity:0;animation:samson-jawbone-impact 300ms 400ms ease-out forwards;`;
-        swRing.innerHTML = `<svg viewBox="0 0 130 180" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <ellipse cx="65" cy="90" rx="60" ry="82" fill="none" stroke="#8a5a20" stroke-width="10" opacity="0.8"/>
-          <ellipse cx="65" cy="90" rx="44" ry="60" fill="none" stroke="#c8922a" stroke-width="6" opacity="0.55"/>
-          <ellipse cx="65" cy="90" rx="26" ry="36" fill="#8a5a20" opacity="0.18"/>
-        </svg>`;
-        el.appendChild(swRing);
-
-        arena.appendChild(el);
-        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 800);
-        return;
-      }
-
       default: {
         // Generic fallback: original curved white→red arc slash
         const xPct = targetIdx === 0 ? 6 : 72;
@@ -1209,49 +1165,6 @@ var Screens = (function () {
           <rect x="2" y="2" width="86" height="166" rx="4" fill="none" stroke="#40c040" stroke-width="3" opacity="0.5" filter="url(#ecbGlow)"/>
         </svg>`;
         el.appendChild(board);
-
-        arena.appendChild(el);
-        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
-        return;
-      }
-
-      /* ── SAMSON — Lion Hide ────────────────────────────────────
-         A tawny lion-fur cloak with mane texture wraps around Samson
-         from the right side. Triangular fur tufts at the bottom edge. */
-      case "samson": {
-        const el = document.createElement("div");
-        el.setAttribute("aria-hidden", "true");
-        el.style.cssText = "position:absolute;inset:0;z-index:5;pointer-events:none;";
-
-        const lhLeft = isLeft ? "0%" : "auto";
-        const lhRight = isLeft ? "auto" : "0%";
-        const lionCloak = document.createElement("div");
-        lionCloak.setAttribute("aria-hidden", "true");
-        lionCloak.style.cssText = `position:absolute;top:4%;left:${lhLeft};right:${lhRight};width:30%;height:90%;animation:samson-lion-hide-${isLeft ? "left" : "right"} 1200ms ease-out forwards;transform-origin:${isLeft ? "right" : "left"} center;`;
-        lionCloak.innerHTML = `<svg viewBox="0 0 108 280" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <defs>
-            <linearGradient id="slhG" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#c8882a;stop-opacity:0.92"/>
-              <stop offset="55%" style="stop-color:#a86818;stop-opacity:0.88"/>
-              <stop offset="100%" style="stop-color:#885008;stop-opacity:0.75"/>
-            </linearGradient>
-          </defs>
-          <!-- main fur body -->
-          <path d="M18,0 L90,0 Q100,60 96,145 Q92,210 80,252 L54,268 L28,252 Q16,210 12,145 Q8,60 18,0Z" fill="url(#slhG)" stroke="#5a3a05" stroke-width="2.5"/>
-          <!-- mane / shoulder texture -->
-          <path d="M18,0 Q4,22 6,65 Q10,85 18,85 Q12,52 18,0Z" fill="#c8882a" stroke="#5a3a05" stroke-width="2"/>
-          <path d="M90,0 Q104,22 102,65 Q98,85 90,85 Q96,52 90,0Z" fill="#c8882a" stroke="#5a3a05" stroke-width="2"/>
-          <!-- mane texture lines -->
-          <path d="M36,18 Q34,62 35,108" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.45"/>
-          <path d="M54,12 Q52,56 53,108" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.45"/>
-          <path d="M72,18 Q74,62 72,108" fill="none" stroke="#7a5210" stroke-width="1.5" opacity="0.45"/>
-          <!-- triangular fur tufts at bottom -->
-          <polygon points="26,250 34,272 42,250" fill="#c8882a" stroke="#7a5210" stroke-width="1.5"/>
-          <polygon points="42,254 50,274 58,254" fill="#d4a020" stroke="#7a5210" stroke-width="1.5"/>
-          <polygon points="58,250 66,272 74,250" fill="#c8882a" stroke="#7a5210" stroke-width="1.5"/>
-          <polygon points="72,254 80,274 88,254" fill="#d4a020" stroke="#7a5210" stroke-width="1.5"/>
-        </svg>`;
-        el.appendChild(lionCloak);
 
         arena.appendChild(el);
         window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
@@ -1898,112 +1811,6 @@ var Screens = (function () {
 
         arena.appendChild(el);
         window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1450);
-        return;
-      }
-
-      /* ── SAMSON: Collapse the Pillars ───────────────────────────────
-         Two large stone columns/pillars rise on either side of the opponent
-         growing from the bottom (0–400ms), then Samson's outline pulses red,
-         then both columns crash inward onto the opponent with a dust cloud
-         and arena shake. Total ~1300ms.                                      */
-      case "samson": {
-        el.style.cssText = "position:absolute;inset:0;z-index:6;pointer-events:none;";
-
-        // Target is the opponent
-        const oppIsLeft = !isLeft; // the opponent side
-
-        // Left pillar (grows from bottom-left of arena)
-        const pillarL = document.createElement("div");
-        pillarL.setAttribute("aria-hidden", "true");
-        pillarL.style.cssText = `position:absolute;bottom:0;left:5%;width:12%;height:88%;transform:scaleY(0);transform-origin:bottom center;animation:samson-pillar-rise 400ms ease-out forwards;`;
-        pillarL.innerHTML = `<svg viewBox="0 0 90 280" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <!-- pillar shaft -->
-          <rect x="5" y="20" width="80" height="250" fill="#d8c898" stroke="#7a6040" stroke-width="3"/>
-          <!-- pillar capital (top) -->
-          <rect x="0" y="10" width="90" height="18" fill="#c8b878" stroke="#7a6040" stroke-width="2.5"/>
-          <!-- pillar base -->
-          <rect x="0" y="260" width="90" height="18" fill="#c8b878" stroke="#7a6040" stroke-width="2.5"/>
-          <!-- fluting lines -->
-          <line x1="22" y1="20" x2="22" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-          <line x1="45" y1="20" x2="45" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-          <line x1="68" y1="20" x2="68" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-          <!-- crack -->
-          <path d="M45,80 Q50,100 44,120 Q48,140 42,160" fill="none" stroke="#8a6030" stroke-width="2.5" opacity="0.7"/>
-        </svg>`;
-        el.appendChild(pillarL);
-
-        // Right pillar (grows from bottom-right of arena)
-        const pillarR = document.createElement("div");
-        pillarR.setAttribute("aria-hidden", "true");
-        pillarR.style.cssText = `position:absolute;bottom:0;right:5%;width:12%;height:88%;transform:scaleY(0);transform-origin:bottom center;animation:samson-pillar-rise 400ms ease-out forwards;`;
-        pillarR.innerHTML = `<svg viewBox="0 0 90 280" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <rect x="5" y="20" width="80" height="250" fill="#d8c898" stroke="#7a6040" stroke-width="3"/>
-          <rect x="0" y="10" width="90" height="18" fill="#c8b878" stroke="#7a6040" stroke-width="2.5"/>
-          <rect x="0" y="260" width="90" height="18" fill="#c8b878" stroke="#7a6040" stroke-width="2.5"/>
-          <line x1="22" y1="20" x2="22" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-          <line x1="45" y1="20" x2="45" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-          <line x1="68" y1="20" x2="68" y2="260" stroke="#b0a070" stroke-width="1.5" opacity="0.5"/>
-        </svg>`;
-        el.appendChild(pillarR);
-
-        // Samson push pulse — red outline glow on the active side (at 400ms)
-        const pushLeft = isLeft ? "0%" : "auto";
-        const pushRight = isLeft ? "auto" : "0%";
-        const pushPulse = document.createElement("div");
-        pushPulse.setAttribute("aria-hidden", "true");
-        pushPulse.style.cssText = `position:absolute;top:0;left:${pushLeft};right:${pushRight};width:32%;height:100%;opacity:0;animation:samson-push-pulse 200ms 400ms ease-out forwards;`;
-        pushPulse.innerHTML = `<svg viewBox="0 0 120 300" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <defs>
-            <radialGradient id="spushG" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" style="stop-color:#cc2200;stop-opacity:0.4"/>
-              <stop offset="60%" style="stop-color:#ff4400;stop-opacity:0.2"/>
-              <stop offset="100%" style="stop-color:#cc2200;stop-opacity:0"/>
-            </radialGradient>
-          </defs>
-          <ellipse cx="60" cy="150" rx="58" ry="145" fill="url(#spushG)"/>
-          <ellipse cx="60" cy="150" rx="56" ry="142" fill="none" stroke="#cc2200" stroke-width="4" opacity="0.7"/>
-        </svg>`;
-        el.appendChild(pushPulse);
-
-        // Both pillars crash inward at 600ms
-        window.setTimeout(() => {
-          if (!pillarL.isConnected) return;
-          pillarL.style.animation = `samson-pillar-crash-left 400ms ease-in forwards`;
-          pillarR.style.animation = `samson-pillar-crash-right 400ms ease-in forwards`;
-        }, 600);
-
-        // Dust cloud on opponent at 900ms
-        const dustLeft = oppIsLeft ? "2%" : "60%";
-        const dust = document.createElement("div");
-        dust.setAttribute("aria-hidden", "true");
-        dust.style.cssText = `position:absolute;top:5%;left:${dustLeft};width:38%;height:90%;opacity:0;animation:samson-dust-cloud 400ms 900ms ease-out forwards;`;
-        dust.innerHTML = `<svg viewBox="0 0 140 280" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
-          <defs>
-            <radialGradient id="sdustG" cx="50%" cy="60%" r="50%">
-              <stop offset="0%" style="stop-color:#c8b890;stop-opacity:0.9"/>
-              <stop offset="50%" style="stop-color:#d8c8a0;stop-opacity:0.65"/>
-              <stop offset="100%" style="stop-color:#e8d8b0;stop-opacity:0"/>
-            </radialGradient>
-          </defs>
-          <ellipse cx="70" cy="168" rx="68" ry="108" fill="url(#sdustG)"/>
-          <ellipse cx="40" cy="130" rx="38" ry="60" fill="url(#sdustG)" opacity="0.7"/>
-          <ellipse cx="100" cy="120" rx="36" ry="58" fill="url(#sdustG)" opacity="0.7"/>
-          <!-- stone chunk fragments -->
-          <rect x="25" y="155" width="20" height="14" rx="2" fill="#c8b878" stroke="#8a6840" stroke-width="1.5" opacity="0.8" transform="rotate(-15,35,162)"/>
-          <rect x="85" y="145" width="18" height="12" rx="2" fill="#d0c090" stroke="#8a6840" stroke-width="1.5" opacity="0.8" transform="rotate(10,94,151)"/>
-          <rect x="55" y="200" width="22" height="10" rx="2" fill="#c8b878" stroke="#8a6840" stroke-width="1.5" opacity="0.75" transform="rotate(-8,66,205)"/>
-        </svg>`;
-        el.appendChild(dust);
-
-        arena.appendChild(el);
-
-        // Arena shake at 880ms (as pillars hit)
-        window.setTimeout(() => {
-          arena.style.animation = "arena-shake 250ms ease-in-out";
-          window.setTimeout(() => { arena.style.animation = ""; }, 260);
-        }, 880);
-
-        window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1350);
         return;
       }
 

@@ -1,7 +1,7 @@
 var Storage = (function () {
   const KEY = "heritageHeroes.save";
 
-  const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
+  const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
   function _defaultPerHero() {
     const obj = {};
@@ -11,13 +11,13 @@ var Storage = (function () {
 
   function defaults() {
     return {
-      arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0, samson: 0 },
+      arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
-      specialsUnlocked: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false, samson: false },
-      mastered: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false, samson: false },
+      specialsUnlocked: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false },
+      mastered: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false },
       stats: {
         matchesPlayed: 0,
         matchesWon: 0,

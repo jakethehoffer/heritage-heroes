@@ -20,7 +20,7 @@ function throwingStore() {
 
 test("load returns defaults when store is empty", () => {
   const data = Storage.load(fakeStore());
-  assert.deepStrictEqual(data.arcade, { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0, samson: 0 });
+  assert.deepStrictEqual(data.arcade, { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 });
   assert.strictEqual(data.sound, false);
   assert.strictEqual(data.tutorialSeen, false);
 });
@@ -67,7 +67,7 @@ test("incrementArcadeWin increments the right counter", () => {
 test("specialsUnlocked defaults to all false and round-trips correctly", () => {
   const s = fakeStore();
   const data = Storage.load(s);
-  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
   // All start as false
   for (const id of heroIds) {
     assert.strictEqual(data.specialsUnlocked[id], false, `${id} should default to false`);
@@ -81,7 +81,6 @@ test("specialsUnlocked defaults to all false and round-trips correctly", () => {
   assert.strictEqual(reloaded.specialsUnlocked.golda, true);
   assert.strictEqual(reloaded.specialsUnlocked.david, false);
   assert.strictEqual(reloaded.specialsUnlocked.einstein, false);
-  assert.strictEqual(reloaded.specialsUnlocked.samson, false);
 });
 
 test("unlockSpecial sets the right key and leaves others false", () => {
@@ -90,7 +89,7 @@ test("unlockSpecial sets the right key and leaves others false", () => {
   const data = Storage.load(s);
   assert.strictEqual(data.specialsUnlocked.esther, true);
   // All others still false
-  for (const id of ["moses", "david", "judah", "rambam", "golda", "einstein", "samson"]) {
+  for (const id of ["moses", "david", "judah", "rambam", "golda", "einstein"]) {
     assert.strictEqual(data.specialsUnlocked[id], false, `${id} should still be false`);
   }
 });
@@ -98,7 +97,7 @@ test("unlockSpecial sets the right key and leaves others false", () => {
 test("mastered defaults to all false", () => {
   const s = fakeStore();
   const data = Storage.load(s);
-  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
   for (const id of heroIds) {
     assert.strictEqual(data.mastered[id], false, `${id} mastered should default to false`);
   }
@@ -122,7 +121,7 @@ test("markMastered flips only the targeted hero", () => {
   Storage.markMastered(s, "david");
   const data = Storage.load(s);
   assert.strictEqual(data.mastered.david, true);
-  for (const id of ["moses", "esther", "judah", "rambam", "golda", "einstein", "samson"]) {
+  for (const id of ["moses", "esther", "judah", "rambam", "golda", "einstein"]) {
     assert.strictEqual(data.mastered[id], false, `${id} should still be false`);
   }
 });
@@ -151,7 +150,7 @@ test("stats defaults to all zeros", () => {
 
 test("stats.perHero defaults all heroes to all zeros", () => {
   const data = Storage.load(fakeStore());
-  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein", "samson"];
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
   for (const id of heroIds) {
     const ph = data.stats.perHero[id];
     assert.ok(ph, `perHero[${id}] should exist`);

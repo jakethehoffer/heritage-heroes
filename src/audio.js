@@ -316,16 +316,6 @@ var Sfx = (function () {
       playTone(c, t0, 100, 2000, 0.8, "sine", 0.4);
       // Layer 2: white noise burst at 800ms, low-pass descending 4000→200Hz, 400ms (explosion)
       playNoise(c, t0 + 0.8, 0.4, { start: 4000, end: 200 }, "lowpass", 0.7, { attackTime: 0.005 });
-    },
-
-    // Samson — Collapse the Pillars: grinding stone + crash + deep impact thud
-    samson(c, t0) {
-      // Layer 1 (0-600ms): Low-pass white noise stone-grinding sound
-      playNoise(c, t0, 0.6, 200, "lowpass", 0.4);
-      // Layer 2 (starting 600ms): Big crash — white noise with low-pass filter sweeping 1500→80Hz
-      playNoise(c, t0 + 0.6, 0.5, { start: 1500, end: 80 }, "lowpass", 0.6, { attackTime: 0.005 });
-      // Layer 3 (starting 700ms): Deep impact thud — sine wave at 50Hz for 200ms
-      playTone(c, t0 + 0.7, 50, 50, 0.2, "sine", 0.4);
     }
   };
 
