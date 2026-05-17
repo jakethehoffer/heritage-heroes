@@ -3128,6 +3128,54 @@ button.danger:hover {
 
 /* ── Tournament Mode ──────────────────────────────────────────────────── */
 
+.screen-tournament-setup {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.setup-card {
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: box-shadow 0.12s, transform 0.12s;
+}
+
+.setup-card:hover {
+  box-shadow: 4px 4px 0 var(--ink);
+  transform: translate(-2px, -2px);
+}
+
+.setup-card h3 {
+  font-size: 22px;
+  color: var(--terracotta);
+  margin-bottom: 8px;
+}
+
+.setup-card p {
+  font-size: 14px;
+  color: var(--ink);
+  opacity: 0.85;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .setup-grid { grid-template-columns: 1fr; }
+}
+
 .screen-tournament-bracket {
   max-width: 900px;
   margin: 0 auto;

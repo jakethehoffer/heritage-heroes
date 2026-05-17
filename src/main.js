@@ -28,7 +28,7 @@ var Main = (function () {
     matchStats: null,       // { biggestHit, specialsUsed, triviaCorrect, triviaTotal, triviaSeen }
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     endless: null,          // { heroId, streak, lastOpponentId, carriedHp?, healInfo?, nextOpponentId?, isNewBest?, previousBest? } when active
-    tournament: null,       // { playerHeroId, slots: [4 hero ids], bracket: { semi1Winner, semi2Winner, semi2Log, finalWinner }, currentMatch: "semi1"|"final" } when active
+    tournament: null,       // { humanCount, slotControllers, pickIndex, playerHeroId, slots: [4 hero ids], bracket: { semi1Winner, semi1WinnerSlot, semi2Winner, semi2WinnerSlot, semi2Log, finalWinner, finalWinnerSlot }, currentMatch: "semi1"|"semi2"|"final" } when active
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
@@ -186,10 +186,8 @@ var Main = (function () {
       return;
     }
     if (c.type === "tournament") {
-      state.mode = "tournament";
-      state.controllers = ["human", "ai"];
-      state.picks = { 1: c.heroId, 2: null };
-      state.selecting = 1;
+      // Shared tournament challenge: 1-human classic mode
+      tournamentSetHumans(1);
       pickHero(c.heroId);
       return;
     }
@@ -426,6 +424,7 @@ var Main = (function () {
     else if (state.screen === "settings")         body = Screens.renderSettings(state);
     else if (state.screen === "history")          body = Screens.renderHistory(state);
     else if (state.screen === "timeline")         body = Screens.renderTimeline(state);
+    else if (state.screen === "tournament-setup")   body = Screens.renderTournamentSetup(state);
     else if (state.screen === "tournament-bracket") body = Screens.renderTournamentBracket(state);
     else if (state.screen === "tournament-result")  body = Screens.renderTournamentResult(state);
     else if (state.screen === "trophy-room")        body = Screens.renderTrophyRoom(state);
@@ -758,7 +757,9 @@ var Main = (function () {
 
       case "start-spectator": startSpectator(); return;
       case "start-tournament": startTournament(); return;
+      case "tournament-set-humans": tournamentSetHumans(parseInt(target.dataset.humans, 10)); return;
       case "begin-tournament": beginTournament(); return;
+      case "continue-to-semi2": continueToSemi2(); return;
       case "continue-to-final": continueToFinal(); return;
 
       case "start-daily":
@@ -927,10 +928,36 @@ var Main = (function () {
 
   function startTournament() {
     state.mode = "tournament";
-    state.controllers = ["human", "ai"];
+    state.tournament = null;
+    state.screen = "tournament-setup";
+    render();
+  }
+
+  function tournamentSetHumans(humanCount) {
+    if (![1, 2, 3, 4].includes(humanCount)) return;
+    let slotControllers;
+    if (humanCount === 1) slotControllers = ["human", "ai",    "ai",    "ai"];
+    else if (humanCount === 2) slotControllers = ["human", "ai",    "human", "ai"];
+    else if (humanCount === 3) slotControllers = ["human", "human", "human", "ai"];
+    else                       slotControllers = ["human", "human", "human", "human"];
+
+    state.tournament = {
+      humanCount,
+      slotControllers,
+      pickIndex: 0,
+      playerHeroId: null,
+      slots: [null, null, null, null],
+      bracket: {
+        semi1Winner: null, semi1WinnerSlot: null,
+        semi2Winner: null, semi2WinnerSlot: null,
+        semi2Log: null,
+        finalWinner: null, finalWinnerSlot: null
+      },
+      currentMatch: null
+    };
+    state.controllers = ["human", "human"]; // for charselect display logic
     state.selecting = 1;
     state.picks = { 1: null, 2: null };
-    state.tournament = null;
     state.screen = "charselect";
     render();
   }
@@ -948,20 +975,35 @@ var Main = (function () {
   function beginTournament() {
     const t = state.tournament;
     t.currentMatch = "semi1";
-    state.matchStats = _freshMatchStats();
-    state.bossIntroShown = true;
-    state.match = Combat.createMatch(t.slots[0], t.slots[1]);
-    state.screen = "battle";
-    render();
+    _startTournamentMatch(0, 1);
+  }
+
+  function continueToSemi2() {
+    const t = state.tournament;
+    t.currentMatch = "semi2";
+    _startTournamentMatch(2, 3);
   }
 
   function continueToFinal() {
     const t = state.tournament;
     t.currentMatch = "final";
+    _startTournamentMatch(t.bracket.semi1WinnerSlot, t.bracket.semi2WinnerSlot);
+  }
+
+  function _startTournamentMatch(slotA, slotB) {
+    const t = state.tournament;
     state.matchStats = _freshMatchStats();
-    state.match = Combat.createMatch(t.slots[0], t.bracket.semi2Winner);
+    state.bossIntroShown = true;
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.controllers = [t.slotControllers[slotA], t.slotControllers[slotB]];
+    state.match = Combat.createMatch(t.slots[slotA], t.slots[slotB]);
+    state._currentTournamentSlots = [slotA, slotB];
     state.screen = "battle";
     render();
+    // Schedule first AI step if the first player is AI
+    if (state.controllers[0] === "ai") {
+      state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
+    }
   }
 
   function pickHero(heroId) {
@@ -1002,24 +1044,42 @@ var Main = (function () {
     }
 
     if (state.mode === "tournament") {
-      const otherHeroes = HERO_ORDER.filter(id => id !== heroId);
-      const shuffled = otherHeroes.slice();
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      const t = state.tournament;
+      // Map pick index to the slot for this human
+      const humanSlotMap = { 1: [0], 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] };
+      const slotIndex = humanSlotMap[t.humanCount][t.pickIndex];
+      t.slots[slotIndex] = heroId;
+      t.pickIndex += 1;
+
+      if (t.pickIndex < t.humanCount) {
+        // More humans to pick — advance charselect to the next player
+        state.selecting = t.pickIndex + 1;
+        render();
+        return;
       }
-      const ais = shuffled.slice(0, 3);
-      state.tournament = {
-        playerHeroId: heroId,
-        slots: [heroId, ais[0], ais[1], ais[2]],
-        bracket: {
-          semi1Winner: null,
-          semi2Winner: null,
-          semi2Log: null,
-          finalWinner: null
-        },
-        currentMatch: null
-      };
+
+      // All humans picked — fill AI slots with random heroes, avoiding duplicates where possible
+      const usedHeroes = new Set(t.slots.filter(s => s !== null));
+      let available = HERO_ORDER.filter(h => !usedHeroes.has(h));
+      // Shuffle available pool
+      for (let i = available.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [available[i], available[j]] = [available[j], available[i]];
+      }
+      for (let i = 0; i < 4; i++) {
+        if (t.slots[i] === null) {
+          if (available.length > 0) {
+            t.slots[i] = available.shift();
+          } else {
+            // Fall back to any hero (duplicates allowed when pool exhausted)
+            t.slots[i] = HERO_ORDER[Math.floor(Math.random() * HERO_ORDER.length)];
+          }
+        }
+      }
+
+      // playerHeroId is the first human's hero — used for champion screen/share
+      t.playerHeroId = t.slots[humanSlotMap[t.humanCount][0]];
+
       state.screen = "tournament-bracket";
       render();
       return;
@@ -1371,27 +1431,56 @@ var Main = (function () {
     const newAchKeys = [];
 
     if (state.mode === "tournament") {
-      const playerWon = state.match.winner === 0;
       const t = state.tournament;
+      const [slotA, slotB] = state._currentTournamentSlots || [0, 1];
+      const winnerInMatch = state.match.winner;   // 0 or 1 relative to this match
+      const winnerSlot = winnerInMatch === 0 ? slotA : slotB;
+      const loserSlot  = winnerInMatch === 0 ? slotB : slotA;
 
-      if (t.currentMatch === "semi1") {
-        // Record matchup before returning
-        if (store) {
-          Storage.recordMatchup(store, state.match.players[0].heroId, state.match.players[1].heroId, playerWon);
+      // Determine if any HUMAN played in this match
+      const humanWon  = t.slotControllers[winnerSlot] === "human";
+      const humanLost = t.slotControllers[loserSlot]  === "human";
+
+      // Record matchup for the first human's perspective (slot 0 hero)
+      if (store && t.humanCount >= 1) {
+        // Only record when one side involves the human hero (slot 0)
+        const slot0InMatch = slotA === 0 || slotB === 0;
+        if (slot0InMatch) {
+          const slot0InP0 = slotA === 0;
+          Storage.recordMatchup(store, state.match.players[0].heroId, state.match.players[1].heroId, slot0InP0 ? (winnerInMatch === 0) : (winnerInMatch === 1));
           state.save = Storage.load(store);
         }
-        if (!playerWon) {
-          t.eliminatedBy = state.match.players[1].heroId;
-          state.screen = "tournament-result";
-          render();
-          return;
-        }
-        t.bracket.semi1Winner = t.slots[0];
+      }
 
-        // Simulate the AI-vs-AI semifinal
-        const sim = simulateAiVsAi(t.slots[2], t.slots[3]);
-        t.bracket.semi2Winner = sim.winner === 0 ? t.slots[2] : t.slots[3];
-        t.bracket.semi2Log = sim.log;
+      if (t.currentMatch === "semi1") {
+        t.bracket.semi1Winner = t.slots[winnerSlot];
+        t.bracket.semi1WinnerSlot = winnerSlot;
+
+        if (humanLost) {
+          t.eliminatedBy = t.slots[loserSlot === slotA ? slotB : slotA];
+        }
+
+        // If Semi 2 is both AI we can headlessly simulate it immediately so the
+        // bracket reveal already shows the Semi 2 result before the user clicks.
+        if (t.slotControllers[2] === "ai" && t.slotControllers[3] === "ai") {
+          const sim = simulateAiVsAi(t.slots[2], t.slots[3]);
+          t.bracket.semi2Winner = sim.winner === 0 ? t.slots[2] : t.slots[3];
+          t.bracket.semi2WinnerSlot = sim.winner === 0 ? 2 : 3;
+          t.bracket.semi2Log = sim.log;
+        }
+
+        state.screen = "tournament-bracket";
+        render();
+        return;
+      }
+
+      if (t.currentMatch === "semi2") {
+        t.bracket.semi2Winner = t.slots[winnerSlot];
+        t.bracket.semi2WinnerSlot = winnerSlot;
+
+        if (humanLost) {
+          t.eliminatedBy = t.slots[winnerSlot];
+        }
 
         state.screen = "tournament-bracket";
         render();
@@ -1399,28 +1488,22 @@ var Main = (function () {
       }
 
       if (t.currentMatch === "final") {
-        // Record matchup before returning
-        if (store) {
-          Storage.recordMatchup(store, state.match.players[0].heroId, state.match.players[1].heroId, playerWon);
-          state.save = Storage.load(store);
-        }
-        if (!playerWon) {
-          t.eliminatedBy = state.match.players[1].heroId;
-          state.screen = "tournament-result";
-          render();
-          return;
-        }
-        t.bracket.finalWinner = t.slots[0];
+        t.bracket.finalWinner = t.slots[winnerSlot];
+        t.bracket.finalWinnerSlot = winnerSlot;
 
-        // Player won the whole tournament!
-        const store = getStore();
-        if (store) {
-          Storage.recordTournamentWin(store);
-          state.save = Storage.load(store);
+        if (humanLost) {
+          t.eliminatedBy = t.slots[winnerSlot];
         }
 
-        const newTourneyKeys = checkAchievements();
-        if (newTourneyKeys.length) applyAchievements(newTourneyKeys);
+        // Only credit tournamentsWon / achievements when a human wins
+        if (humanWon) {
+          if (store) {
+            Storage.recordTournamentWin(store);
+            state.save = Storage.load(store);
+          }
+          const newTourneyKeys = checkAchievements();
+          if (newTourneyKeys.length) applyAchievements(newTourneyKeys);
+        }
 
         state.screen = "tournament-result";
         render();

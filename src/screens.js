@@ -198,7 +198,7 @@ var Screens = (function () {
       : state.mode === "endless"
       ? "Pick a hero for your Endless run."
       : state.mode === "tournament"
-      ? "Pick your hero for the Tournament"
+      ? `Player ${state.selecting}, pick your hero for the Tournament`
       : state.mode === "spectator"
       ? (state.selecting === 1 ? "Spectator: pick Hero A" : "Spectator: pick Hero B")
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
@@ -281,7 +281,27 @@ var Screens = (function () {
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
       : renderMoveButtons(activeHero, active);
 
-    const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")}'s turn`;
+    const turnLabel = (() => {
+      const ctrl = state.controllers[match.activePlayer];
+      if (ctrl === "ai") return `${activeHero.name} (AI)'s turn`;
+      if (state.mode === "quick") return `${activeHero.name} — Player ${match.activePlayer + 1}'s turn`;
+      if (state.mode === "tournament" && state.tournament) {
+        const t = state.tournament;
+        const slotA = (state._currentTournamentSlots || [0, 1])[0];
+        const slotB = (state._currentTournamentSlots || [0, 1])[1];
+        const activeSlot = match.activePlayer === 0 ? slotA : slotB;
+        // Count how many human slots are at or before activeSlot
+        let humanNum = 0;
+        const humanSlotMap = { 1: [0], 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] };
+        const humanSlots = humanSlotMap[t.humanCount] || [0];
+        for (const hs of humanSlots) {
+          humanNum++;
+          if (hs === activeSlot) break;
+        }
+        return `${activeHero.name} — Player ${humanNum}'s turn`;
+      }
+      return `${activeHero.name}'s turn`;
+    })();
 
     const arcadeRoadmapBanner = state.mode === "arcade" && state.arcade
       ? renderArcadeRoadmap(state, "compact")
@@ -3241,6 +3261,33 @@ var Screens = (function () {
 
   // ── Tournament screens ────────────────────────────────────────────────────
 
+  function renderTournamentSetup(state) {
+    return `
+<section class="screen screen-tournament-setup">
+  <h2>Tournament Setup</h2>
+  <p class="subtitle">How many humans are playing?</p>
+  <div class="setup-grid">
+    <button data-action="tournament-set-humans" data-humans="1" class="setup-card">
+      <h3>1 Human</h3>
+      <p>+ 3 AI opponents. Classic solo bracket.</p>
+    </button>
+    <button data-action="tournament-set-humans" data-humans="2" class="setup-card">
+      <h3>2 Humans</h3>
+      <p>+ 2 AI. Each human gets an AI semifinal; may meet in the Final.</p>
+    </button>
+    <button data-action="tournament-set-humans" data-humans="3" class="setup-card">
+      <h3>3 Humans</h3>
+      <p>+ 1 AI. Player 1 vs Player 2 in Semi 1; Player 3 vs AI in Semi 2.</p>
+    </button>
+    <button data-action="tournament-set-humans" data-humans="4" class="setup-card">
+      <h3>4 Humans</h3>
+      <p>Full couch tournament. Two human-vs-human semis, then the Final.</p>
+    </button>
+  </div>
+  <button data-action="goto-mode" class="back">&larr; Back</button>
+</section>`;
+  }
+
   function _tournamentHeroCard(heroId, label) {
     const h = Heroes.byId(heroId);
     if (!h) return `<div class="bracket-slot-tbd">???</div>`;
@@ -3258,38 +3305,60 @@ var Screens = (function () {
     const t = state.tournament;
     if (!t) return `<section class="screen screen-tournament-bracket"><p>No tournament in progress.</p></section>`;
 
-    const semi1State = t.bracket.semi1Winner ? "resolved" : "active";
-    const semi2State = t.bracket.semi2Winner ? "resolved" : "pending";
+    // Compute per-slot human labels (Player 1, Player 2, ...) or null for AI
+    const humanSlotMap = { 1: [0], 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] };
+    const humanSlots = humanSlotMap[t.humanCount] || [0];
+    const slotLabel = [null, null, null, null];
+    humanSlots.forEach((slotIdx, humanIdx) => {
+      slotLabel[slotIdx] = `Player ${humanIdx + 1}`;
+    });
 
-    const slot0Winner = t.bracket.semi1Winner === t.slots[0];
-    const slot1Winner = t.bracket.semi1Winner === t.slots[1];
-    const slot2Winner = t.bracket.semi2Winner === t.slots[2];
-    const slot3Winner = t.bracket.semi2Winner === t.slots[3];
+    const semi1State = t.bracket.semi1Winner ? "resolved" : "active";
+    const semi2State = t.bracket.semi2Winner ? "resolved" : (t.bracket.semi1Winner ? "active" : "pending");
 
     const semi1Resolved = !!t.bracket.semi1Winner;
     const semi2Resolved = !!t.bracket.semi2Winner;
+
+    const slot0Winner = semi1Resolved && t.bracket.semi1WinnerSlot === 0;
+    const slot1Winner = semi1Resolved && t.bracket.semi1WinnerSlot === 1;
+    const slot2Winner = semi2Resolved && t.bracket.semi2WinnerSlot === 2;
+    const slot3Winner = semi2Resolved && t.bracket.semi2WinnerSlot === 3;
 
     const slot0Class = semi1Resolved ? (slot0Winner ? "winner" : "loser") : "pending";
     const slot1Class = semi1Resolved ? (slot1Winner ? "winner" : "loser") : "pending";
     const slot2Class = semi2Resolved ? (slot2Winner ? "winner" : "loser") : "pending";
     const slot3Class = semi2Resolved ? (slot3Winner ? "winner" : "loser") : "pending";
 
+    // Final bracket display
+    const finalResolved = !!t.bracket.finalWinner;
     const finalSlot1Html = t.bracket.semi1Winner
-      ? _tournamentHeroCard(t.bracket.semi1Winner, t.bracket.semi1Winner === t.slots[0] ? "You" : null)
+      ? _tournamentHeroCard(t.bracket.semi1Winner, slotLabel[t.bracket.semi1WinnerSlot] || null)
       : `<div class="bracket-slot-tbd">TBD</div>`;
     const finalSlot2Html = t.bracket.semi2Winner
-      ? _tournamentHeroCard(t.bracket.semi2Winner)
+      ? _tournamentHeroCard(t.bracket.semi2Winner, slotLabel[t.bracket.semi2WinnerSlot] || null)
       : `<div class="bracket-slot-tbd">TBD</div>`;
 
-    const finalSlot1WinClass = t.bracket.finalWinner === t.slots[0] ? "winner" : "pending";
-    const finalSlot2WinClass = t.bracket.finalWinner ? (t.bracket.finalWinner !== t.slots[0] ? "winner" : "loser") : "pending";
+    const finalSlot1WinClass = finalResolved
+      ? (t.bracket.finalWinnerSlot === t.bracket.semi1WinnerSlot ? "winner" : "loser")
+      : "pending";
+    const finalSlot2WinClass = finalResolved
+      ? (t.bracket.finalWinnerSlot === t.bracket.semi2WinnerSlot ? "winner" : "loser")
+      : "pending";
 
+    // Determine next action button
     let actionButton = "";
     if (!t.bracket.semi1Winner) {
       actionButton = `<button data-action="begin-tournament" class="big-btn">Begin Tournament</button>`;
+    } else if (!t.bracket.semi2Winner) {
+      actionButton = `<button data-action="continue-to-semi2" class="big-btn">Continue to Semifinal 2 &rarr;</button>`;
     } else if (!t.bracket.finalWinner) {
       actionButton = `<button data-action="continue-to-final" class="big-btn">Continue to Final &rarr;</button>`;
     }
+
+    // Show "simulated" note only when Semi 2 was headlessly simulated (both AI)
+    const semi2SimNote = (semi2Resolved && t.slotControllers[2] === "ai" && t.slotControllers[3] === "ai")
+      ? `<p class="bracket-sim-note">Simulated: ${Render.escapeHtml((Heroes.byId(t.bracket.semi2Winner) || { name: t.bracket.semi2Winner }).name)} advances</p>`
+      : "";
 
     return `
 <section class="screen screen-tournament-bracket">
@@ -3299,11 +3368,11 @@ var Screens = (function () {
       <h3>Semifinal 1</h3>
       <div class="bracket-pair">
         <div class="bracket-slot ${slot0Class}">
-          ${_tournamentHeroCard(t.slots[0], "You")}
+          ${_tournamentHeroCard(t.slots[0], slotLabel[0])}
         </div>
         <span class="bracket-vs">vs</span>
         <div class="bracket-slot ${slot1Class}">
-          ${_tournamentHeroCard(t.slots[1])}
+          ${_tournamentHeroCard(t.slots[1], slotLabel[1])}
         </div>
       </div>
     </div>
@@ -3311,14 +3380,14 @@ var Screens = (function () {
       <h3>Semifinal 2</h3>
       <div class="bracket-pair">
         <div class="bracket-slot ${slot2Class}">
-          ${_tournamentHeroCard(t.slots[2])}
+          ${_tournamentHeroCard(t.slots[2], slotLabel[2])}
         </div>
         <span class="bracket-vs">vs</span>
         <div class="bracket-slot ${slot3Class}">
-          ${_tournamentHeroCard(t.slots[3])}
+          ${_tournamentHeroCard(t.slots[3], slotLabel[3])}
         </div>
       </div>
-      ${semi2Resolved ? `<p class="bracket-sim-note">Simulated result: ${Render.escapeHtml((Heroes.byId(t.bracket.semi2Winner) || { name: t.bracket.semi2Winner }).name)} advances</p>` : ""}
+      ${semi2SimNote}
     </div>
     <div class="bracket-match bracket-final">
       <h3>FINAL</h3>
@@ -3342,41 +3411,82 @@ var Screens = (function () {
     const t = state.tournament;
     if (!t) return `<section class="screen screen-tournament-result"><p>No tournament data.</p></section>`;
 
-    const playerWon = !!t.bracket.finalWinner;
+    const humanSlotMap = { 1: [0], 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] };
+    const humanSlots = humanSlotMap[t.humanCount] || [0];
 
-    if (playerWon) {
-      const playerHero = Heroes.byId(t.slots[0]);
-      const playerName = playerHero ? Render.escapeHtml(playerHero.name) : t.slots[0];
-      const opp1Hero = Heroes.byId(t.slots[1]);
-      const opp1Name = opp1Hero ? Render.escapeHtml(opp1Hero.name) : t.slots[1];
-      const finalOppHero = Heroes.byId(t.bracket.semi2Winner);
-      const finalOppName = finalOppHero ? Render.escapeHtml(finalOppHero.name) : (t.bracket.semi2Winner || "opponent");
-      const portrait = Render.renderHero({ heroId: t.slots[0], pose: "attack", facing: "right" });
-      const tourneysWon = state.save && state.save.tournamentsWon ? state.save.tournamentsWon : 1;
+    // Winner identification
+    if (t.bracket.finalWinner) {
+      const winnerSlot = t.bracket.finalWinnerSlot;
+      const winnerController = t.slotControllers ? t.slotControllers[winnerSlot] : "human";
+      const winnerHeroId = t.slots[winnerSlot];
+      const winnerHero = Heroes.byId(winnerHeroId);
+      const winnerHeroName = winnerHero ? Render.escapeHtml(winnerHero.name) : winnerHeroId;
+
+      // Compute which human number won (or null if AI)
+      let winnerHumanNumber = null;
+      if (winnerController === "human") {
+        const humanIdx = humanSlots.indexOf(winnerSlot);
+        winnerHumanNumber = humanIdx >= 0 ? humanIdx + 1 : 1;
+      }
+
+      const champLabel = winnerHumanNumber
+        ? `Player ${winnerHumanNumber} (${winnerHeroName})`
+        : `${winnerHeroName} (AI)`;
+      const champText = winnerHumanNumber
+        ? `Player ${winnerHumanNumber} is the Tournament Champion!`
+        : `${winnerHeroName} wins the tournament!`;
+
+      const portrait = Render.renderHero({ heroId: winnerHeroId, pose: "attack", facing: "right" });
+
+      // Build bracket recap from actual slot data
+      const semi1LoserSlot = t.bracket.semi1WinnerSlot === 0 ? 1 : 0;
+      const semi2LoserSlot = t.bracket.semi2WinnerSlot === 2 ? 3 : 2;
+      const finalLoserSlot = t.bracket.finalWinnerSlot === t.bracket.semi1WinnerSlot
+        ? t.bracket.semi2WinnerSlot
+        : t.bracket.semi1WinnerSlot;
+      const semi1LoserHero = Heroes.byId(t.slots[semi1LoserSlot]);
+      const semi2LoserHero = Heroes.byId(t.slots[semi2LoserSlot]);
+      const finalLoserHero = Heroes.byId(t.slots[finalLoserSlot]);
+      const winnerSemi1Name = semi1LoserHero ? Render.escapeHtml(semi1LoserHero.name) : "opponent";
+      const winnerSemi2Name = semi2LoserHero ? Render.escapeHtml(semi2LoserHero.name) : "opponent";
+      const winnerFinalName = finalLoserHero ? Render.escapeHtml(finalLoserHero.name) : "opponent";
+
+      // Determine which semi the winner played in
+      const winnerPlayedSemi1 = (winnerSlot === t.bracket.semi1WinnerSlot);
+      const semiOppName = winnerPlayedSemi1 ? winnerSemi1Name : winnerSemi2Name;
+
+      const tourneysWon = winnerHumanNumber && state.save && state.save.tournamentsWon
+        ? state.save.tournamentsWon
+        : null;
+      const tourneysLine = tourneysWon !== null
+        ? `<p class="champion-record">Tournaments won: <strong>${tourneysWon}</strong></p>`
+        : "";
 
       return `
 <section class="screen screen-tournament-result">
   <div class="champion-banner">&#x1F3C6; TOURNAMENT CHAMPION! &#x1F3C6;</div>
   <div class="champion-portrait">${portrait}</div>
-  <h2 class="champion-name">${playerName}</h2>
-  <p class="champion-flavor">prevailed in the tournament!</p>
-  <p class="champion-record">Tournaments won: <strong>${tourneysWon}</strong></p>
+  <h2 class="champion-name">${winnerHeroName}</h2>
+  <p class="champion-flavor">${Render.escapeHtml(champText)}</p>
+  ${tourneysLine}
   <div class="bracket-recap">
-    <p>Semifinal: defeated ${opp1Name}</p>
-    <p>Final: defeated ${finalOppName}</p>
+    <p>Semifinal: defeated ${semiOppName}</p>
+    <p>Final: defeated ${winnerFinalName}</p>
   </div>
   <div class="result-buttons">
     <button data-action="start-tournament">Play Another</button>
-    <button data-action="share-tournament" class="share-btn">&#x1F4E8; Share this tournament</button>
+    ${winnerHumanNumber ? `<button data-action="share-tournament" class="share-btn">&#x1F4E8; Share this tournament</button>` : ""}
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
     }
 
-    // Player lost
+    // A human was eliminated before the final
     const elimHero = Heroes.byId(t.eliminatedBy);
     const elimName = elimHero ? Render.escapeHtml(elimHero.name) : Render.escapeHtml(t.eliminatedBy || "an opponent");
-    const roundLabel = t.currentMatch === "semi1" ? "Semifinals" : "Final";
+    const roundLabel = t.currentMatch === "semi1" ? "Semifinals"
+      : t.currentMatch === "semi2" ? "Semifinals"
+      : "Final";
     const reachedFinalNote = t.currentMatch === "final"
       ? `<p class="sub">You made it to the Final.</p>`
       : "";
@@ -3384,7 +3494,7 @@ var Screens = (function () {
     return `
 <section class="screen screen-tournament-result">
   <h2>Eliminated</h2>
-  <p>You were defeated by <strong>${elimName}</strong> in the ${roundLabel}.</p>
+  <p>Defeated by <strong>${elimName}</strong> in the ${roundLabel}.</p>
   ${reachedFinalNote}
   <div class="result-buttons">
     <button data-action="start-tournament">Try Again</button>
@@ -3453,7 +3563,7 @@ var Screens = (function () {
     renderHistory, renderMatchDetail,
     renderDailyAlreadyDone,
     renderTimeline,
-    renderTournamentBracket, renderTournamentResult,
+    renderTournamentSetup, renderTournamentBracket, renderTournamentResult,
     renderTrophyRoom,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
