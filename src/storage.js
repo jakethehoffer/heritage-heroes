@@ -37,7 +37,8 @@ var Storage = (function () {
         streakOf5:        false,
         streakOf10:       false,
         comeback:         false,
-        centurion:        false
+        centurion:        false,
+        bossSlayer:       false
       }
     };
   }

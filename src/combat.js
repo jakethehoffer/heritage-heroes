@@ -12,6 +12,19 @@ var Combat = (function () {
     if (options.hardMode && options.hardOpponentSlot != null) {
       players[options.hardOpponentSlot].damageMultiplier = 1.25;
     }
+    // Boss slot: +25% HP, +20% damage, hero-specific twist flag
+    if (options.bossSlot != null) {
+      const bp = players[options.bossSlot];
+      const bHero = options.bossSlot === 0 ? a : b;
+      bp.maxHp = Math.round(bHero.hp * 1.25);
+      bp.hp    = bp.maxHp;
+      bp.damageMultiplier = (bp.damageMultiplier || 1) * 1.20;
+      bp.bossTwist = true;
+      // Moses twist: starts with Pillar of Cloud (defend) already active
+      if (bp.heroId === "moses") {
+        bp.statuses.defend = true;
+      }
+    }
     return {
       players,
       activePlayer: 0,
@@ -60,22 +73,30 @@ var Combat = (function () {
       return;
     }
     if (heroId === "david") {
-      const bonus = enemy.hp > 50 ? 10 : 0;
+      // Boss twist: bonus threshold lowered to >30 (from >50) and bonus +15 (from +10)
+      const threshold = active.bossTwist ? 30 : 50;
+      const bonusAmt  = active.bossTwist ? 15 : 10;
+      const bonus = enemy.hp > threshold ? bonusAmt : 0;
       dealDamage(state, activeIdx, enemyIdx, Math.round((22 + bonus) * mult));
       return;
     }
     if (heroId === "esther") {
       active.statuses.reversal = true;
+      // Boss twist: reversal multiplier stored on player for dealDamage to read
+      if (active.bossTwist) active.statuses.reversalMult = 2.0;
       return;
     }
     if (heroId === "judah") {
       const wasReversed = dealDamage(state, activeIdx, enemyIdx, Math.round(8 * mult));
-      if (!wasReversed) enemy.statuses.burn = 3;
+      // Boss twist: burn lasts 4 turns instead of 3
+      if (!wasReversed) enemy.statuses.burn = active.bossTwist ? 4 : 3;
       return;
     }
     if (heroId === "rambam") {
       // healing is not damage, no multiplier
-      active.hp = Math.min(active.maxHp, active.hp + 20);
+      // Boss twist: restores 30 HP instead of 20
+      const healAmt = active.bossTwist ? 30 : 20;
+      active.hp = Math.min(active.maxHp, active.hp + healAmt);
       return;
     }
     if (heroId === "golda") {
@@ -83,7 +104,8 @@ var Combat = (function () {
       return;
     }
     if (heroId === "einstein") {
-      active.statuses.charging = 2;
+      // Boss twist: charge takes 1 turn instead of 2
+      active.statuses.charging = active.bossTwist ? 1 : 2;
       return;
     }
     // other heroes implemented in later tasks
@@ -157,8 +179,10 @@ var Combat = (function () {
 
     // 1. Esther's Reversal (if active on target) — redirect to attacker
     if (target.statuses.reversal) {
+      const reversalMult = target.statuses.reversalMult || 1.5;
       delete target.statuses.reversal;
-      const bounced = Math.floor(dmg * 1.5);
+      delete target.statuses.reversalMult;
+      const bounced = Math.floor(dmg * reversalMult);
       const attacker = state.players[fromIdx];
       attacker.hp = Math.max(0, attacker.hp - bounced);
       if (attacker.hp === 0 && state.winner === null) {

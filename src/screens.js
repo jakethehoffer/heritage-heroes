@@ -129,18 +129,26 @@ var Screens = (function () {
       ? renderArcadeRoadmap(state, "compact")
       : "";
 
+    // Boss visual treatment
+    const isBoss0 = !!p0.bossTwist;
+    const isBoss1 = !!p1.bossTwist;
+    const label0 = isBoss0 ? `&#x1F451; BOSS ${Render.escapeHtml(h0.name)}` : Render.escapeHtml(h0.name);
+    const label1 = isBoss1 ? `&#x1F451; BOSS ${Render.escapeHtml(h1.name)}` : Render.escapeHtml(h1.name);
+    const fighter0Class = `fighter fighter-left${isBoss0 ? " is-boss" : ""}`;
+    const fighter1Class = `fighter fighter-right${isBoss1 ? " is-boss" : ""}`;
+
     return `
 <section class="screen screen-battle">
   ${arcadeRoadmapBanner}
   <div class="hp-bars">
-    <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: h0.name, side: "left" })}</div>
+    <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: label0, side: "left", rawLabel: true })}</div>
     <div class="vs-label">vs</div>
-    <div class="hp-cell">${Render.hpBar({ hp: p1.hp, max: p1.maxHp, label: h1.name, side: "right" })}</div>
+    <div class="hp-cell">${Render.hpBar({ hp: p1.hp, max: p1.maxHp, label: label1, side: "right", rawLabel: true })}</div>
   </div>
   <div class="arena">
     <div class="stage">${Stages.byId(defenderId)}</div>
-    <div class="fighter fighter-left">${Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" })}</div>
-    <div class="fighter fighter-right">${Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" })}</div>
+    <div class="${fighter0Class}">${Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" })}</div>
+    <div class="${fighter1Class}">${Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" })}</div>
   </div>
   <div class="turn-banner">${Render.escapeHtml(turnLabel)}</div>
   <div class="moves-row">${isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`}</div>
@@ -280,6 +288,42 @@ var Screens = (function () {
 
     const variantClass = isCompact ? "compact" : "full";
     return `<div class="arcade-roadmap ${variantClass}" style="--gap:${gap}px;">${nodes}</div>`;
+  }
+
+  // ── Boss-specific twist descriptions ─────────────────────────────────────
+  const BOSS_TWIST_DESC = {
+    moses:    "Moses begins with Pillar of Cloud already active",
+    david:    "Sling Stone bonus activates at >30 HP (was >50) and deals +15 bonus (was +10)",
+    esther:   "Reversal reflects at 2x damage instead of 1.5x",
+    judah:    "Menorah Flame burn lasts 4 turns instead of 3",
+    rambam:   "Healing Touch restores 30 HP instead of 20",
+    golda:    "Diplomatic Shield counter is 10 instead of 5",
+    einstein: "E=mc² charges in 1 turn instead of 2"
+  };
+
+  function renderBossIntro(state) {
+    const heroId = state.arcade && state.arcade.remaining[0];
+    if (!heroId) return "";
+    const hero = Heroes.byId(heroId);
+    if (!hero) return "";
+    const twistDesc = BOSS_TWIST_DESC[heroId] || "A dangerous unique power";
+    const portrait = Render.renderHero({ heroId: hero.id, pose: "attack", facing: "right" });
+    return `
+<section class="screen screen-boss-intro">
+  <div class="boss-intro-header">FINAL OPPONENT</div>
+  <div class="boss-intro-portrait">${portrait}</div>
+  <h2 class="boss-intro-name">${Render.escapeHtml(hero.name)}</h2>
+  <p class="boss-intro-flavor">Defeat them to complete the Arcade Ladder!</p>
+  <ul class="boss-buffs">
+    <li>+25% HP</li>
+    <li>+20% damage</li>
+    <li>${Render.escapeHtml(twistDesc)}</li>
+  </ul>
+  <div class="result-buttons">
+    <button data-action="start-boss-battle" class="boss-begin-btn">Begin Battle</button>
+    <button data-action="goto-title" class="secondary">Forfeit run</button>
+  </div>
+</section>`;
   }
 
   function renderDifficultySelect(state) {
@@ -2099,7 +2143,8 @@ var Screens = (function () {
     { key: "streakOf5",        title: "Hot Streak",             description: "Answer 5 trivia questions correctly in a row",      icon: "🔥" },
     { key: "streakOf10",       title: "On Fire",                description: "Answer 10 trivia questions correctly in a row",     icon: "⚡" },
     { key: "comeback",         title: "Comeback Kid",           description: "Win a match after dropping below 20 HP",           icon: "💪" },
-    { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯" }
+    { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯" },
+    { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹" }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2252,6 +2297,7 @@ var Screens = (function () {
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
+    renderBossIntro,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,

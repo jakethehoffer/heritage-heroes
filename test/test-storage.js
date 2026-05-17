@@ -269,3 +269,29 @@ test("hardCleared round-trips via save/load", () => {
   const reloaded = Storage.load(s);
   assert.strictEqual(reloaded.hardCleared, true);
 });
+
+// ── bossSlayer achievement ─────────────────────────────────────────────────
+test("bossSlayer achievement defaults to false", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.achievements.bossSlayer, false);
+});
+
+test("bossSlayer achievement round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.achievements.bossSlayer = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.achievements.bossSlayer, true);
+  // Verify other achievements stay false
+  assert.strictEqual(reloaded.achievements.firstWin, false);
+  assert.strictEqual(reloaded.achievements.centurion, false);
+});
+
+test("unlockAchievement sets bossSlayer and leaves others unchanged", () => {
+  const s = fakeStore();
+  Storage.unlockAchievement(s, "bossSlayer");
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.bossSlayer, true);
+  assert.strictEqual(data.achievements.firstWin, false);
+});

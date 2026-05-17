@@ -16,7 +16,8 @@ var Main = (function () {
     study: null,            // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
     // Achievement tracking (in-memory per session/match)
     triviaStreak: 0,        // consecutive correct trivia answers
-    currentMatchLowHp: { 0: false, 1: false }  // per-match low-HP flag per player slot
+    currentMatchLowHp: { 0: false, 1: false },  // per-match low-HP flag per player slot
+    bossIntroShown: false   // reset at start of each arcade run
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -55,7 +56,7 @@ var Main = (function () {
     tryUnlock("streakOf5",        state.triviaStreak >= 5);
     tryUnlock("streakOf10",       state.triviaStreak >= 10);
     tryUnlock("centurion",        stats.matchesPlayed >= 100);
-    // "comeback" is handled explicitly in onMatchEnd
+    // "comeback" and "bossSlayer" are handled explicitly in onMatchEnd
 
     return newKeys;
   }
@@ -101,6 +102,7 @@ var Main = (function () {
     else if (state.screen === "study") body = Screens.renderStudySession(state);
     else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
     else if (state.screen === "stats") body = Screens.renderStats(state);
+    else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
 
     let overlay = "";
     if (state.overlay === "tutorial")    overlay = Screens.renderTutorial(state.tutorialStep);
@@ -138,6 +140,7 @@ var Main = (function () {
     switch (action) {
       case "goto-title":   state.screen = "title"; state.overlay = null; render(); return;
       case "goto-mode":    state.screen = "mode"; render(); return;
+      case "start-boss-battle": startBossBattle(); return;
       case "start-quick":  startQuick(); return;
       case "start-arcade": startArcade(); return;
       case "set-opponent": setOpponent(target.dataset.opp); return;
@@ -344,6 +347,7 @@ var Main = (function () {
     state.selecting = 1;
     state.picks = { 1: null, 2: null };
     state.arcade = null;
+    state.bossIntroShown = false;
     if (state.save && state.save.hardUnlocked) {
       // Show difficulty selection before char select
       state.screen = "difficulty";
@@ -404,16 +408,35 @@ var Main = (function () {
   }
 
   function startNextArcadeMatch() {
+    const isBossFight = state.arcade.remaining.length === 1;
+    // Show boss intro screen once per run, before the final fight
+    if (isBossFight && !state.bossIntroShown) {
+      state.bossIntroShown = true;
+      state.screen = "boss-intro";
+      render();
+      return;
+    }
+    _launchArcadeMatch();
+  }
+
+  function _launchArcadeMatch() {
+    const isBossFight = state.arcade.remaining.length === 1;
     const opponent = state.arcade.remaining[0];
     const hardMode = state.difficulty === "hard";
     state.currentMatchLowHp = { 0: false, 1: false };
+    const opts = { hardMode, hardOpponentSlot: 1 };
+    if (isBossFight) opts.bossSlot = 1;
     state.match = Combat.createMatch(
       state.arcade.playerHeroId,
       opponent,
-      { hardMode, hardOpponentSlot: 1 }
+      opts
     );
     state.screen = "battle";
     render();
+  }
+
+  function startBossBattle() {
+    _launchArcadeMatch();
   }
 
   function playerMove(move) {
@@ -595,6 +618,14 @@ var Main = (function () {
     // Comeback achievement: human won AND their HP dropped below 20 this match
     if (humanWon && state.currentMatchLowHp[humanSlot] && !state.save.achievements.comeback) {
       newAchKeys.push("comeback");
+    }
+
+    // Boss Slayer achievement: human won a boss fight in arcade mode
+    if (humanWon && state.mode === "arcade" && !state.save.achievements.bossSlayer) {
+      const bossSlot = state.match.players.findIndex(p => p.bossTwist === true);
+      if (bossSlot !== -1 && state.match.winner !== bossSlot) {
+        newAchKeys.push("bossSlayer");
+      }
     }
 
     // Reset per-match low-HP flags for the next match

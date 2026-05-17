@@ -1430,3 +1430,91 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   .achievement-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-hero-row { flex-wrap: wrap; }
 }
+
+/* ── Boss encounter styles ─────────────────────────────────────────────────── */
+
+/* Gold glow on the boss fighter in the arena */
+.fighter.is-boss {
+  filter: drop-shadow(0 0 8px #d4a574) drop-shadow(0 0 16px rgba(212, 165, 116, 0.5));
+}
+
+/* Boss intro screen */
+.screen-boss-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.boss-intro-header {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #d4a574;
+  text-shadow: 0 0 12px rgba(212, 165, 116, 0.7), 1px 1px 0 #000;
+  animation: boss-header-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes boss-header-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+
+.boss-intro-portrait {
+  width: 180px;
+  filter: drop-shadow(0 0 14px #d4a574) drop-shadow(0 0 28px rgba(212, 165, 116, 0.4));
+}
+
+.boss-intro-portrait svg { width: 100%; height: auto; }
+
+.boss-intro-name {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  color: var(--navy);
+  margin: 0;
+}
+
+.boss-intro-flavor {
+  font-size: 16px;
+  color: var(--ink);
+  opacity: 0.8;
+  margin: 0;
+}
+
+.boss-buffs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(212, 165, 116, 0.12);
+  border: 2px solid #d4a574;
+  border-radius: 10px;
+  padding: 14px 20px;
+  text-align: left;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.boss-buffs li::before {
+  content: "⚠ ";
+  color: #d4a574;
+  font-weight: 700;
+}
+
+.boss-begin-btn {
+  font-size: 20px;
+  padding: 14px 40px;
+  background: linear-gradient(135deg, #c1462d 0%, #8b1a0a 100%);
+  color: #fff;
+  border: 3px solid #d4a574;
+  border-radius: 8px;
+  font-family: var(--font-heading);
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(212, 165, 116, 0.4);
+}

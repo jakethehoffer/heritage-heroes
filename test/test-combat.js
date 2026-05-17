@@ -590,3 +590,97 @@ test("AI charging: any hero with charging status always returns 'charge'", () =>
   s2.players[0].statuses.charging = 1;
   assert.strictEqual(Combat.chooseAIMove(s2, 0, () => 0.0),  "charge");
 });
+
+// ─── Boss encounter tests ─────────────────────────────────────────────────
+
+test("Boss: createMatch with bossSlot=1 boosts player 1 maxHp by ~25%", () => {
+  const s = Combat.createMatch("moses", "david", { bossSlot: 1 });
+  const davidHp = Heroes.byId("david").hp;
+  const expectedMax = Math.round(davidHp * 1.25);
+  assert.strictEqual(s.players[1].maxHp, expectedMax);
+  assert.strictEqual(s.players[1].hp, expectedMax);
+  // Player 0 (moses) unaffected
+  assert.strictEqual(s.players[0].maxHp, Heroes.byId("moses").hp);
+});
+
+test("Boss: createMatch with bossSlot=1 applies 1.20 damageMultiplier", () => {
+  const s = Combat.createMatch("moses", "david", { bossSlot: 1 });
+  assert.strictEqual(s.players[1].damageMultiplier, 1.20);
+  // Player 0 unaffected
+  assert.strictEqual(s.players[0].damageMultiplier, 1);
+});
+
+test("Boss: hardMode + bossSlot stacks multipliers (1.25 * 1.20 = 1.50)", () => {
+  const s = Combat.createMatch("moses", "david", { hardMode: true, hardOpponentSlot: 1, bossSlot: 1 });
+  // hard sets 1.25 first, then boss multiplies by 1.20: 1.25 * 1.20 = 1.50
+  assert.strictEqual(s.players[1].damageMultiplier, 1.50);
+});
+
+test("Boss: createMatch with bossSlot=1 sets bossTwist=true on slot 1", () => {
+  const s = Combat.createMatch("moses", "david", { bossSlot: 1 });
+  assert.strictEqual(s.players[1].bossTwist, true);
+  assert.strictEqual(s.players[0].bossTwist, undefined);
+});
+
+test("Boss Moses twist: starts with defend status already active", () => {
+  // Moses in slot 1 as boss
+  const s = Combat.createMatch("david", "moses", { bossSlot: 1 });
+  assert.strictEqual(s.players[1].statuses.defend, true);
+  // David (slot 0) has no defend status
+  assert.strictEqual(s.players[0].statuses.defend, undefined);
+});
+
+test("Boss Judah twist: Menorah Flame burn lasts 4 turns instead of 3", () => {
+  // Judah in slot 0 as boss
+  const s = Combat.createMatch("judah", "moses", { bossSlot: 0 });
+  assert.strictEqual(s.players[0].bossTwist, true);
+  Combat.applyMove(s, "special"); // Judah fires Menorah Flame
+  assert.strictEqual(s.players[1].statuses.burn, 4);
+});
+
+test("Boss Rambam twist: Healing Touch restores 30 HP instead of 20", () => {
+  const s = Combat.createMatch("rambam", "moses", { bossSlot: 0 });
+  s.players[0].hp = 50;
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[0].hp, 80); // 50 + 30
+});
+
+test("Boss Einstein twist: charge takes 1 turn instead of 2", () => {
+  const s = Combat.createMatch("einstein", "moses", { bossSlot: 0 });
+  Combat.applyMove(s, "special"); // Einstein starts charging
+  assert.strictEqual(s.players[0].statuses.charging, 1);
+  // One charge tick should fire the blast
+  Combat.applyMove(s, "attack"); // Moses's turn (attacks Einstein for 10)
+  const mosesHpBeforeBlast = s.players[1].hp; // Moses's HP before Einstein fires
+  Combat.applyMove(s, "charge"); // Einstein: tick 1->0, blast fires for 40 * 1.20 = 48
+  assert.strictEqual(s.players[0].statuses.charging, undefined, "charging cleared after blast");
+  // Boss Einstein blast damage = Math.round(40 * 1.20) = 48
+  const expectedBlastDmg = Math.round(40 * 1.20);
+  assert.strictEqual(s.players[1].hp, Math.max(0, mosesHpBeforeBlast - expectedBlastDmg));
+});
+
+test("Boss David twist: bonus activates at >30 HP (not >50) and is +15", () => {
+  const s = Combat.createMatch("david", "moses", { bossSlot: 0 });
+  // Set Moses to 40 HP — this is >30 but NOT >50, so boss twist applies the +15 bonus
+  s.players[1].hp = 40;
+  Combat.applyMove(s, "special"); // David boss special: 22 + 15 = 37, * 1.20 = 44 -> KO
+  // 40 - Math.round(37 * 1.20) = 40 - 44 = -4, clamped to 0
+  const expected = Math.max(0, 40 - Math.round((22 + 15) * 1.20));
+  assert.strictEqual(s.players[1].hp, expected);
+  // Also verify that a normal David (no boss) at 40 HP would get no bonus (hp <= 50 condition)
+  const s2 = Combat.createMatch("david", "moses");
+  s2.players[1].hp = 40;
+  Combat.applyMove(s2, "special"); // Normal David: 22+0=22 damage
+  assert.strictEqual(s2.players[1].hp, 40 - 22);
+});
+
+test("Boss Esther twist: Reversal reflects at 2.0x instead of 1.5x", () => {
+  // Esther in slot 0 as boss vs Moses (attack=10)
+  const s = Combat.createMatch("esther", "moses", { bossSlot: 0 });
+  Combat.applyMove(s, "special"); // Esther reversal + reversalMult=2.0
+  assert.strictEqual(s.players[0].statuses.reversalMult, 2.0);
+  // Moses attacks for 10; reversed at 2x = 20
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[0].hp, s.players[0].maxHp, "Esther unharmed");
+  assert.strictEqual(s.players[1].hp, 100 - 20, "Moses takes 20 reflected (2x)");
+});

@@ -9,7 +9,7 @@ var Render = (function () {
     gold: "#d4a574"
   };
 
-  function hpBar({ hp, max, label, side }) {
+  function hpBar({ hp, max, label, side, rawLabel }) {
     const W = 320, H = 32;
     const padding = 4;
     const innerW = W - padding * 2;
@@ -17,10 +17,12 @@ var Render = (function () {
     const fillColor = hp > max * 0.5 ? colors.olive : hp > max * 0.25 ? "#d4a017" : colors.terracotta;
     const labelX = side === "right" ? W - 12 : 12;
     const labelAnchor = side === "right" ? "end" : "start";
+    // rawLabel: caller has already escaped/built the label string (may contain XML entities)
+    const labelText = rawLabel ? label : escapeXml(label);
     return `
 <svg viewBox="0 0 ${W} ${H + 24}" width="${W}" height="${H + 24}" xmlns="http://www.w3.org/2000/svg">
   <text x="${labelX}" y="18" font-family="Georgia,serif" font-size="18" font-weight="700"
-        fill="${colors.ink}" text-anchor="${labelAnchor}">${escapeXml(label)}</text>
+        fill="${colors.ink}" text-anchor="${labelAnchor}">${labelText}</text>
   <rect x="0" y="24" width="${W}" height="${H}" fill="${colors.cream}" stroke="${colors.ink}" stroke-width="3" rx="6" />
   <rect x="${padding}" y="${24 + padding}" width="${fillW}" height="${H - padding * 2}" fill="${fillColor}" rx="3" />
   <text x="${W / 2}" y="${24 + H / 2 + 5}" font-family="Georgia,serif" font-size="14" font-weight="700"
