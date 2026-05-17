@@ -198,30 +198,170 @@ var Combat = (function () {
     return typeof state.players[playerIdx].statuses.charging === "number";
   }
 
+  // ─── Per-hero AI personality functions ─────────────────────────────────────
+  // Each function: (state, playerIdx, rng) => "attack" | "defend" | "special" | "charge"
+  // They assume the charge guard has already been applied by the caller.
+
+  function _mosesAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    const opp = state.players[1 - playerIdx];
+    if (p.specialCooldown > 0) {
+      // 60% attack, 40% defend
+      return rng() < 0.60 ? "attack" : "defend";
+    }
+    const r = rng();
+    // Moses likes a big opening strike against a healthy foe
+    if (opp.hp > opp.maxHp * 0.75 && r < 0.30) return "special";
+    // 40% attack, 35% defend, 25% special
+    const r2 = rng();
+    if (r2 < 0.40) return "attack";
+    if (r2 < 0.75) return "defend";
+    return "special";
+  }
+
+  function _davidAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    const opp = state.players[1 - playerIdx];
+    if (p.specialCooldown > 0) {
+      // 75% attack, 25% defend
+      return rng() < 0.75 ? "attack" : "defend";
+    }
+    // David prioritizes Sling Stone when opponent HP > 50 (bonus damage condition)
+    if (opp.hp > 50 && rng() < 0.40) return "special";
+    // 60% attack, 15% defend, 25% special
+    const r = rng();
+    if (r < 0.60) return "attack";
+    if (r < 0.75) return "defend";
+    return "special";
+  }
+
+  function _estherAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    const opp = state.players[1 - playerIdx];
+    if (p.specialCooldown > 0) {
+      // 55% attack, 45% defend (without her trick she plays cautiously)
+      return rng() < 0.55 ? "attack" : "defend";
+    }
+    // Esther anticipates a big hit to reflect when opponent's special is ready
+    if (opp.specialCooldown === 0 && rng() < 0.50) return "special";
+    // 40% attack, 30% defend, 30% special
+    const r = rng();
+    if (r < 0.40) return "attack";
+    if (r < 0.70) return "defend";
+    return "special";
+  }
+
+  function _judahAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    const opp = state.players[1 - playerIdx];
+    if (p.specialCooldown > 0) {
+      // 70% attack, 30% defend
+      return rng() < 0.70 ? "attack" : "defend";
+    }
+    // Re-ignite the flame as soon as burn drops
+    if (!opp.statuses.burn && rng() < 0.45) return "special";
+    // 55% attack, 15% defend, 30% special
+    const r = rng();
+    if (r < 0.55) return "attack";
+    if (r < 0.70) return "defend";
+    return "special";
+  }
+
+  function _rambamAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    if (p.specialCooldown > 0) {
+      // 45% attack, 55% defend (heavy defense without his heal)
+      return rng() < 0.45 ? "attack" : "defend";
+    }
+    // Heal immediately when wounded below 50% HP
+    if (p.hp < p.maxHp * 0.50) return "special";
+    // 40% attack, 40% defend, 20% special
+    const r = rng();
+    if (r < 0.40) return "attack";
+    if (r < 0.80) return "defend";
+    return "special";
+  }
+
+  function _goldaAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    // If the Resolve buff is ready, always attack to cash it in
+    if (p.statuses.doubleNextAttack) return "attack";
+    if (p.specialCooldown > 0) {
+      // 60% attack, 40% defend
+      return rng() < 0.60 ? "attack" : "defend";
+    }
+    // 50% attack, 25% defend, 25% special (uses Resolve regularly)
+    const r = rng();
+    if (r < 0.50) return "attack";
+    if (r < 0.75) return "defend";
+    return "special";
+  }
+
+  function _einsteinAI(state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    if (p.specialCooldown > 0) {
+      // 60% attack, 40% defend
+      return rng() < 0.60 ? "attack" : "defend";
+    }
+    // Last-resort big hit when wounded
+    if (p.hp < p.maxHp * 0.50 && rng() < 0.55) return "special";
+    // 50% attack, 30% defend, 20% special
+    const r = rng();
+    if (r < 0.50) return "attack";
+    if (r < 0.80) return "defend";
+    return "special";
+  }
+
+  const PERSONALITIES = {
+    moses:   _mosesAI,
+    david:   _davidAI,
+    esther:  _estherAI,
+    judah:   _judahAI,
+    rambam:  _rambamAI,
+    golda:   _goldaAI,
+    einstein: _einsteinAI
+  };
+
+  // Hard-mode overlay: nudges each personality toward more special use.
+  function _hardOverlay(move, state, playerIdx, rng) {
+    const p = state.players[playerIdx];
+    if (p.specialCooldown > 0) return move; // special not available — no override
+    if (typeof p.statuses.charging === "number") return move; // charging — no override
+    if (move === "defend" && rng() < 0.30) return "special";
+    if (move === "attack" && rng() < 0.20) return "special";
+    return move;
+  }
+
   function chooseAIMove(state, playerIdx, rng, difficulty) {
     rng = rng || Math.random;
     difficulty = difficulty || "normal";
     const p = state.players[playerIdx];
+
+    // Charging always takes priority
     if (typeof p.statuses.charging === "number") return "charge";
-    const r = rng();
-    if (difficulty === "hard") {
-      // Harder AI: more aggressive when special available, no fallback to defend
+
+    const personality = PERSONALITIES[p.heroId];
+    let move;
+    if (personality) {
+      move = personality(state, playerIdx, rng);
+    } else {
+      // Generic fallback (unknown hero)
+      const r = rng();
       if (p.specialCooldown > 0) {
-        // attack 65%, defend 35%
-        return r < 0.65 ? "attack" : "defend";
+        move = r < 0.70 ? "attack" : "defend";
+      } else if (r < 0.55) {
+        move = "attack";
+      } else if (r < 0.85) {
+        move = "defend";
+      } else {
+        move = "special";
       }
-      // special available: attack 45%, defend 25%, special 30%
-      if (r < 0.45) return "attack";
-      if (r < 0.70) return "defend";
-      return "special";
     }
-    // Normal difficulty
-    if (p.specialCooldown > 0) {
-      return r < 0.70 ? "attack" : "defend";
+
+    if (difficulty === "hard") {
+      move = _hardOverlay(move, state, playerIdx, rng);
     }
-    if (r < 0.55) return "attack";
-    if (r < 0.85) return "defend";
-    return "special";
+    return move;
   }
 
   const LADDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];

@@ -308,21 +308,39 @@ test("AI: while charging, always returns 'charge'", () => {
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "charge");
 });
 
-test("AI: special on cooldown -> attack at low rng, defend at high rng", () => {
+test("AI Moses: special on cooldown -> 60% attack, 40% defend", () => {
   const s = Combat.createMatch("moses", "david");
   s.players[0].specialCooldown = 2;
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.71), "defend");
+  // rng < 0.60 -> attack
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.59), "attack");
+  // rng >= 0.60 -> defend
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.60), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "defend");
 });
 
-test("AI: special available -> 0.0=attack, 0.6=defend, 0.9=special", () => {
+test("AI Moses: uses special when opponent HP > 75% of maxHp and low rng", () => {
   const s = Combat.createMatch("moses", "david");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.54), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.56), "defend");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.84), "defend");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.86), "special");
+  // David starts at 95 HP (maxHp=95); 75% of 95 = 71.25 — David at full HP qualifies
+  // First rng() call is the condition check; supply 0.29 (< 0.30) to trigger special
+  let calls = 0;
+  const rng = () => { calls++; return calls === 1 ? 0.29 : 0.99; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "special");
+});
+
+test("AI Moses: falls back to 40/35/25 split when rng is high on first roll", () => {
+  const s = Combat.createMatch("moses", "david");
+  // First roll >=0.30 (skip special condition), second roll drives the split
+  let calls = 0;
+  // First call = 0.50 (>= 0.30, so condition not triggered), second call drives split
+  const rngAttack = () => { calls++; return calls === 1 ? 0.50 : 0.20; }; // 0.20 < 0.40 -> attack
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rngAttack), "attack");
+  calls = 0;
+  const rngDefend = () => { calls++; return calls === 1 ? 0.50 : 0.60; }; // 0.60 in [0.40,0.75) -> defend
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rngDefend), "defend");
+  calls = 0;
+  const rngSpecial = () => { calls++; return calls === 1 ? 0.50 : 0.80; }; // 0.80 >= 0.75 -> special
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rngSpecial), "special");
 });
 
 // append
@@ -396,29 +414,50 @@ test("Hard mode: special damage is multiplied by 1.25 and rounded", () => {
   assert.strictEqual(s.players[1].hp, startHp - 31);
 });
 
-test("Hard mode AI weights: special on cooldown → attack 65%, defend 35%", () => {
+test("Hard mode AI: special on cooldown means no override possible", () => {
+  // With cooldown > 0, the overlay cannot override to special.
+  // Moses on cooldown: 60% attack, 40% defend — Hard mode cannot override since special unavailable.
   const s = Combat.createMatch("moses", "david");
   s.players[0].specialCooldown = 2;
-  // r < 0.65 → attack
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0,  "hard"), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.64, "hard"), "attack");
-  // r >= 0.65 → defend
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.65, "hard"), "defend");
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "defend");
 });
 
-test("Hard mode AI weights: special available → attack 45%, defend 25%, special 30%", () => {
+test("Hard mode AI: defend -> special override when rng triggers (30% chance)", () => {
+  // Moses with special available and opponent HP > 75% maxHp.
+  // Sequence: first rng() = 0.99 (opponent HP check fails), second rng() = 0.90 (>= 0.40 -> defend via base),
+  // but wait — Moses's personality uses 2 rng calls when condition check fails (one for condition, one for split).
+  // Let's use a simpler scenario: force Moses to pick "defend" then let overlay fire.
+  // opponent HP is below 75% threshold so condition check is skipped (r=0.99 still, and opp hp forced low)
   const s = Combat.createMatch("moses", "david");
-  s.players[0].specialCooldown = 0;
-  // r < 0.45 → attack
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0,  "hard"), "attack");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.44, "hard"), "attack");
-  // 0.45 <= r < 0.70 → defend
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.45, "hard"), "defend");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69, "hard"), "defend");
-  // r >= 0.70 → special
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.70, "hard"), "special");
-  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "special");
+  s.players[1].hp = 1; // below 75% of 95 — condition won't fire
+  // personality rolls: first roll 0.99 (condition fails), second roll 0.50 (falls in defend bucket [0.40,0.75))
+  // overlay roll: 0.10 (< 0.30) -> overrides to special
+  let seq = [0.99, 0.50, 0.10];
+  let i = 0;
+  const rng = () => seq[i++];
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng, "hard"), "special");
+});
+
+test("Hard mode AI: attack -> special override when rng triggers (20% chance)", () => {
+  // Moses with opponent HP low (condition check fails), personality picks attack, overlay overrides.
+  const s = Combat.createMatch("moses", "david");
+  s.players[1].hp = 1;
+  // first roll 0.99 (condition fails), second roll 0.10 (< 0.40 -> attack), overlay roll 0.10 (< 0.20 -> override to special)
+  let seq = [0.99, 0.10, 0.10];
+  let i = 0;
+  const rng = () => seq[i++];
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng, "hard"), "special");
+});
+
+test("Hard mode AI: overlay does NOT fire when rng is above threshold", () => {
+  // Moses picks defend on Normal; overlay roll 0.50 (>= 0.30) -> stays defend
+  const s = Combat.createMatch("moses", "david");
+  s.players[1].hp = 1;
+  let seq = [0.99, 0.50, 0.50]; // condition fails, defend, overlay no-op
+  let i = 0;
+  const rng = () => seq[i++];
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng, "hard"), "defend");
 });
 
 test("Hard mode AI: charging always returns 'charge' regardless of difficulty", () => {
@@ -427,4 +466,127 @@ test("Hard mode AI: charging always returns 'charge' regardless of difficulty", 
   s.activePlayer = 0;
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0, "hard"), "charge");
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "charge");
+});
+
+// ─── Per-hero personality tests ─────────────────────────────────────────────
+
+test("AI David: special when opponent HP > 50 and rng < 0.40", () => {
+  // David vs Moses: Moses starts at 100 HP (> 50), first rng call is 0.39 < 0.40 -> special
+  const s = Combat.createMatch("david", "moses");
+  let calls = 0;
+  const rng = () => { calls++; return calls === 1 ? 0.39 : 0.99; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "special");
+});
+
+test("AI David: special on cooldown -> 75/25 attack/defend split", () => {
+  const s = Combat.createMatch("david", "moses");
+  s.players[0].specialCooldown = 2;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.74), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.75), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "defend");
+});
+
+test("AI Esther: special when opponent's special is available (cd=0) and rng < 0.50", () => {
+  // Esther vs Moses: Moses specialCooldown=0 (ready). First rng = 0.40 < 0.50 -> special.
+  const s = Combat.createMatch("esther", "moses");
+  assert.strictEqual(s.players[1].specialCooldown, 0, "Moses special ready");
+  let calls = 0;
+  const rng = () => { calls++; return calls === 1 ? 0.40 : 0.99; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "special");
+});
+
+test("AI Esther: no special trigger when opponent's special is on cooldown", () => {
+  // Esther vs Moses: Moses specialCooldown=2 -> condition not triggered, falls to split
+  const s = Combat.createMatch("esther", "moses");
+  s.players[1].specialCooldown = 2;
+  // First rng = 0.10 (condition check irrelevant since cd>0), split rng = 0.10 < 0.40 -> attack
+  let calls = 0;
+  const rng = () => { calls++; return 0.10; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "attack");
+});
+
+test("AI Esther: special on cooldown -> 55/45 attack/defend split", () => {
+  const s = Combat.createMatch("esther", "moses");
+  s.players[0].specialCooldown = 2;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.54), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.55), "defend");
+});
+
+test("AI Judah: special when opponent has no burn and rng < 0.45", () => {
+  // Judah vs Moses: Moses has no burn status (default). First rng = 0.40 < 0.45 -> special.
+  const s = Combat.createMatch("judah", "moses");
+  let calls = 0;
+  const rng = () => { calls++; return calls === 1 ? 0.40 : 0.99; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "special");
+});
+
+test("AI Judah: skips special trigger when opponent already has burn", () => {
+  const s = Combat.createMatch("judah", "moses");
+  s.players[1].statuses.burn = 3; // burn already applied
+  // condition skipped; split rng 0.10 < 0.55 -> attack
+  let calls = 0;
+  const rng = () => { calls++; return 0.10; };
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "attack");
+});
+
+test("AI Rambam: forces special when own HP < 50% of maxHp regardless of rng", () => {
+  // Rambam maxHp=85; 50% = 42.5 -> hp=42 triggers forced heal
+  const s = Combat.createMatch("rambam", "moses");
+  s.players[0].hp = 42;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "special");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "special");
+});
+
+test("AI Rambam: at exactly 50% HP does NOT force special (threshold is strictly less than)", () => {
+  const s = Combat.createMatch("rambam", "moses");
+  s.players[0].hp = Math.floor(85 * 0.50); // 42 HP — same as above, still forces
+  // 42 < 42.5 -> still true; use 43 to be above threshold
+  s.players[0].hp = 43; // 43 >= 42.5 -> no forced heal
+  // rng 0.10 -> 40% attack bucket
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.10), "attack");
+});
+
+test("AI Golda: forces attack when doubleNextAttack buff is active", () => {
+  const s = Combat.createMatch("golda", "moses");
+  s.players[0].statuses.doubleNextAttack = true;
+  // Any rng value should return attack
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "attack");
+});
+
+test("AI Golda: special on cooldown -> 60/40 attack/defend (no buff active)", () => {
+  const s = Combat.createMatch("golda", "moses");
+  s.players[0].specialCooldown = 2;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.59), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.60), "defend");
+});
+
+test("AI Einstein: special when own HP < 50% of maxHp and rng < 0.55", () => {
+  // Einstein maxHp=80; 50% = 40; set hp=35 (< 40).
+  const s = Combat.createMatch("einstein", "moses");
+  s.players[0].hp = 35;
+  let calls = 0;
+  const rng = () => { calls++; return calls === 1 ? 0.50 : 0.99; }; // 0.50 < 0.55 -> special
+  assert.strictEqual(Combat.chooseAIMove(s, 0, rng), "special");
+});
+
+test("AI Einstein: no forced special above 50% HP", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  s.players[0].hp = 41; // 41 >= 40 (50% of 80) -> no forced special
+  // rng 0.10 -> 50% attack bucket
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.10), "attack");
+});
+
+test("AI charging: any hero with charging status always returns 'charge'", () => {
+  // Use Einstein who can actually charge; manually set charging for another hero too
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special"); // Einstein charging=2
+  s.activePlayer = 0;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0),  "charge");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99), "charge");
+  // Also test a hero that doesn't normally charge but has charging status injected
+  const s2 = Combat.createMatch("moses", "david");
+  s2.players[0].statuses.charging = 1;
+  assert.strictEqual(Combat.chooseAIMove(s2, 0, () => 0.0),  "charge");
 });
