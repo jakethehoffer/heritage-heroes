@@ -1,5 +1,5 @@
 const Storage = (function () {
-  const KEY = "jewishHeroes.save";
+  const KEY = "heritageHeroes.save";
 
   function defaults() {
     return {

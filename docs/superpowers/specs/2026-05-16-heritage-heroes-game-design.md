@@ -1,12 +1,12 @@
-# Jewish Heroes — Design Spec
+# Heritage Heroes — Design Spec
 
 **Date:** 2026-05-16
-**Project:** `jewish-game`
+**Project:** `heritage-heroes`
 **Status:** Approved design, ready for implementation plan
 
 ## 1. Vision
 
-A turn-based dueling game starring seven iconic figures from Jewish history. The game celebrates Jewish heritage through gameplay — themed stages, signature moves named after famous deeds, one-line hero bios — rather than through reading. Two design constraints drive every decision:
+A turn-based dueling game starring seven iconic figures from history. The game celebrates their stories through gameplay — themed stages, signature moves named after famous deeds, one-line hero bios — rather than through reading. Two design constraints drive every decision:
 
 1. **A grandfather brand-new to games can pick it up in 30 seconds.** No reflex demands, no hidden mechanics, no jargon, no thin icons.
 2. **The same game also works for two people on one keyboard.** Quick local 2-player with no setup overhead.

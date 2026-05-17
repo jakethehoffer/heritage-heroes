@@ -1,8 +1,8 @@
-# Jewish Heroes Game — Implementation Plan
+# Heritage Heroes Game — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a complete browser-based turn-based dueling game with 7 heroes from Jewish history, playable by a brand-new gamer (grandfather) and in local 2-player, distributed as a single static folder.
+**Goal:** Ship a complete browser-based turn-based dueling game with 7 heroes from history, playable by a brand-new gamer (grandfather) and in local 2-player, distributed as a single static folder.
 
 **Architecture:** Vanilla HTML / CSS / JavaScript. No frameworks, no build step, no npm. Each `src/*.js` file is a self-contained IIFE that exposes one global (e.g. `Combat`, `Heroes`) and also assigns to `module.exports` when run under Node, so the same files load in the browser via `<script>` tags AND can be unit-tested with Node's built-in test runner.
 
@@ -13,7 +13,7 @@
 - `localStorage` for save data
 - Node 18+ built-in `node:test` runner for dev-time tests (not shipped)
 
-**Spec reference:** `docs/superpowers/specs/2026-05-16-jewish-heroes-game-design.md`
+**Spec reference:** `docs/superpowers/specs/2026-05-16-heritage-heroes-game-design.md`
 
 ---
 

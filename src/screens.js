@@ -9,7 +9,7 @@ const Screens = (function () {
     const totalWins = Object.values(stats).reduce((s, n) => s + (n || 0), 0);
     return `
 <section class="screen screen-title">
-  <h1>Jewish Heroes</h1>
+  <h1>Heritage Heroes</h1>
   <p class="tagline">A turn-based duel through history.</p>
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
@@ -236,8 +236,8 @@ const Screens = (function () {
 
   const TUTORIAL_STEPS = [
     {
-      title: "Welcome to Jewish Heroes",
-      body: "You'll duel as a hero from Jewish history. The first to lose all their HP loses the match."
+      title: "Welcome to Heritage Heroes",
+      body: "You'll duel as a hero from history. The first to lose all their HP loses the match."
     },
     {
       title: "Attack and Defend",

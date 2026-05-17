@@ -1,5 +1,5 @@
 'use strict';
-// One-shot WAV generator for jewish-game SFX assets.
+// One-shot WAV generator for heritage-heroes SFX assets.
 // Usage: node scripts/generate-sfx.js
 // Writes 10 mono 16-bit PCM WAV files to assets/sfx/.
 

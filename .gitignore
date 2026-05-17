@@ -1,6 +1,9 @@
 # Brainstorming session artifacts (transient)
 .superpowers/
 
+# Agent-to-agent sync state (local only)
+.ai-sync/
+
 # OS
 .DS_Store
 Thumbs.db

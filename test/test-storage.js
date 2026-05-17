@@ -38,7 +38,7 @@ test("save then load round-trips a value", () => {
 
 test("load returns defaults when stored JSON is corrupt", () => {
   const s = fakeStore();
-  s.setItem("jewishHeroes.save", "{not json");
+  s.setItem("heritageHeroes.save", "{not json");
   const data = Storage.load(s);
   assert.strictEqual(data.arcade.moses, 0);
 });
