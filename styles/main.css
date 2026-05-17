@@ -51,4 +51,5 @@ button {
 }
 button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--shadow); }
 button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
+button:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
 button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 var(--shadow); }
