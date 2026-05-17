@@ -1,0 +1,15 @@
+# Brainstorming session artifacts (transient)
+.superpowers/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs and node (in case we ever add anything)
+*.log
+node_modules/
