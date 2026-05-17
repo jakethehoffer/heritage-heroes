@@ -324,3 +324,19 @@ test("AI: special available -> 0.0=attack, 0.6=defend, 0.9=special", () => {
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.84), "defend");
   assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.86), "special");
 });
+
+// append
+test("arcadeOrder: returns the other 6 heroes in a fixed order", () => {
+  const order = Combat.arcadeOrder("moses");
+  assert.strictEqual(order.length, 6);
+  assert.ok(!order.includes("moses"));
+  // Order must be stable
+  assert.deepStrictEqual(order, Combat.arcadeOrder("moses"));
+});
+
+test("arcadeOrder: for david omits david but includes moses", () => {
+  const order = Combat.arcadeOrder("david");
+  assert.ok(!order.includes("david"));
+  assert.ok(order.includes("moses"));
+  assert.strictEqual(order.length, 6);
+});

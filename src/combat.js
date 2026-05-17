@@ -193,7 +193,13 @@ const Combat = (function () {
     return "special";
   }
 
-  return { createMatch, applyMove, isMatchOver, isCharging, chooseAIMove };
+  const LADDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+
+  function arcadeOrder(playerHeroId) {
+    return LADDER.filter(id => id !== playerHeroId);
+  }
+
+  return { createMatch, applyMove, isMatchOver, isCharging, chooseAIMove, arcadeOrder };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;
