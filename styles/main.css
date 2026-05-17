@@ -1525,6 +1525,68 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   .stats-hero-row { flex-wrap: wrap; }
 }
 
+/* ── Status badges above each fighter ──────────────────────────────────────── */
+
+.status-badges {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  pointer-events: none;
+  flex-wrap: nowrap;
+  max-width: 200%;
+}
+
+.status-badge {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--shadow);
+  pointer-events: auto;
+}
+
+.status-badge.status-boss {
+  background: var(--gold);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.status-badge.status-defend {
+  background: #6ba8e0;
+  color: #fff;
+  border-color: var(--navy);
+}
+.status-badge.status-reversal {
+  background: var(--gold);
+  color: var(--ink);
+}
+.status-badge.status-burn {
+  background: #ff7040;
+  color: #fff;
+  border-color: var(--terracotta);
+}
+.status-badge.status-empowered {
+  background: var(--terracotta);
+  color: var(--cream);
+}
+.status-badge.status-charging {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+@media (max-width: 600px) {
+  .status-badges { top: -34px; gap: 4px; }
+  .status-badge { font-size: 11px; padding: 2px 6px; }
+}
+
 /* ── Boss encounter styles ─────────────────────────────────────────────────── */
 
 /* Gold glow on the boss fighter in the arena */
@@ -1787,7 +1849,9 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
    ============================================================ */
 
 /* ── Battle screen: subtle bob on idle fighters ─────────── */
-.fighter {
+/* Breathing is on the SVG only — badges inside .fighter won't bob */
+.fighter > svg {
+  display: block;
   animation: hero-breathing 3s ease-in-out infinite;
 }
 @keyframes hero-breathing {
@@ -1795,8 +1859,15 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   50%       { transform: translateY(-3px); }
 }
 
-/* Action classes have higher specificity and their own animation,
-   so they naturally override the breathing. No extra rules needed. */
+/* Pause breathing during action animations so it doesn't fight the lunge */
+.fighter.act-attack > svg,
+.fighter.act-defend > svg,
+.fighter.act-special > svg,
+.fighter.act-hit > svg {
+  animation-play-state: paused;
+}
+
+/* Action classes on .fighter itself still take precedence for the lunge/shake. */
 
 /* ── Character select / Hall portraits: slight idle bob ─── */
 .hero-portrait svg {

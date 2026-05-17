@@ -145,6 +145,34 @@ var Screens = (function () {
 </section>`;
   }
 
+  function renderFighterBadges(playerSlot, match) {
+    const player = match.players[playerSlot];
+    const statuses = player.statuses || {};
+    const badges = [];
+
+    if (player.bossTwist) {
+      badges.push(`<span class="status-badge status-boss" title="Boss — buffed HP and damage">&#x1F451; BOSS</span>`);
+    }
+    if (statuses.defend) {
+      badges.push(`<span class="status-badge status-defend" title="Shielded — next attack halved">&#x1F6E1;&#xFE0F;</span>`);
+    }
+    if (statuses.reversal) {
+      badges.push(`<span class="status-badge status-reversal" title="Next attack bounces back">&#x21A9;&#xFE0F; Reversal</span>`);
+    }
+    if (typeof statuses.burn === "number" && statuses.burn > 0) {
+      badges.push(`<span class="status-badge status-burn" title="Burning — ${statuses.burn} turns left, 8 dmg/turn">&#x1F525; ${statuses.burn}</span>`);
+    }
+    if (statuses.doubleNextAttack) {
+      badges.push(`<span class="status-badge status-empowered" title="Next basic attack deals double damage">&#x1F4AA; Empowered</span>`);
+    }
+    if (typeof statuses.charging === "number" && statuses.charging > 0) {
+      badges.push(`<span class="status-badge status-charging" title="Charging E=mc² — ${statuses.charging} turns until unleash">&#x26A1; ${statuses.charging}</span>`);
+    }
+
+    if (badges.length === 0) return "";
+    return `<div class="status-badges">${badges.join("")}</div>`;
+  }
+
   function renderBattle(state) {
     const match = state.match;
     const p0 = match.players[0];
@@ -185,8 +213,14 @@ var Screens = (function () {
   </div>
   <div class="arena">
     <div class="stage">${Stages.byId(defenderId)}</div>
-    <div class="${fighter0Class}">${Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" })}</div>
-    <div class="${fighter1Class}">${Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" })}</div>
+    <div class="${fighter0Class}">
+      ${renderFighterBadges(0, match)}
+      ${Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" })}
+    </div>
+    <div class="${fighter1Class}">
+      ${renderFighterBadges(1, match)}
+      ${Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" })}
+    </div>
   </div>
   <div class="turn-banner">${Render.escapeHtml(turnLabel)}</div>
   <div class="moves-row">${isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`}</div>
