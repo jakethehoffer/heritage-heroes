@@ -196,7 +196,7 @@ var Combat = (function () {
     if (target.statuses.defend) {
       dmg = Math.floor(dmg / 2);
       delete target.statuses.defend;
-      if (target.heroId === "golda") counterDmg = 5;
+      if (target.heroId === "golda") counterDmg = target.bossTwist ? 10 : 5;
     }
     target.hp = Math.max(0, target.hp - dmg);
     if (target.hp === 0 && state.winner === null) {
