@@ -44,7 +44,8 @@ var Storage = (function () {
         endlessSurvivor:  false,
         endlessMarathon:  false,
         endlessLegend:    false
-      }
+      },
+      recentMatches: []  // ring buffer; newest first, max 10 entries
     };
   }
 
@@ -111,6 +112,16 @@ var Storage = (function () {
               out.achievements[key] = parsed.achievements[key];
             }
           }
+        }
+        // recentMatches ring buffer — validate and limit to 10
+        if (Array.isArray(parsed.recentMatches)) {
+          out.recentMatches = parsed.recentMatches.filter(function (e) {
+            return e && typeof e === "object" &&
+              typeof e.hero0Id === "string" && e.hero0Id.length > 0 &&
+              typeof e.hero1Id === "string" && e.hero1Id.length > 0 &&
+              Number.isInteger(e.winnerSlot) &&
+              Number.isInteger(e.turns);
+          }).slice(0, 10);
         }
       }
       return out;
@@ -211,8 +222,18 @@ var Storage = (function () {
     try { store.setItem(KEY, JSON.stringify(defaults())); } catch (_) { /* silent */ }
   }
 
+  // Push a match history entry to the front of the ring buffer, trim to 10, save, return updated save.
+  function recordMatchHistory(store, entry) {
+    const data = load(store);
+    data.recentMatches.unshift(entry);
+    if (data.recentMatches.length > 10) data.recentMatches = data.recentMatches.slice(0, 10);
+    save(store, data);
+    return data;
+  }
+
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
-           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll };
+           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
+           recordMatchHistory };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

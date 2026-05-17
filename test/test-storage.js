@@ -387,6 +387,78 @@ test("animSpeed rejects invalid value and falls back to 'normal'", () => {
   assert.strictEqual(reloaded.animSpeed, "normal");
 });
 
+// ── recentMatches / recordMatchHistory ────────────────────────────────────────
+
+test("recentMatches defaults to empty array", () => {
+  const data = Storage.load(fakeStore());
+  assert.ok(Array.isArray(data.recentMatches), "recentMatches should be an array");
+  assert.strictEqual(data.recentMatches.length, 0);
+});
+
+test("recordMatchHistory pushes entry to front of recentMatches", () => {
+  const s = fakeStore();
+  const entry = { id: 1000, date: "2026-05-17T12:00:00.000Z", mode: "quick",
+    hero0Id: "moses", hero1Id: "david", winnerSlot: 0, turns: 10,
+    biggestHit: null, specialsUsed: [1, 0], triviaCorrect: 1, triviaTotal: 2, log: [] };
+  const entry2 = { id: 2000, date: "2026-05-17T13:00:00.000Z", mode: "arcade",
+    hero0Id: "esther", hero1Id: "judah", winnerSlot: 1, turns: 8,
+    biggestHit: null, specialsUsed: [0, 0], triviaCorrect: 0, triviaTotal: 0, log: [] };
+  Storage.recordMatchHistory(s, entry);
+  Storage.recordMatchHistory(s, entry2);
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 2);
+  assert.strictEqual(data.recentMatches[0].id, 2000, "newest entry should be first");
+  assert.strictEqual(data.recentMatches[1].id, 1000);
+});
+
+test("recordMatchHistory trims to 10 entries when 11th is pushed", () => {
+  const s = fakeStore();
+  for (let i = 1; i <= 11; i++) {
+    Storage.recordMatchHistory(s, {
+      id: i, date: "2026-05-17T00:00:00.000Z", mode: "quick",
+      hero0Id: "moses", hero1Id: "david", winnerSlot: 0, turns: i,
+      biggestHit: null, specialsUsed: [0, 0], triviaCorrect: 0, triviaTotal: 0, log: []
+    });
+  }
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 10, "should be capped at 10");
+  assert.strictEqual(data.recentMatches[0].id, 11, "newest (id=11) should be first");
+});
+
+test("load accepts stored recentMatches and round-trips them", () => {
+  const s = fakeStore();
+  const entry = { id: 9999, date: "2026-05-17T10:00:00.000Z", mode: "endless",
+    hero0Id: "golda", hero1Id: "einstein", winnerSlot: 0, turns: 5,
+    biggestHit: { damage: 20, attackerName: "Golda", targetName: "Einstein", moveName: "Iron Will" },
+    specialsUsed: [2, 1], triviaCorrect: 3, triviaTotal: 3, log: ["Golda attacks.", "Einstein defends."] };
+  const data = Storage.load(s);
+  data.recentMatches = [entry];
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.recentMatches.length, 1);
+  assert.strictEqual(reloaded.recentMatches[0].id, 9999);
+  assert.strictEqual(reloaded.recentMatches[0].hero0Id, "golda");
+  assert.strictEqual(reloaded.recentMatches[0].turns, 5);
+});
+
+test("load filters out malformed recentMatches entries", () => {
+  const s = fakeStore();
+  const good = { id: 1, date: "2026-05-17T00:00:00.000Z", mode: "quick",
+    hero0Id: "moses", hero1Id: "david", winnerSlot: 0, turns: 7,
+    biggestHit: null, specialsUsed: [0, 0], triviaCorrect: 0, triviaTotal: 0, log: [] };
+  const missingHero = { id: 2, date: "2026-05-17T00:00:00.000Z", mode: "quick",
+    hero1Id: "david", winnerSlot: 0, turns: 5,   // hero0Id missing
+    biggestHit: null, specialsUsed: [0, 0], triviaCorrect: 0, triviaTotal: 0, log: [] };
+  const badTurns = { id: 3, date: "2026-05-17T00:00:00.000Z", mode: "quick",
+    hero0Id: "esther", hero1Id: "judah", winnerSlot: 1, turns: "seven",  // non-integer turns
+    biggestHit: null, specialsUsed: [0, 0], triviaCorrect: 0, triviaTotal: 0, log: [] };
+  const raw = JSON.stringify({ recentMatches: [good, missingHero, badTurns] });
+  s.setItem("heritageHeroes.save", raw);
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 1, "only the valid entry should survive");
+  assert.strictEqual(data.recentMatches[0].id, 1);
+});
+
 test("Storage.resetAll wipes save back to defaults", () => {
   const s = fakeStore();
   // First, accumulate some non-default state

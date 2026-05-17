@@ -17,6 +17,7 @@ var Main = (function () {
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
     study: null,            // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
+    viewingMatchId: null,    // epoch ms id of match being viewed in detail overlay
     // Achievement tracking (in-memory per session/match)
     triviaStreak: 0,        // consecutive correct trivia answers
     currentMatchLowHp: { 0: false, 1: false },  // per-match low-HP flag per player slot
@@ -147,6 +148,7 @@ var Main = (function () {
     else if (state.screen === "endless-continue") body = Screens.renderEndlessContinue(state);
     else if (state.screen === "endless-result")   body = Screens.renderEndlessResult(state);
     else if (state.screen === "settings")         body = Screens.renderSettings(state);
+    else if (state.screen === "history")          body = Screens.renderHistory(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -163,13 +165,14 @@ var Main = (function () {
     }
 
     let overlay = "";
-    if (state.overlay === "tutorial")    overlay = Screens.renderTutorial(state.tutorialStep);
-    if (state.overlay === "help")        overlay = Screens.renderHelp();
-    if (state.overlay === "quit")        overlay = Screens.renderQuitConfirm(state);
-    if (state.overlay === "trivia")      overlay = Screens.renderTriviaOverlay(state, state.trivia);
-    if (state.overlay === "reset-stats") overlay = Screens.renderResetStatsConfirm();
-    if (state.overlay === "reset-all")   overlay = Screens.renderResetAllConfirm();
-    if (state.overlay === "profile")     overlay = Screens.renderProfile(state, state.profileHeroId);
+    if (state.overlay === "tutorial")     overlay = Screens.renderTutorial(state.tutorialStep);
+    if (state.overlay === "help")         overlay = Screens.renderHelp();
+    if (state.overlay === "quit")         overlay = Screens.renderQuitConfirm(state);
+    if (state.overlay === "trivia")       overlay = Screens.renderTriviaOverlay(state, state.trivia);
+    if (state.overlay === "reset-stats")  overlay = Screens.renderResetStatsConfirm();
+    if (state.overlay === "reset-all")    overlay = Screens.renderResetAllConfirm();
+    if (state.overlay === "profile")      overlay = Screens.renderProfile(state, state.profileHeroId);
+    if (state.overlay === "match-detail") overlay = Screens.renderMatchDetail(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -201,6 +204,19 @@ var Main = (function () {
       case "goto-title":   state.screen = "title"; state.overlay = null; render(); return;
       case "goto-mode":    state.screen = "mode"; render(); return;
       case "open-hall":    state.screen = "hall"; render(); return;
+      case "open-history": state.screen = "history"; render(); return;
+      case "view-match-detail": {
+        e.stopPropagation();
+        state.viewingMatchId = parseInt(target.dataset.matchId, 10);
+        state.overlay = "match-detail";
+        render();
+        return;
+      }
+      case "close-match-detail":
+        state.overlay = null;
+        state.viewingMatchId = null;
+        render();
+        return;
       case "view-profile": {
         e.stopPropagation();
         state.profileHeroId = target.dataset.hero;
@@ -832,6 +848,24 @@ var Main = (function () {
     }
   }
 
+  function _buildHistoryEntry() {
+    const players = state.match.players;
+    return {
+      id: Date.now(),
+      date: new Date().toISOString(),
+      mode: state.mode,
+      hero0Id: players[0].heroId,
+      hero1Id: players[1].heroId,
+      winnerSlot: state.match.winner,
+      turns: state.match.turnNumber - 1,
+      biggestHit: state.matchStats ? state.matchStats.biggestHit : null,
+      specialsUsed: state.matchStats ? state.matchStats.specialsUsed.slice() : [0, 0],
+      triviaCorrect: state.matchStats ? state.matchStats.triviaCorrect : 0,
+      triviaTotal: state.matchStats ? state.matchStats.triviaTotal : 0,
+      log: state.match.log.slice()
+    };
+  }
+
   function onMatchEnd() {
     Sfx.play("victory");
     const store = getStore();
@@ -849,6 +883,12 @@ var Main = (function () {
       // Record match stats in global storage
       if (store) {
         Storage.recordMatch(store, winnerHero, loserHero);
+        state.save = Storage.load(store);
+      }
+
+      // Record match history for this endless round
+      if (store) {
+        Storage.recordMatchHistory(store, _buildHistoryEntry());
         state.save = Storage.load(store);
       }
 
@@ -942,6 +982,12 @@ var Main = (function () {
     newAchKeys.push(...checkAchievements());
 
     applyAchievements(newAchKeys);
+
+    // Record match history
+    if (store) {
+      Storage.recordMatchHistory(store, _buildHistoryEntry());
+      state.save = Storage.load(store);
+    }
 
     state.screen = "result";
     render();

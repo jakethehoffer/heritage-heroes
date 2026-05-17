@@ -68,6 +68,8 @@ var Screens = (function () {
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
     <button data-action="open-hall" class="secondary">Hall of Heroes</button>
+    ${state.save.recentMatches && state.save.recentMatches.length > 0 ? `
+    <button data-action="open-history" class="secondary">Match History</button>` : ""}
     <button data-action="view-stats" class="secondary">View Stats</button>
     <button data-action="show-help" class="secondary">How to Play</button>
     <button data-action="open-settings" class="secondary">Settings</button>
@@ -2644,6 +2646,117 @@ var Screens = (function () {
 </div>`;
   }
 
+  // ── Match History helpers ────────────────────────────────────────────────────
+
+  function _formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      const now = new Date();
+      const isToday = d.getFullYear() === now.getFullYear() &&
+                      d.getMonth()    === now.getMonth() &&
+                      d.getDate()     === now.getDate();
+      if (isToday) {
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `Today ${hh}:${mm}`;
+      }
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return `${months[d.getMonth()]} ${d.getDate()}`;
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function _formatBiggestHit(bh) {
+    if (!bh) return "—";
+    return `${bh.damage} dmg on ${Render.escapeHtml(bh.targetName)} (${Render.escapeHtml(bh.moveName)})`;
+  }
+
+  const _MODE_LABELS = {
+    quick: "Quick Match",
+    arcade: "Arcade Ladder",
+    endless: "Endless Survival"
+  };
+
+  function _renderHistoryRow(entry) {
+    const winnerHeroId = entry.winnerSlot === 0 ? entry.hero0Id : entry.hero1Id;
+    const winnerHero = Heroes.byId(winnerHeroId) || { name: winnerHeroId };
+    const modeLabel = _MODE_LABELS[entry.mode] || entry.mode;
+    const portrait0 = Render.renderHero({ heroId: entry.hero0Id, pose: "idle", facing: "right" });
+    const portrait1 = Render.renderHero({ heroId: entry.hero1Id, pose: "idle", facing: "left" });
+    return `
+<button class="history-row" data-action="view-match-detail" data-match-id="${entry.id}">
+  <div class="history-row-portraits">
+    <div class="history-portrait ${entry.winnerSlot === 0 ? "winner" : "loser"}">${portrait0}</div>
+    <span class="history-vs">vs</span>
+    <div class="history-portrait ${entry.winnerSlot === 1 ? "winner" : "loser"}">${portrait1}</div>
+  </div>
+  <div class="history-row-info">
+    <p class="history-result">${Render.escapeHtml(winnerHero.name)} won</p>
+    <p class="history-meta">${Render.escapeHtml(modeLabel)} &middot; ${entry.turns} turns &middot; ${_formatDate(entry.date)}</p>
+  </div>
+</button>`;
+  }
+
+  function renderHistory(state) {
+    const matches = (state.save && state.save.recentMatches) || [];
+    const count = matches.length;
+    return `
+<section class="screen screen-history">
+  <h2>Match History</h2>
+  <p class="subtitle">Your last ${count} match${count === 1 ? "" : "es"}</p>
+  <div class="history-list">
+    ${matches.map(_renderHistoryRow).join("")}
+  </div>
+  <button data-action="goto-title" class="back">&larr; Back</button>
+</section>`;
+  }
+
+  function renderMatchDetail(state) {
+    const matches = (state.save && state.save.recentMatches) || [];
+    const entry = matches.find(function (m) { return m.id === state.viewingMatchId; });
+    if (!entry) {
+      return `
+<div class="overlay">
+  <div class="overlay-card">
+    <p>Match not found.</p>
+    <div class="overlay-buttons">
+      <button data-action="close-match-detail">Close</button>
+    </div>
+  </div>
+</div>`;
+    }
+    const h0 = Heroes.byId(entry.hero0Id) || { name: entry.hero0Id };
+    const h1 = Heroes.byId(entry.hero1Id) || { name: entry.hero1Id };
+    const winnerHero = entry.winnerSlot === 0 ? h0 : h1;
+    const loserHero  = entry.winnerSlot === 0 ? h1 : h0;
+    const modeLabel  = _MODE_LABELS[entry.mode] || entry.mode;
+    const logLines = (entry.log || []).map(function (line, i) {
+      return `<div class="detail-log-line"><span class="log-num">${i + 1}.</span> ${Render.escapeHtml(line)}</div>`;
+    }).join("");
+    return `
+<div class="overlay">
+  <div class="overlay-card overlay-card-wide">
+    <h3>${Render.escapeHtml(winnerHero.name)} defeated ${Render.escapeHtml(loserHero.name)}</h3>
+    <p class="detail-mode">${Render.escapeHtml(modeLabel)} &middot; ${_formatDate(entry.date)}</p>
+    <div class="detail-stats">
+      <div><strong>Turns:</strong> ${entry.turns}</div>
+      <div><strong>Biggest hit:</strong> ${_formatBiggestHit(entry.biggestHit)}</div>
+      <div><strong>${Render.escapeHtml(h0.name)}'s specials:</strong> ${entry.specialsUsed ? entry.specialsUsed[0] : 0}</div>
+      <div><strong>${Render.escapeHtml(h1.name)}'s specials:</strong> ${entry.specialsUsed ? entry.specialsUsed[1] : 0}</div>
+      ${entry.triviaTotal > 0 ? `<div><strong>Trivia:</strong> ${entry.triviaCorrect}/${entry.triviaTotal} correct</div>` : ""}
+    </div>
+    <h4>Move Log</h4>
+    <div class="detail-log">
+      ${logLines || "<p>No moves recorded.</p>"}
+    </div>
+    <div class="overlay-buttons">
+      <button data-action="close-match-detail">Close</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
@@ -2652,6 +2765,7 @@ var Screens = (function () {
     renderBossIntro, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
+    renderHistory, renderMatchDetail,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,
