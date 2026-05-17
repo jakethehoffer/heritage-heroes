@@ -25,8 +25,24 @@ const Combat = (function () {
     };
   }
 
+  function tickStartOfTurn(state) {
+    const p = state.players[state.activePlayer];
+    if (p.specialCooldown > 0) p.specialCooldown -= 1;
+  }
+
+  function applySpecial(state, activeIdx, enemyIdx) {
+    const active = state.players[activeIdx];
+    const hero = Heroes.byId(active.heroId);
+    // Per-hero logic added in next tasks; default: damage = hero.moves.special.damage
+    if (typeof hero.moves.special.damage === "number") {
+      dealDamage(state, activeIdx, enemyIdx, hero.moves.special.damage);
+    }
+  }
+
   function applyMove(state, moveType) {
     if (state.winner !== null) return;
+    tickStartOfTurn(state);
+
     const activeIdx = state.activePlayer;
     const enemyIdx = 1 - activeIdx;
     const active = state.players[activeIdx];
@@ -42,6 +58,16 @@ const Combat = (function () {
     if (moveType === "defend") {
       active.statuses.defend = true;
       state.log.push(`${hero.name} uses ${hero.moves.defend.name}.`);
+      endTurn(state);
+      return;
+    }
+    if (moveType === "special") {
+      if (active.specialCooldown > 0) {
+        throw new Error(`${hero.name}'s special is on cooldown (${active.specialCooldown})`);
+      }
+      applySpecial(state, activeIdx, enemyIdx);
+      active.specialCooldown = 3;
+      state.log.push(`${hero.name} uses ${hero.moves.special.name}!`);
       endTurn(state);
       return;
     }

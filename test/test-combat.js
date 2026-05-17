@@ -115,3 +115,43 @@ test("isMatchOver returns true after a KO", () => {
   Combat.applyMove(s, "attack");
   assert.strictEqual(Combat.isMatchOver(s), true);
 });
+
+test("special: not allowed at full HP only? no — allowed any time when ready", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "special"); // Moses Part the Sea
+  assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 25);
+});
+
+test("special: enters 3-turn cooldown after use", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "special"); // Moses
+  assert.strictEqual(s.players[0].specialCooldown, 3);
+  // David's turn — Moses cooldown should still be 3
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[0].specialCooldown, 3);
+  // Moses's next turn — cooldown ticks down to 2 at turn start
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[0].specialCooldown, 2);
+});
+
+test("special: throws if used while on cooldown", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "special");
+  Combat.applyMove(s, "attack"); // David
+  assert.throws(() => Combat.applyMove(s, "special"));
+});
+
+test("special: becomes usable after cooldown reaches 0", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "special"); // Moses, cd=3
+  Combat.applyMove(s, "attack");  // David
+  Combat.applyMove(s, "attack");  // Moses tick cd 3->2
+  Combat.applyMove(s, "attack");  // David
+  Combat.applyMove(s, "attack");  // Moses tick cd 2->1
+  Combat.applyMove(s, "attack");  // David
+  Combat.applyMove(s, "attack");  // Moses tick cd 1->0
+  Combat.applyMove(s, "attack");  // David
+  // Moses's next turn: should be usable again
+  Combat.applyMove(s, "special"); // does not throw
+  assert.strictEqual(s.players[0].specialCooldown, 3);
+});
