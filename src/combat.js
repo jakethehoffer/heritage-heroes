@@ -30,7 +30,6 @@ const Combat = (function () {
     const activeIdx = state.activePlayer;
     const enemyIdx = 1 - activeIdx;
     const active = state.players[activeIdx];
-    const enemy = state.players[enemyIdx];
     const hero = Heroes.byId(active.heroId);
 
     if (moveType === "attack") {
@@ -40,12 +39,22 @@ const Combat = (function () {
       endTurn(state);
       return;
     }
+    if (moveType === "defend") {
+      active.statuses.defend = true;
+      state.log.push(`${hero.name} uses ${hero.moves.defend.name}.`);
+      endTurn(state);
+      return;
+    }
     throw new Error(`unknown move: ${moveType}`);
   }
 
   function dealDamage(state, fromIdx, toIdx, rawDmg) {
     const target = state.players[toIdx];
-    const dmg = Math.max(0, Math.floor(rawDmg));
+    let dmg = Math.max(0, Math.floor(rawDmg));
+    if (target.statuses.defend) {
+      dmg = Math.floor(dmg / 2);
+      delete target.statuses.defend;
+    }
     target.hp = Math.max(0, target.hp - dmg);
   }
 

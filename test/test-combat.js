@@ -58,3 +58,35 @@ test("attack: HP cannot go negative", () => {
   Combat.applyMove(s, "attack"); // Moses 10 dmg
   assert.strictEqual(s.players[1].hp, 0);
 });
+
+test("defend: applies status without dealing damage", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "defend");
+  assert.strictEqual(s.players[0].statuses.defend, true);
+  assert.strictEqual(s.players[1].hp, s.players[1].maxHp);
+  assert.strictEqual(s.activePlayer, 1);
+});
+
+test("defend: halves the next incoming attack (rounded down)", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "defend"); // Moses defends
+  // P2 (David) attacks for 12 -> halved to 6
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[0].hp, s.players[0].maxHp - 6);
+  assert.strictEqual(s.players[0].statuses.defend, undefined, "defend should expire");
+});
+
+test("defend: persists if opponent does not attack", () => {
+  const s = Combat.createMatch("moses", "rambam");
+  Combat.applyMove(s, "defend"); // Moses defends
+  Combat.applyMove(s, "defend"); // Rambam also defends (no attack)
+  assert.strictEqual(s.players[0].statuses.defend, true, "Moses defend still up");
+});
+
+test("defend: odd damage rounds down", () => {
+  const s = Combat.createMatch("david", "rambam"); // Rambam attack = 9
+  Combat.applyMove(s, "attack"); // David hits Rambam for 12
+  Combat.applyMove(s, "defend"); // Rambam defends
+  Combat.applyMove(s, "attack"); // David's sling 12 -> halved to 6
+  assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 12 - 6);
+});
