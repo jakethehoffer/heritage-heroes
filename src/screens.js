@@ -8,6 +8,18 @@ var Screens = (function () {
     const stats = state.save && state.save.arcade ? state.save.arcade : {};
     const totalWins = Object.values(stats).reduce((s, n) => s + (n || 0), 0);
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+    // Endless best streak display
+    const endlessScores = state.save && state.save.endlessHighScore ? state.save.endlessHighScore : {};
+    let endlessStreakLine = "";
+    const endlessEntries = Object.entries(endlessScores).filter(([, v]) => v > 0);
+    if (endlessEntries.length > 0) {
+      let bestHeroId = null, bestScore = 0;
+      for (const [id, score] of endlessEntries) {
+        if (score > bestScore) { bestScore = score; bestHeroId = id; }
+      }
+      const bestHeroName = bestHeroId ? (Heroes.byId(bestHeroId) || { name: bestHeroId }).name : "";
+      endlessStreakLine = `<p class="endless-title-best">&#x1F3C6; Best endless streak: ${bestScore} (${Render.escapeHtml(bestHeroName)})</p>`;
+    }
     const masteredCount = Object.values(mastered).filter(Boolean).length;
     let masteryLine = "";
     if (masteredCount === 7) {
@@ -62,6 +74,7 @@ var Screens = (function () {
   </div>
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
+  ${endlessStreakLine}
 </section>`;
   }
 
@@ -81,6 +94,10 @@ var Screens = (function () {
     <button data-action="start-study" class="mode-card">
       <h3>Study Mode</h3>
       <p>Learn about each hero by answering all 20 of their trivia questions in a row. Ace them all to earn a Mastery star.</p>
+    </button>
+    <button data-action="start-endless" class="mode-card">
+      <h3>Endless Survival</h3>
+      <p>Pick a hero. Fight as many opponents as you can survive. Heal 25 HP after each win &mdash; see how far you can get.</p>
     </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
@@ -110,6 +127,8 @@ var Screens = (function () {
       ? "Pick your hero for the Arcade Ladder"
       : state.mode === "study"
       ? "Pick a hero to study"
+      : state.mode === "endless"
+      ? "Pick a hero for your Endless run."
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
@@ -2283,7 +2302,10 @@ var Screens = (function () {
     { key: "streakOf10",       title: "On Fire",                description: "Answer 10 trivia questions correctly in a row",     icon: "⚡" },
     { key: "comeback",         title: "Comeback Kid",           description: "Win a match after dropping below 20 HP",           icon: "💪" },
     { key: "centurion",        title: "Centurion",              description: "Play 100 total matches",                            icon: "💯" },
-    { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹" }
+    { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹" },
+    { key: "endlessSurvivor", title: "Survivor",               description: "Reach a 5-win streak in Endless Survival",          icon: "🥉" },
+    { key: "endlessMarathon", title: "Marathon",               description: "Reach a 10-win streak in Endless Survival",         icon: "🥈" },
+    { key: "endlessLegend",   title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇" }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2412,6 +2434,64 @@ var Screens = (function () {
 </div>`;
   }
 
+  // ── Endless Survival screens ──────────────────────────────────────────────
+  function renderEndlessContinue(state) {
+    const e = state.endless;
+    if (!e) return "";
+    const nextHero = Heroes.byId(e.nextOpponentId);
+    const nextPortrait = nextHero
+      ? Render.renderHero({ heroId: e.nextOpponentId, pose: "idle", facing: "right" })
+      : "";
+    const nextName = nextHero ? Render.escapeHtml(nextHero.name) : "???";
+    const healFrom = e.healInfo ? e.healInfo.from : 0;
+    const healTo   = e.healInfo ? e.healInfo.to   : 0;
+    return `
+<section class="screen screen-endless-continue">
+  <h1>Round ${e.streak} cleared!</h1>
+  <div class="streak-indicator">Streak: ${e.streak}</div>
+
+  <div class="endless-heal">
+    <p>Healing 25 HP (${healFrom} &rarr; ${healTo})</p>
+  </div>
+
+  <div class="endless-next">
+    <h3>Next opponent:</h3>
+    <div class="next-opponent-card">
+      <div class="next-opponent-portrait">${nextPortrait}</div>
+      <p class="next-name">${nextName}</p>
+      <p class="next-ready">ready to fight</p>
+    </div>
+  </div>
+
+  <div class="endless-actions">
+    <button data-action="continue-endless">Continue (Round ${e.streak + 1})</button>
+    <button data-action="end-endless-run" class="secondary">End Run (Save Score)</button>
+  </div>
+</section>`;
+  }
+
+  function renderEndlessResult(state) {
+    const e = state.endless;
+    if (!e) return "";
+    const heroName = (Heroes.byId(e.heroId) || { name: e.heroId }).name;
+    const bestScore = (state.save && state.save.endlessHighScore && state.save.endlessHighScore[e.heroId]) || 0;
+    const newBestHtml = e.isNewBest
+      ? `<div class="new-best-banner">&#x1F3C6; NEW PERSONAL BEST! &#x1F3C6;</div>
+         <p class="previous-best">Previous best: ${e.previousBest}</p>`
+      : `<p class="previous-best">Your best with ${Render.escapeHtml(heroName)}: ${bestScore}</p>`;
+    return `
+<section class="screen screen-endless-result">
+  <h1>Run ended.</h1>
+  <div class="final-streak">Final streak: ${e.streak}</div>
+  ${newBestHtml}
+  <div class="endless-result-actions">
+    <button data-action="retry-endless">Try Again</button>
+    <button data-action="pick-different-hero" class="secondary">Pick Different Hero</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+  }
+
   // ── Stats screen ─────────────────────────────────────────────────────────
   function renderStats(state) {
     const save = state.save || {};
@@ -2426,12 +2506,17 @@ var Screens = (function () {
       ? Math.round((stats.triviaCorrect / stats.triviaTotal) * 100)
       : 0;
 
+    const endlessScores = save.endlessHighScore || {};
     const heroRows = Heroes.list.map(h => {
       const ph = (stats.perHero && stats.perHero[h.id]) || { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
       const hWinRate = ph.played > 0 ? Math.round((ph.won / ph.played) * 100) : 0;
       const hAcc     = ph.triviaTotal > 0 ? Math.round((ph.triviaCorrect / ph.triviaTotal) * 100) : 0;
       const masteredStar = mastered[h.id] ? " ⭐" : "";
       const portrait = Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" });
+      const endlessBest = endlessScores[h.id] || 0;
+      const endlessLine = endlessBest > 0
+        ? `<span>Endless Best: ${endlessBest}</span>`
+        : "";
       return `
 <div class="stats-hero-row">
   <div class="stats-hero-portrait">${portrait}</div>
@@ -2440,6 +2525,7 @@ var Screens = (function () {
     <span>Played: ${ph.played}</span>
     <span>Won: ${ph.won} (${hWinRate}%)</span>
     <span>Trivia: ${ph.triviaCorrect}/${ph.triviaTotal} (${hAcc}%)</span>
+    ${endlessLine}
   </div>
 </div>`;
     }).join("");
@@ -2512,6 +2598,7 @@ var Screens = (function () {
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
     renderBossIntro, renderHall, renderProfile,
+    renderEndlessContinue, renderEndlessResult,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,

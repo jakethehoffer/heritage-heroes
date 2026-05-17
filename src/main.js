@@ -1,10 +1,10 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile'
     profileHeroId: null,
     tutorialStep: 0,
-    mode: null,             // 'quick' | 'arcade' | 'study'
+    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless'
     difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
@@ -12,6 +12,7 @@ var Main = (function () {
     match: null,            // Combat state
     matchStats: null,       // { biggestHit, specialsUsed, triviaCorrect, triviaTotal, triviaSeen }
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
+    endless: null,          // { heroId, streak, lastOpponentId, carriedHp?, healInfo?, nextOpponentId?, isNewBest?, previousBest? } when active
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
@@ -72,6 +73,12 @@ var Main = (function () {
     tryUnlock("streakOf10",       state.triviaStreak >= 10);
     tryUnlock("centurion",        stats.matchesPlayed >= 100);
     // "comeback" and "bossSlayer" are handled explicitly in onMatchEnd
+
+    // Endless Survival achievements
+    const maxEndless = Math.max(0, ...Object.values(save.endlessHighScore || {}));
+    tryUnlock("endlessSurvivor", maxEndless >= 5);
+    tryUnlock("endlessMarathon", maxEndless >= 10);
+    tryUnlock("endlessLegend",   maxEndless >= 20);
 
     return newKeys;
   }
@@ -137,6 +144,8 @@ var Main = (function () {
     else if (state.screen === "stats") body = Screens.renderStats(state);
     else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
     else if (state.screen === "hall") body = Screens.renderHall(state);
+    else if (state.screen === "endless-continue") body = Screens.renderEndlessContinue(state);
+    else if (state.screen === "endless-result")   body = Screens.renderEndlessResult(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -212,6 +221,11 @@ var Main = (function () {
       case "rematch":      rematch(); return;
       case "arcade-next":  arcadeNext(); return;
       case "arcade-retry": startArcade(); return;
+      case "start-endless":     startEndless(); return;
+      case "continue-endless":  continueEndless(); return;
+      case "end-endless-run":   endEndlessRun(); return;
+      case "retry-endless":     retryEndless(); return;
+      case "pick-different-hero": pickDifferentHero(); return;
       case "confirm-quit":       state.overlay = "quit"; render(); return;
       case "cancel-quit":        state.overlay = null; render(); return;
       case "quit-to-title":      quitToTitle(); return;
@@ -437,6 +451,16 @@ var Main = (function () {
     render();
   }
 
+  function startEndless() {
+    state.mode = "endless";
+    state.controllers = ["human", "ai"];
+    state.selecting = 1;
+    state.picks = { 1: null, 2: null };
+    state.endless = null;
+    state.screen = "charselect";
+    render();
+  }
+
   function pickHero(heroId) {
     state.picks[state.selecting] = heroId;
 
@@ -451,6 +475,16 @@ var Main = (function () {
       };
       state.screen = "study";
       render();
+      return;
+    }
+
+    if (state.mode === "endless") {
+      state.endless = {
+        heroId,
+        streak: 0,
+        lastOpponentId: null
+      };
+      startNextEndlessMatch();
       return;
     }
 
@@ -519,6 +553,75 @@ var Main = (function () {
 
   function startBossBattle() {
     _launchArcadeMatch();
+  }
+
+  // ── Endless Survival helpers ───────────────────────────────────────────────
+
+  function pickNextOpponent() {
+    const candidates = HERO_ORDER.filter(id =>
+      id !== state.endless.heroId && id !== state.endless.lastOpponentId
+    );
+    // Fallback: if somehow empty, allow any non-player hero
+    const pool = candidates.length > 0
+      ? candidates
+      : HERO_ORDER.filter(id => id !== state.endless.heroId);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function startNextEndlessMatch() {
+    const opponentId = state.endless.nextOpponentId || pickNextOpponent();
+    state.endless.nextOpponentId = opponentId;
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
+    state.picks[1] = state.endless.heroId;
+    state.picks[2] = opponentId;
+    state.match = Combat.createMatch(state.endless.heroId, opponentId);
+    // Carry HP on subsequent rounds
+    if (state.endless.streak > 0 && typeof state.endless.carriedHp === "number") {
+      state.match.players[0].hp = state.endless.carriedHp;
+    }
+    state.screen = "battle";
+    render();
+  }
+
+  function continueEndless() {
+    if (!state.endless) return;
+    // Move stashed nextOpponentId to lastOpponentId for the upcoming match
+    // (lastOpponentId is set in onMatchEnd when player wins, before we stash nextOpponentId)
+    startNextEndlessMatch();
+  }
+
+  function endEndlessRun() {
+    if (!state.endless) return;
+    const store = getStore();
+    const result = store
+      ? Storage.recordEndlessRun(store, state.endless.heroId, state.endless.streak)
+      : { isNewBest: false, previousBest: 0 };
+    state.endless.isNewBest = result.isNewBest;
+    state.endless.previousBest = result.previousBest;
+    if (store) state.save = Storage.load(store);
+    // Check achievements after updating scores
+    const achKeys = checkAchievements();
+    applyAchievements(achKeys);
+    state.screen = "endless-result";
+    render();
+  }
+
+  function retryEndless() {
+    if (!state.endless) return;
+    const heroId = state.endless.heroId;
+    state.endless = { heroId, streak: 0, lastOpponentId: null };
+    startNextEndlessMatch();
+  }
+
+  function pickDifferentHero() {
+    state.endless = null;
+    state.mode = "endless";
+    state.controllers = ["human", "ai"];
+    state.selecting = 1;
+    state.picks = { 1: null, 2: null };
+    state.screen = "charselect";
+    render();
   }
 
   function playerMove(move) {
@@ -696,6 +799,47 @@ var Main = (function () {
     const loserHero  = state.match.players[1 - winnerIdx].heroId;
     const newAchKeys = [];
 
+    if (state.mode === "endless") {
+      const playerWon = state.match.winner === 0;
+      const playerHpEnd = state.match.players[0].hp;
+      const playerMaxHp = state.match.players[0].maxHp;
+
+      // Record match stats in global storage
+      if (store) {
+        Storage.recordMatch(store, winnerHero, loserHero);
+        state.save = Storage.load(store);
+      }
+
+      if (playerWon) {
+        state.endless.streak += 1;
+        state.endless.lastOpponentId = state.match.players[1].heroId;
+        // Heal 25, capped at maxHp; reset statuses and cooldown happen implicitly
+        // because createMatch builds fresh player state; HP is carried via carriedHp
+        const healed = Math.min(playerMaxHp, playerHpEnd + 25);
+        state.endless.carriedHp = healed;
+        state.endless.healInfo = { from: playerHpEnd, to: healed };
+        state.endless.nextOpponentId = pickNextOpponent();
+        state.currentMatchLowHp = { 0: false, 1: false };
+        state.screen = "endless-continue";
+        render();
+      } else {
+        // Loss: record high score
+        const result = store
+          ? Storage.recordEndlessRun(store, state.endless.heroId, state.endless.streak)
+          : { isNewBest: false, previousBest: 0 };
+        state.endless.isNewBest = result.isNewBest;
+        state.endless.previousBest = result.previousBest;
+        if (store) state.save = Storage.load(store);
+        state.currentMatchLowHp = { 0: false, 1: false };
+        // Check achievements after updating scores
+        newAchKeys.push(...checkAchievements());
+        applyAchievements(newAchKeys);
+        state.screen = "endless-result";
+        render();
+      }
+      return;
+    }
+
     if (state.mode === "arcade") {
       const playerSlot = state.match.players.findIndex(p => p.heroId === state.arcade.playerHeroId);
       const playerWon  = state.match.winner === playerSlot;
@@ -765,6 +909,7 @@ var Main = (function () {
     state.overlay = null;
     state.match = null;
     state.arcade = null;
+    state.endless = null;
     state.study = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;
@@ -778,6 +923,7 @@ var Main = (function () {
     state.overlay = null;
     state.match = null;
     state.arcade = null;
+    state.endless = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;
     state.screen = "charselect";

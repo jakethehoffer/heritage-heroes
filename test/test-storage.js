@@ -295,3 +295,64 @@ test("unlockAchievement sets bossSlayer and leaves others unchanged", () => {
   assert.strictEqual(data.achievements.bossSlayer, true);
   assert.strictEqual(data.achievements.firstWin, false);
 });
+
+// ── endlessHighScore defaults ─────────────────────────────────────────────
+test("endlessHighScore defaults to all zeros for all 7 heroes", () => {
+  const data = Storage.load(fakeStore());
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  assert.ok(data.endlessHighScore, "endlessHighScore should exist");
+  for (const id of heroIds) {
+    assert.strictEqual(data.endlessHighScore[id], 0, `endlessHighScore[${id}] should default to 0`);
+  }
+});
+
+test("endlessHighScore round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.endlessHighScore.moses = 7;
+  data.endlessHighScore.esther = 3;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.endlessHighScore.moses, 7);
+  assert.strictEqual(reloaded.endlessHighScore.esther, 3);
+  assert.strictEqual(reloaded.endlessHighScore.david, 0);
+});
+
+// ── recordEndlessRun ──────────────────────────────────────────────────────
+test("recordEndlessRun first call sets score and returns isNewBest=true, previousBest=0", () => {
+  const s = fakeStore();
+  const result = Storage.recordEndlessRun(s, "moses", 4);
+  assert.strictEqual(result.isNewBest, true);
+  assert.strictEqual(result.previousBest, 0);
+  const data = Storage.load(s);
+  assert.strictEqual(data.endlessHighScore.moses, 4);
+});
+
+test("recordEndlessRun second call with higher streak overwrites and returns isNewBest=true", () => {
+  const s = fakeStore();
+  Storage.recordEndlessRun(s, "david", 5);
+  const result = Storage.recordEndlessRun(s, "david", 9);
+  assert.strictEqual(result.isNewBest, true);
+  assert.strictEqual(result.previousBest, 5);
+  const data = Storage.load(s);
+  assert.strictEqual(data.endlessHighScore.david, 9);
+});
+
+test("recordEndlessRun third call with lower streak does not change score, returns isNewBest=false", () => {
+  const s = fakeStore();
+  Storage.recordEndlessRun(s, "esther", 8);
+  Storage.recordEndlessRun(s, "esther", 12);
+  const result = Storage.recordEndlessRun(s, "esther", 3);
+  assert.strictEqual(result.isNewBest, false);
+  assert.strictEqual(result.previousBest, 12);
+  const data = Storage.load(s);
+  assert.strictEqual(data.endlessHighScore.esther, 12);
+});
+
+// ── Endless achievements defaults ─────────────────────────────────────────
+test("endless achievements default to false", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.achievements.endlessSurvivor, false);
+  assert.strictEqual(data.achievements.endlessMarathon, false);
+  assert.strictEqual(data.achievements.endlessLegend,   false);
+});

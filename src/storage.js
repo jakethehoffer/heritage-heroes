@@ -12,6 +12,7 @@ var Storage = (function () {
   function defaults() {
     return {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
+      endlessHighScore: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
       tutorialSeen: false,
       hardUnlocked: false,
@@ -38,7 +39,10 @@ var Storage = (function () {
         streakOf10:       false,
         comeback:         false,
         centurion:        false,
-        bossSlayer:       false
+        bossSlayer:       false,
+        endlessSurvivor:  false,
+        endlessMarathon:  false,
+        endlessLegend:    false
       }
     };
   }
@@ -53,6 +57,11 @@ var Storage = (function () {
         if (parsed.arcade && typeof parsed.arcade === "object") {
           for (const k of Object.keys(out.arcade)) {
             if (Number.isInteger(parsed.arcade[k])) out.arcade[k] = parsed.arcade[k];
+          }
+        }
+        if (parsed.endlessHighScore && typeof parsed.endlessHighScore === "object") {
+          for (const k of Object.keys(out.endlessHighScore)) {
+            if (Number.isInteger(parsed.endlessHighScore[k])) out.endlessHighScore[k] = parsed.endlessHighScore[k];
           }
         }
         if (typeof parsed.sound === "boolean") out.sound = parsed.sound;
@@ -178,8 +187,24 @@ var Storage = (function () {
     return data;
   }
 
+  // Record the end of an Endless Survival run for a given hero.
+  // Returns { isNewBest: bool, previousBest: int }.
+  function recordEndlessRun(store, heroId, streak) {
+    const data = load(store);
+    const previousBest = (data.endlessHighScore && Number.isInteger(data.endlessHighScore[heroId]))
+      ? data.endlessHighScore[heroId]
+      : 0;
+    const isNewBest = streak > previousBest;
+    if (isNewBest) {
+      if (!data.endlessHighScore) data.endlessHighScore = {};
+      data.endlessHighScore[heroId] = streak;
+      save(store, data);
+    }
+    return { isNewBest, previousBest };
+  }
+
   return { load, save, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
-           recordMatch, recordTrivia, unlockAchievement };
+           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

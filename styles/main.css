@@ -2398,3 +2398,158 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
     font-size: 22px;
   }
 }
+
+/* ── Endless Survival screens ─────────────────────────────────────────────── */
+
+.screen-endless-continue,
+.screen-endless-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.screen-endless-continue h1,
+.screen-endless-result h1 {
+  font-size: 48px;
+  color: var(--navy);
+}
+
+.streak-indicator {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--terracotta);
+  background: var(--cream);
+  border: 3px solid var(--terracotta);
+  border-radius: 12px;
+  padding: 10px 28px;
+}
+
+.final-streak {
+  font-family: var(--font-heading);
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--terracotta);
+}
+
+.endless-heal {
+  background: var(--cream);
+  border: 2px solid var(--olive);
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 18px;
+  color: var(--olive);
+  font-weight: 600;
+}
+
+.endless-next h3 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  color: var(--navy);
+}
+
+.next-opponent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px 24px;
+  box-shadow: 4px 4px 0 var(--shadow);
+  gap: 8px;
+  min-width: 160px;
+}
+
+.next-opponent-portrait {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.next-opponent-portrait svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.next-name {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.next-ready {
+  font-size: 14px;
+  color: var(--terracotta);
+  font-style: italic;
+}
+
+.endless-actions,
+.endless-result-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.new-best-banner {
+  background: linear-gradient(135deg, #d4a017 0%, #f5c842 50%, #d4a017 100%);
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  padding: 16px 32px;
+  border-radius: 12px;
+  border: 3px solid #a07010;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.25);
+  animation: new-best-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes new-best-pulse {
+  from { transform: scale(1); box-shadow: 4px 4px 0 rgba(0,0,0,0.25); }
+  to   { transform: scale(1.03); box-shadow: 6px 6px 0 rgba(0,0,0,0.3); }
+}
+
+.previous-best {
+  font-size: 18px;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+.endless-title-best {
+  font-size: 16px;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .endless-actions,
+  .endless-result-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .endless-actions button,
+  .endless-result-actions button {
+    width: 100%;
+  }
+
+  .final-streak {
+    font-size: 40px;
+  }
+
+  .new-best-banner {
+    font-size: 22px;
+    padding: 12px 20px;
+  }
+
+  .streak-indicator {
+    font-size: 26px;
+  }
+}
