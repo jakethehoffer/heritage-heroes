@@ -234,7 +234,71 @@ const Screens = (function () {
     window.setTimeout(() => { if (node.isConnected) node.remove(); }, 1200);
   }
 
-  return { renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle, animateAction, showCallout, renderResult };
+  const TUTORIAL_STEPS = [
+    {
+      title: "Welcome to Jewish Heroes",
+      body: "You'll duel as a hero from Jewish history. The first to lose all their HP loses the match."
+    },
+    {
+      title: "Attack and Defend",
+      body: "On your turn you have three big buttons. 'Attack' deals damage. 'Defend' halves the next attack against you."
+    },
+    {
+      title: "Your Special Move",
+      body: "Each hero has a unique signature move. Powerful — but it has a cooldown after you use it."
+    },
+    {
+      title: "That's it!",
+      body: "Take your time. There's no clock. Click 'BEGIN' on the main menu to play."
+    }
+  ];
+
+  function renderTutorial(stepIndex) {
+    const step = TUTORIAL_STEPS[stepIndex];
+    const isLast = stepIndex === TUTORIAL_STEPS.length - 1;
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>${Render.escapeHtml(step.title)}</h3>
+    <p>${Render.escapeHtml(step.body)}</p>
+    <div class="overlay-buttons">
+      ${stepIndex > 0 ? `<button data-action="tutorial-prev" class="secondary">Back</button>` : ""}
+      <button data-action="tutorial-skip" class="secondary">Skip</button>
+      <button data-action="${isLast ? "tutorial-done" : "tutorial-next"}">${isLast ? "Done" : "Next"}</button>
+    </div>
+    <div class="overlay-progress">Step ${stepIndex + 1} of ${TUTORIAL_STEPS.length}</div>
+  </div>
+</div>`;
+  }
+
+  function renderHelp() {
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>How to Play</h3>
+    <ul class="help-list">
+      <li><strong>Attack</strong> — Deal damage to the opponent.</li>
+      <li><strong>Defend</strong> — The next attack against you is halved.</li>
+      <li><strong>Special</strong> — Your hero's signature move. Has a 3-turn cooldown.</li>
+      <li>First player to reach 0 HP loses.</li>
+      <li>Click your move when it's your turn. There is no timer.</li>
+    </ul>
+    <div class="overlay-buttons">
+      <button data-action="close-overlay">Got it</button>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function renderHelpButton() {
+    return `<button class="help-button" data-action="show-help" title="How to Play">?</button>`;
+  }
+
+  return {
+    renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
+    renderResult, renderTutorial, renderHelp, renderHelpButton,
+    animateAction, showCallout
+  };
 })();
 
 if (typeof module !== "undefined") module.exports = Screens;
