@@ -28,6 +28,21 @@ var Screens = (function () {
       masteryLine = `<p class="mastered-count">&#x1F31F; Mastered: ${masteredCount} of 7 heroes</p>`;
     }
 
+    // Daily challenge banner
+    let dailyBannerLine = "";
+    if (state.dailyToday) {
+      const dt = state.dailyToday;
+      const heroA = Heroes.byId(dt.challenge.playerHeroId);
+      const heroB = Heroes.byId(dt.challenge.opponentHeroId);
+      const heroAName = heroA ? Render.escapeHtml(heroA.name) : dt.challenge.playerHeroId;
+      const heroBName = heroB ? Render.escapeHtml(heroB.name) : dt.challenge.opponentHeroId;
+      const statusText = dt.stats.completedToday
+        ? `&#x2713; Today's Challenge claimed &mdash; ${heroAName} vs ${heroBName}`
+        : `&rarr; Today's Challenge: ${heroAName} vs ${heroBName}${dt.challenge.difficulty === "hard" ? " (Hard)" : ""}`;
+      const bannerCls = dt.stats.completedToday ? "daily-banner claimed" : "daily-banner available";
+      dailyBannerLine = `<p class="${bannerCls}">${statusText}</p>`;
+    }
+
     // Featured hero panel
     const featuredIdx = (typeof state.titleFeaturedIndex === "number") ? state.titleFeaturedIndex : 0;
     const featuredHero = Heroes.list[featuredIdx] || Heroes.list[0];
@@ -77,6 +92,7 @@ var Screens = (function () {
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
   ${endlessStreakLine}
+  ${dailyBannerLine}
 </section>`;
   }
 
@@ -100,6 +116,10 @@ var Screens = (function () {
     <button data-action="start-endless" class="mode-card">
       <h3>Endless Survival</h3>
       <p>Pick a hero. Fight as many opponents as you can survive. Heal 25 HP after each win &mdash; see how far you can get.</p>
+    </button>
+    <button data-action="start-daily" class="mode-card">
+      <h3>Daily Challenge</h3>
+      <p>One specific matchup per day, the same for everyone. Beat it to claim today and build your streak.</p>
     </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
@@ -383,6 +403,38 @@ var Screens = (function () {
   <div class="result-buttons">
     <button data-action="arcade-next">Next Opponent</button>
     <button data-action="goto-title" class="secondary">Quit Run</button>
+  </div>
+</section>`;
+    }
+
+    if (state.mode === "daily") {
+      const playerWon = winnerIdx === 0;
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+      let dailyResultInfo = "";
+      if (playerWon) {
+        const ds = state.save && state.save.daily
+          ? { currentStreak: state.save.daily.currentStreak, bestStreak: state.save.daily.bestStreak, lifetimeCompletions: state.save.daily.lifetimeCompletions }
+          : { currentStreak: 0, bestStreak: 0, lifetimeCompletions: 0 };
+        dailyResultInfo = `
+<div class="daily-result-info">
+  <p class="daily-result-cleared">&#x1F4C5; Daily Challenge cleared!</p>
+  <div class="daily-stats-mini">
+    <div>&#x1F525; Current streak: <strong>${ds.currentStreak}</strong> day${ds.currentStreak === 1 ? "" : "s"}</div>
+    <div>&#x1F3C6; Best: <strong>${ds.bestStreak}</strong></div>
+    <div>Total: <strong>${ds.lifetimeCompletions}</strong> challenges</div>
+  </div>
+</div>`;
+      } else {
+        dailyResultInfo = `<p class="daily-result-failed">Daily Challenge failed &mdash; try again tomorrow.</p>`;
+      }
+      return `
+<section class="screen screen-result">
+  <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
+  <p class="tagline">${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}.</p>
+  ${dailyResultInfo}
+  ${recap}
+  <div class="result-buttons">
+    <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
     }
@@ -2307,7 +2359,10 @@ var Screens = (function () {
     { key: "bossSlayer",       title: "Boss Slayer",            description: "Defeat a Boss in Arcade Ladder",                   icon: "👹" },
     { key: "endlessSurvivor", title: "Survivor",               description: "Reach a 5-win streak in Endless Survival",          icon: "🥉" },
     { key: "endlessMarathon", title: "Marathon",               description: "Reach a 10-win streak in Endless Survival",         icon: "🥈" },
-    { key: "endlessLegend",   title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇" }
+    { key: "endlessLegend",   title: "Endless Legend",         description: "Reach a 20-win streak in Endless Survival",         icon: "🥇" },
+    { key: "dailyStreak3",   title: "Daily Devoted",          description: "Complete the daily challenge 3 days in a row",       icon: "🗓️" },
+    { key: "dailyStreak7",   title: "Weekly Warrior",         description: "Complete the daily challenge 7 days in a row",       icon: "📅" },
+    { key: "dailyStreak30",  title: "Monthly Monk",           description: "Complete the daily challenge 30 days in a row",      icon: "🏆" }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2495,6 +2550,27 @@ var Screens = (function () {
   }
 
   // ── Stats screen ─────────────────────────────────────────────────────────
+  function renderDailyAlreadyDone(state) {
+    const ds = (state.save && state.save.daily)
+      ? { currentStreak: state.save.daily.currentStreak, bestStreak: state.save.daily.bestStreak, lifetimeCompletions: state.save.daily.lifetimeCompletions }
+      : { currentStreak: 0, bestStreak: 0, lifetimeCompletions: 0 };
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>Already done!</h3>
+    <p>You've completed today's challenge. Come back tomorrow for a new one.</p>
+    <div class="daily-stats-mini">
+      <div>&#x1F525; Current streak: <strong>${ds.currentStreak}</strong> day${ds.currentStreak === 1 ? "" : "s"}</div>
+      <div>&#x1F3C6; Best: <strong>${ds.bestStreak}</strong></div>
+      <div>Total: <strong>${ds.lifetimeCompletions}</strong> challenges</div>
+    </div>
+    <div class="overlay-buttons">
+      <button data-action="close-daily-already-done">OK</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   function renderStats(state) {
     const save = state.save || {};
     const stats = save.stats || { matchesPlayed: 0, matchesWon: 0, triviaCorrect: 0, triviaTotal: 0, perHero: {} };
@@ -2545,10 +2621,43 @@ var Screens = (function () {
 </div>`;
     }).join("");
 
+    const dailyData = save.daily || { completedDates: [], currentStreak: 0, bestStreak: 0, lifetimeCompletions: 0 };
+    // Compute live current streak for display
+    const _todayIsoForStats = (function () {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dy = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${dy}`;
+    }());
+    const _completedSetForStats = new Set(dailyData.completedDates);
+    let _liveStreak = 0;
+    (function () {
+      const d2 = new Date(_todayIsoForStats + "T12:00:00");
+      while (true) {
+        const y2 = d2.getFullYear();
+        const m2 = String(d2.getMonth() + 1).padStart(2, "0");
+        const dy2 = String(d2.getDate()).padStart(2, "0");
+        const iso2 = `${y2}-${m2}-${dy2}`;
+        if (!_completedSetForStats.has(iso2)) break;
+        _liveStreak += 1;
+        d2.setDate(d2.getDate() - 1);
+      }
+    }());
+
     return `
 <section class="screen stats-screen">
   <h2>Your Heritage</h2>
   <button data-action="goto-title" class="back">&larr; Back to Menu</button>
+
+  <div class="stats-section">
+    <h3>Daily Challenge</h3>
+    <div class="stats-overall">
+      <div>&#x1F525; Current streak: <strong>${_liveStreak}</strong> day${_liveStreak === 1 ? "" : "s"}</div>
+      <div>&#x1F3C6; Best streak: <strong>${dailyData.bestStreak}</strong></div>
+      <div>&#x1F4C5; Lifetime completions: <strong>${dailyData.lifetimeCompletions}</strong></div>
+    </div>
+  </div>
 
   <div class="stats-section">
     <h3>Overall</h3>
@@ -2766,6 +2875,7 @@ var Screens = (function () {
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
     renderHistory, renderMatchDetail,
+    renderDailyAlreadyDone,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,

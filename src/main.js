@@ -1,10 +1,10 @@
 var Main = (function () {
   const state = {
     screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings
-    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all'
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
     profileHeroId: null,
     tutorialStep: 0,
-    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless'
+    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily'
     difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
@@ -24,7 +24,10 @@ var Main = (function () {
     bossIntroShown: false,  // reset at start of each arcade run
     // Title screen featured hero rotation
     titleFeaturedIndex: 0,  // index into Heroes.list for currently featured hero
-    titleFeaturedTimer: null // interval id, cleared when leaving title
+    titleFeaturedTimer: null, // interval id, cleared when leaving title
+    // Daily Challenge
+    dailyChallenge: null,   // { isoDate, playerHeroId, opponentHeroId, difficulty } | null
+    dailyToday: null        // { challenge, stats } precomputed for title screen
   };
 
   function _freshMatchStats() {
@@ -48,6 +51,68 @@ var Main = (function () {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  // ── Daily Challenge helpers ───────────────────────────────────────────────
+
+  const DAILY_HEROES = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+
+  function todayIso() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function getDailyChallenge(isoDate) {
+    let hash = 0;
+    for (let i = 0; i < isoDate.length; i++) hash = (hash * 31 + isoDate.charCodeAt(i)) >>> 0;
+
+    const playerIdx = hash % 7;
+    const opponentOffset = 1 + (Math.floor(hash / 7) % 6);  // 1..6
+    const opponentIdx = (playerIdx + opponentOffset) % 7;
+
+    const dayOfYear = (function () {
+      const d = new Date(isoDate + "T12:00:00");
+      const start = new Date(d.getFullYear(), 0, 0);
+      return Math.floor((d - start) / 86400000);
+    }());
+    const difficulty = (dayOfYear % 3 === 0) ? "hard" : "normal";
+
+    return {
+      isoDate,
+      playerHeroId: DAILY_HEROES[playerIdx],
+      opponentHeroId: DAILY_HEROES[opponentIdx],
+      difficulty
+    };
+  }
+
+  function startDaily() {
+    const todayDate = todayIso();
+    const challenge = getDailyChallenge(todayDate);
+    const store = getStore();
+    const ds = Storage.dailyStats(store);
+    if (ds.completedToday) {
+      state.overlay = "daily-already-done";
+      render();
+      return;
+    }
+    state.mode = "daily";
+    state.controllers = ["human", "ai"];
+    state.difficulty = challenge.difficulty;
+    state.dailyChallenge = challenge;
+    state.picks = { 1: challenge.playerHeroId, 2: challenge.opponentHeroId };
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
+    state.bossIntroShown = true;  // skip any boss flow for daily
+    state.match = Combat.createMatch(
+      challenge.playerHeroId,
+      challenge.opponentHeroId,
+      { hardMode: challenge.difficulty === "hard", hardOpponentSlot: 1 }
+    );
+    state.screen = "battle";
+    render();
   }
 
   // ── Achievement check ─────────────────────────────────────────────────────
@@ -80,6 +145,12 @@ var Main = (function () {
     tryUnlock("endlessSurvivor", maxEndless >= 5);
     tryUnlock("endlessMarathon", maxEndless >= 10);
     tryUnlock("endlessLegend",   maxEndless >= 20);
+
+    // Daily Challenge streak achievements
+    const ds = Storage.dailyStats(getStore());
+    tryUnlock("dailyStreak3",  ds.currentStreak >= 3 || ds.bestStreak >= 3);
+    tryUnlock("dailyStreak7",  ds.currentStreak >= 7 || ds.bestStreak >= 7);
+    tryUnlock("dailyStreak30", ds.currentStreak >= 30 || ds.bestStreak >= 30);
 
     return newKeys;
   }
@@ -132,6 +203,14 @@ var Main = (function () {
       }, 8000);
     }
 
+    // Precompute daily challenge info for title screen
+    if (state.screen === "title") {
+      state.dailyToday = {
+        challenge: getDailyChallenge(todayIso()),
+        stats: Storage.dailyStats(getStore())
+      };
+    }
+
     let body;
     if (state.screen === "title")       body = Screens.renderTitle(state);
     else if (state.screen === "mode")   body = Screens.renderModeSelect(state);
@@ -173,6 +252,7 @@ var Main = (function () {
     if (state.overlay === "reset-all")    overlay = Screens.renderResetAllConfirm();
     if (state.overlay === "profile")      overlay = Screens.renderProfile(state, state.profileHeroId);
     if (state.overlay === "match-detail") overlay = Screens.renderMatchDetail(state);
+    if (state.overlay === "daily-already-done") overlay = Screens.renderDailyAlreadyDone(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -410,6 +490,15 @@ var Main = (function () {
         _fumbleTurn(skipHeroId);
         return;
       }
+
+      case "start-daily":
+        startDaily();
+        return;
+
+      case "close-daily-already-done":
+        state.overlay = null;
+        render();
+        return;
 
       case "start-study":
         state.mode = "study";
@@ -874,6 +963,28 @@ var Main = (function () {
     const winnerHero = state.match.players[winnerIdx].heroId;
     const loserHero  = state.match.players[1 - winnerIdx].heroId;
     const newAchKeys = [];
+
+    if (state.mode === "daily") {
+      const playerWon = state.match.winner === 0;
+      if (playerWon && state.dailyChallenge) {
+        if (store) {
+          Storage.recordDailyCompletion(store, state.dailyChallenge.isoDate);
+          state.save = Storage.load(store);
+        }
+        // Check daily streak achievements
+        const dailyAchKeys = checkAchievements();
+        applyAchievements(dailyAchKeys);
+      }
+      // Record history entry
+      if (store) {
+        Storage.recordMatchHistory(store, _buildHistoryEntry());
+        state.save = Storage.load(store);
+      }
+      state.currentMatchLowHp = { 0: false, 1: false };
+      state.screen = "result";
+      render();
+      return;
+    }
 
     if (state.mode === "endless") {
       const playerWon = state.match.winner === 0;

@@ -486,3 +486,94 @@ test("Storage.resetAll wipes save back to defaults", () => {
   assert.strictEqual(after.stats.matchesPlayed, 0);
   assert.strictEqual(after.achievements.firstWin, false);
 });
+
+// ── Daily Challenge ───────────────────────────────────────────────────────
+
+test("daily defaults to empty completedDates and all-zero counters", () => {
+  const data = Storage.load(fakeStore());
+  assert.ok(data.daily, "daily key should exist");
+  assert.ok(Array.isArray(data.daily.completedDates), "completedDates should be an array");
+  assert.strictEqual(data.daily.completedDates.length, 0);
+  assert.strictEqual(data.daily.currentStreak, 0);
+  assert.strictEqual(data.daily.bestStreak, 0);
+  assert.strictEqual(data.daily.lifetimeCompletions, 0);
+});
+
+test("recordDailyCompletion pushes date and increments lifetimeCompletions", () => {
+  const s = fakeStore();
+  Storage.recordDailyCompletion(s, "2026-05-17");
+  const data = Storage.load(s);
+  assert.ok(data.daily.completedDates.includes("2026-05-17"));
+  assert.strictEqual(data.daily.lifetimeCompletions, 1);
+  assert.strictEqual(data.daily.currentStreak, 1);
+});
+
+test("recordDailyCompletion is idempotent — calling twice with same date doesn't double-count", () => {
+  const s = fakeStore();
+  Storage.recordDailyCompletion(s, "2026-05-17");
+  Storage.recordDailyCompletion(s, "2026-05-17");
+  const data = Storage.load(s);
+  assert.strictEqual(data.daily.completedDates.length, 1);
+  assert.strictEqual(data.daily.lifetimeCompletions, 1);
+  assert.strictEqual(data.daily.currentStreak, 1);
+});
+
+test("streak calculation: 3 consecutive days yields streak of 3", () => {
+  const s = fakeStore();
+  Storage.recordDailyCompletion(s, "2026-05-15");
+  Storage.recordDailyCompletion(s, "2026-05-16");
+  const result = Storage.recordDailyCompletion(s, "2026-05-17");
+  assert.strictEqual(result.daily.currentStreak, 3);
+});
+
+test("streak calculation: gap in dates breaks the streak", () => {
+  const s = fakeStore();
+  Storage.recordDailyCompletion(s, "2026-05-15");
+  // 2026-05-16 is missing
+  const result = Storage.recordDailyCompletion(s, "2026-05-17");
+  // Streak ending 2026-05-17 is 1 (because 2026-05-16 is missing)
+  assert.strictEqual(result.daily.currentStreak, 1);
+});
+
+test("bestStreak updates when surpassed, persists if current streak is shorter", () => {
+  const s = fakeStore();
+  // Build a 3-day streak
+  Storage.recordDailyCompletion(s, "2026-05-14");
+  Storage.recordDailyCompletion(s, "2026-05-15");
+  Storage.recordDailyCompletion(s, "2026-05-16");
+  let data = Storage.load(s);
+  assert.strictEqual(data.daily.bestStreak, 3);
+
+  // Now record a single isolated day (no streak)
+  Storage.recordDailyCompletion(s, "2026-05-18"); // gap on 17th
+  data = Storage.load(s);
+  assert.strictEqual(data.daily.currentStreak, 1);
+  assert.strictEqual(data.daily.bestStreak, 3, "bestStreak should still be 3");
+});
+
+test("dailyStats returns currentStreak computed against today and completedToday flag", () => {
+  const s = fakeStore();
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const today = `${y}-${m}-${day}`;
+
+  // Build yesterday's date string
+  const yesterday = new Date(d);
+  yesterday.setDate(yesterday.getDate() - 2); // 2 days ago (so yesterday is missing)
+  const yy = yesterday.getFullYear();
+  const ym = String(yesterday.getMonth() + 1).padStart(2, "0");
+  const yd = String(yesterday.getDate()).padStart(2, "0");
+  const twoDaysAgo = `${yy}-${ym}-${yd}`;
+
+  // Record two days ago and today (yesterday missing)
+  Storage.recordDailyCompletion(s, twoDaysAgo);
+  Storage.recordDailyCompletion(s, today);
+
+  const stats = Storage.dailyStats(s);
+  assert.strictEqual(stats.completedToday, true);
+  // Current streak is 1 because yesterday is missing
+  assert.strictEqual(stats.currentStreak, 1);
+  assert.strictEqual(stats.lifetimeCompletions, 2);
+});

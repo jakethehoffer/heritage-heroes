@@ -43,9 +43,18 @@ var Storage = (function () {
         bossSlayer:       false,
         endlessSurvivor:  false,
         endlessMarathon:  false,
-        endlessLegend:    false
+        endlessLegend:    false,
+        dailyStreak3:     false,
+        dailyStreak7:     false,
+        dailyStreak30:    false
       },
-      recentMatches: []  // ring buffer; newest first, max 10 entries
+      recentMatches: [],  // ring buffer; newest first, max 10 entries
+      daily: {
+        completedDates: [],     // array of ISO date strings, sorted oldest-first
+        currentStreak: 0,       // cached; recomputed on demand
+        bestStreak: 0,          // all-time best consecutive-day streak
+        lifetimeCompletions: 0  // total challenges ever completed
+      }
     };
   }
 
@@ -122,6 +131,23 @@ var Storage = (function () {
               Number.isInteger(e.winnerSlot) &&
               Number.isInteger(e.turns);
           }).slice(0, 10);
+        }
+        // daily challenge data
+        if (parsed.daily && typeof parsed.daily === "object") {
+          if (Array.isArray(parsed.daily.completedDates)) {
+            out.daily.completedDates = parsed.daily.completedDates.filter(
+              function (d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
+            );
+          }
+          if (Number.isInteger(parsed.daily.currentStreak) && parsed.daily.currentStreak >= 0) {
+            out.daily.currentStreak = parsed.daily.currentStreak;
+          }
+          if (Number.isInteger(parsed.daily.bestStreak) && parsed.daily.bestStreak >= 0) {
+            out.daily.bestStreak = parsed.daily.bestStreak;
+          }
+          if (Number.isInteger(parsed.daily.lifetimeCompletions) && parsed.daily.lifetimeCompletions >= 0) {
+            out.daily.lifetimeCompletions = parsed.daily.lifetimeCompletions;
+          }
         }
       }
       return out;
@@ -222,6 +248,62 @@ var Storage = (function () {
     try { store.setItem(KEY, JSON.stringify(defaults())); } catch (_) { /* silent */ }
   }
 
+  // ── Daily Challenge helpers ──────────────────────────────────────────────
+
+  function _isoFromDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function _computeStreak(completedDates, endingDateIso) {
+    const completedSet = new Set(completedDates);
+    let streak = 0;
+    const d = new Date(endingDateIso + "T12:00:00");  // noon avoids DST edge cases
+    while (true) {
+      const iso = _isoFromDate(d);
+      if (!completedSet.has(iso)) break;
+      streak += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  }
+
+  // Record a daily challenge completion for the given ISO date string.
+  // Idempotent: calling twice with the same date is a no-op.
+  // Returns the updated save data.
+  function recordDailyCompletion(store, isoDate) {
+    const data = load(store);
+    if (data.daily.completedDates.includes(isoDate)) return data;
+    data.daily.completedDates.push(isoDate);
+    data.daily.completedDates.sort();
+    data.daily.lifetimeCompletions += 1;
+    const streak = _computeStreak(data.daily.completedDates, isoDate);
+    data.daily.currentStreak = streak;
+    if (streak > data.daily.bestStreak) data.daily.bestStreak = streak;
+    save(store, data);
+    return data;
+  }
+
+  // Returns live daily stats computed against today's date.
+  function dailyStats(store) {
+    if (!store) {
+      return { currentStreak: 0, bestStreak: 0, lifetimeCompletions: 0, completedToday: false };
+    }
+    const data = load(store);
+    const d = new Date();
+    const todayIso = _isoFromDate(d);
+    const completedToday = data.daily.completedDates.includes(todayIso);
+    const currentStreak = _computeStreak(data.daily.completedDates, todayIso);
+    return {
+      currentStreak,
+      bestStreak: data.daily.bestStreak,
+      lifetimeCompletions: data.daily.lifetimeCompletions,
+      completedToday
+    };
+  }
+
   // Push a match history entry to the front of the ring buffer, trim to 10, save, return updated save.
   function recordMatchHistory(store, entry) {
     const data = load(store);
@@ -233,7 +315,7 @@ var Storage = (function () {
 
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
-           recordMatchHistory };
+           recordMatchHistory, recordDailyCompletion, dailyStats };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

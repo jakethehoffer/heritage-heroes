@@ -2887,3 +2887,65 @@ button.danger:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Daily Challenge styles ──────────────────────────────────── */
+
+/* Title screen banner */
+.daily-banner {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 2px solid currentColor;
+  margin-top: 6px;
+}
+.daily-banner.available {
+  background: var(--terracotta);
+  color: var(--cream);
+  border-color: var(--terracotta);
+}
+.daily-banner.claimed {
+  background: var(--olive);
+  color: var(--cream);
+  border-color: var(--olive);
+}
+
+/* Overlay and result stats block */
+.daily-stats-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  padding: 12px 20px;
+  margin: 14px 0;
+  font-size: 16px;
+}
+.daily-stats-mini strong {
+  color: var(--terracotta);
+}
+
+/* Result screen daily info block */
+.daily-result-info {
+  background: var(--cream);
+  border: 2px solid var(--olive);
+  border-radius: 10px;
+  padding: 16px 24px;
+  margin: 12px 0;
+  text-align: center;
+}
+.daily-result-cleared {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--olive);
+  margin-bottom: 8px;
+}
+.daily-result-failed {
+  font-size: 17px;
+  color: var(--terracotta);
+  margin: 12px 0;
+  font-style: italic;
+}
