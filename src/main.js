@@ -1,7 +1,7 @@
 var Main = (function () {
   const state = {
     screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result
-    overlay: null,          // null | 'tutorial' | 'help'
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia'
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade'
     difficulty: "normal",   // 'normal' | 'hard'
@@ -10,7 +10,8 @@ var Main = (function () {
     picks: { 1: null, 2: null },  // hero ids
     match: null,            // Combat state
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
-    save: null
+    save: null,
+    trivia: null            // { heroId, phase: 'question'|'result', chosenIndex? } when active
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -46,6 +47,7 @@ var Main = (function () {
     if (state.overlay === "tutorial") overlay = Screens.renderTutorial(state.tutorialStep);
     if (state.overlay === "help")     overlay = Screens.renderHelp();
     if (state.overlay === "quit")     overlay = Screens.renderQuitConfirm(state);
+    if (state.overlay === "trivia")   overlay = Screens.renderTriviaOverlay(state, state.trivia);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -110,6 +112,48 @@ var Main = (function () {
         state.save.sound = !state.save.sound;
         Sfx.setMuted(!state.save.sound);
         Storage.save(getStore(), state.save);
+        render();
+        return;
+
+      case "trivia-answer": {
+        if (!state.trivia) return;
+        const chosenIdx = parseInt(target.dataset.index, 10);
+        const hero = Heroes.byId(state.trivia.heroId);
+        const isCorrect = hero && hero.trivia && chosenIdx === hero.trivia.correctIndex;
+        state.trivia.phase = "result";
+        state.trivia.chosenIndex = chosenIdx;
+        if (isCorrect) {
+          // Unlock in state and persist
+          if (state.save && state.save.specialsUnlocked) {
+            state.save.specialsUnlocked[state.trivia.heroId] = true;
+          }
+          Storage.unlockSpecial(getStore(), state.trivia.heroId);
+        }
+        render();
+        return;
+      }
+
+      case "trivia-close": {
+        const wasCorrect = state.trivia
+          && state.trivia.phase === "result"
+          && state.trivia.chosenIndex !== undefined
+          && (() => {
+            const h = Heroes.byId(state.trivia.heroId);
+            return h && h.trivia && state.trivia.chosenIndex === h.trivia.correctIndex;
+          })();
+        state.overlay = null;
+        state.trivia = null;
+        render();
+        if (wasCorrect) {
+          // Special is now unlocked — fire it
+          resolveMove("special");
+        }
+        return;
+      }
+
+      case "trivia-skip":
+        state.overlay = null;
+        state.trivia = null;
         render();
         return;
     }
@@ -194,6 +238,21 @@ var Main = (function () {
   function playerMove(move) {
     if (!state.match || state.match.winner !== null) return;
     if (state.controllers[state.match.activePlayer] !== "human") return;
+
+    // Trivia gate: if the player tries the Special and it's still locked, show the quiz
+    if (move === "special") {
+      const activeHeroId = state.match.players[state.match.activePlayer].heroId;
+      const isLocked = state.save && state.save.specialsUnlocked
+        ? !state.save.specialsUnlocked[activeHeroId]
+        : true;
+      if (isLocked) {
+        state.trivia = { heroId: activeHeroId, phase: "question" };
+        state.overlay = "trivia";
+        render();
+        return;
+      }
+    }
+
     resolveMove(move);
   }
 

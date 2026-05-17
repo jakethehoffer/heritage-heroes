@@ -1034,3 +1034,63 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 }
 .hard-mode-card h3 { color: #ffd700; }
 .hard-mode-card p  { color: #d4c080; }
+
+/* ── Trivia unlock system ────────────────────────────────── */
+
+/* Locked Special button */
+.moves-row button.locked {
+  border-color: var(--gold);
+  background: #d4a574;
+  color: var(--ink);
+}
+
+/* Trivia overlay card — wider than the default overlay-card */
+.trivia-card {
+  max-width: 560px;
+}
+
+/* Question text */
+.trivia-question {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--navy);
+  line-height: 1.4;
+}
+
+/* 2×2 grid of answer buttons */
+.trivia-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.trivia-option-btn {
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+/* Result color classes */
+.trivia-correct {
+  color: #1e8e3e;
+}
+.trivia-wrong {
+  color: #c1462d;
+}
+
+/* Explanation shown after answering */
+.trivia-explanation {
+  font-size: 15px;
+  font-style: italic;
+  color: var(--navy);
+  background: var(--bg);
+  border-left: 4px solid var(--gold);
+  padding: 10px 14px;
+  margin: 12px 0 16px;
+  border-radius: 4px;
+  line-height: 1.5;
+}

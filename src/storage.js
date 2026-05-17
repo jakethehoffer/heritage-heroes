@@ -1,12 +1,15 @@
 var Storage = (function () {
   const KEY = "heritageHeroes.save";
 
+  const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+
   function defaults() {
     return {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
       tutorialSeen: false,
-      hardUnlocked: false
+      hardUnlocked: false,
+      specialsUnlocked: { moses: false, david: false, esther: false, judah: false, rambam: false, golda: false, einstein: false }
     };
   }
 
@@ -25,6 +28,13 @@ var Storage = (function () {
         if (typeof parsed.sound === "boolean") out.sound = parsed.sound;
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;
+        if (parsed.specialsUnlocked && typeof parsed.specialsUnlocked === "object") {
+          for (const id of HERO_IDS) {
+            if (typeof parsed.specialsUnlocked[id] === "boolean") {
+              out.specialsUnlocked[id] = parsed.specialsUnlocked[id];
+            }
+          }
+        }
       }
       return out;
     } catch (_) {
@@ -44,7 +54,15 @@ var Storage = (function () {
     save(store, data);
   }
 
-  return { load, save, incrementArcadeWin };
+  function unlockSpecial(store, heroId) {
+    const data = load(store);
+    if (Object.prototype.hasOwnProperty.call(data.specialsUnlocked, heroId)) {
+      data.specialsUnlocked[heroId] = true;
+    }
+    save(store, data);
+  }
+
+  return { load, save, incrementArcadeWin, unlockSpecial };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;

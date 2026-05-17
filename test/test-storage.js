@@ -63,3 +63,33 @@ test("incrementArcadeWin increments the right counter", () => {
   assert.strictEqual(data.arcade.david, 1);
   assert.strictEqual(data.arcade.esther, 0);
 });
+
+test("specialsUnlocked defaults to all false and round-trips correctly", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  const heroIds = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+  // All start as false
+  for (const id of heroIds) {
+    assert.strictEqual(data.specialsUnlocked[id], false, `${id} should default to false`);
+  }
+  // Set a couple to true, save, reload
+  data.specialsUnlocked.moses = true;
+  data.specialsUnlocked.golda = true;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.specialsUnlocked.moses, true);
+  assert.strictEqual(reloaded.specialsUnlocked.golda, true);
+  assert.strictEqual(reloaded.specialsUnlocked.david, false);
+  assert.strictEqual(reloaded.specialsUnlocked.einstein, false);
+});
+
+test("unlockSpecial sets the right key and leaves others false", () => {
+  const s = fakeStore();
+  Storage.unlockSpecial(s, "esther");
+  const data = Storage.load(s);
+  assert.strictEqual(data.specialsUnlocked.esther, true);
+  // All others still false
+  for (const id of ["moses", "david", "judah", "rambam", "golda", "einstein"]) {
+    assert.strictEqual(data.specialsUnlocked[id], false, `${id} should still be false`);
+  }
+});

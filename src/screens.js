@@ -61,7 +61,13 @@ var Screens = (function () {
       ? "Pick your hero for the Arcade Ladder"
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
-    const cards = Heroes.list.map(h => `
+    const unlockedMap = (state.save && state.save.specialsUnlocked) ? state.save.specialsUnlocked : {};
+    const cards = Heroes.list.map(h => {
+      const specialUnlocked = !!unlockedMap[h.id];
+      const specialLine = specialUnlocked
+        ? `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`
+        : `&#x1F512; <strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Locked. Answer a question in battle to unlock.`;
+      return `
       <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
         <div class="hero-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
         <div class="hero-meta">
@@ -71,11 +77,12 @@ var Screens = (function () {
           <ul class="moves">
             <li><strong>${Render.escapeHtml(h.moves.attack.name)}</strong> — Basic Attack (${h.moves.attack.damage})</li>
             <li><strong>${Render.escapeHtml(h.moves.defend.name)}</strong> — Defend (halves next hit)</li>
-            <li><strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}</li>
+            <li>${specialLine}</li>
           </ul>
         </div>
       </button>
-    `).join("");
+    `;
+    }).join("");
 
     return `
 <section class="screen screen-charselect">
@@ -97,9 +104,12 @@ var Screens = (function () {
 
     const charging = Combat.isCharging(match, match.activePlayer);
     const isHumanTurn = state.controllers[match.activePlayer] === "human";
+    const specialLocked = isHumanTurn && state.save && state.save.specialsUnlocked
+      ? !state.save.specialsUnlocked[activeHero.id]
+      : false;
     const moveButtons = charging
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
-      : renderMoveButtons(activeHero, active);
+      : renderMoveButtons(activeHero, active, specialLocked);
 
     const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")}'s turn`;
 
@@ -127,8 +137,26 @@ var Screens = (function () {
 </section>`;
   }
 
-  function renderMoveButtons(hero, playerState) {
+  function renderMoveButtons(hero, playerState, locked) {
     const cd = playerState.specialCooldown;
+    let specialLabel, specialSub, specialClass, specialDisabled;
+    if (cd > 0) {
+      // Cooldown takes precedence over lock
+      specialLabel = Render.escapeHtml(hero.moves.special.name);
+      specialSub = `Ready in ${cd}`;
+      specialClass = "";
+      specialDisabled = "disabled";
+    } else if (locked) {
+      specialLabel = `&#x1F512; ${Render.escapeHtml(hero.moves.special.name)}`;
+      specialSub = "Answer a question to unlock";
+      specialClass = " locked";
+      specialDisabled = "";
+    } else {
+      specialLabel = Render.escapeHtml(hero.moves.special.name);
+      specialSub = Render.escapeHtml(hero.moves.special.description);
+      specialClass = "";
+      specialDisabled = "";
+    }
     return `
       <button data-action="player-move" data-move="attack">
         <strong>${Render.escapeHtml(hero.moves.attack.name)}</strong>
@@ -138,9 +166,9 @@ var Screens = (function () {
         <strong>${Render.escapeHtml(hero.moves.defend.name)}</strong>
         <span class="sub">Halves the next incoming attack.</span>
       </button>
-      <button data-action="player-move" data-move="special" ${cd > 0 ? "disabled" : ""}>
-        <strong>${Render.escapeHtml(hero.moves.special.name)}</strong>
-        <span class="sub">${cd > 0 ? `Ready in ${cd}` : Render.escapeHtml(hero.moves.special.description)}</span>
+      <button data-action="player-move" data-move="special" class="${specialClass.trim()}"${specialDisabled ? ` ${specialDisabled}` : ""}>
+        <strong>${specialLabel}</strong>
+        <span class="sub">${specialSub}</span>
       </button>
     `;
   }
@@ -1881,10 +1909,65 @@ var Screens = (function () {
 </div>`;
   }
 
+  const OPTION_LABELS = ["A", "B", "C", "D"];
+
+  function renderTriviaOverlay(state, triviaState) {
+    if (!triviaState) return "";
+    const hero = Heroes.byId(triviaState.heroId);
+    if (!hero || !hero.trivia) return "";
+    const t = hero.trivia;
+
+    if (triviaState.phase === "question") {
+      const optionButtons = t.options.map((opt, i) => `
+        <button class="trivia-option-btn" data-action="trivia-answer" data-index="${i}">
+          <strong>${OPTION_LABELS[i]}.</strong> ${Render.escapeHtml(opt)}
+        </button>
+      `).join("");
+      return `
+<div class="overlay">
+  <div class="overlay-card trivia-card">
+    <h3>Quiz: ${Render.escapeHtml(hero.name)}</h3>
+    <p class="trivia-question">${Render.escapeHtml(t.question)}</p>
+    <div class="trivia-options">${optionButtons}</div>
+    <div class="overlay-buttons">
+      <button data-action="trivia-skip" class="secondary">Skip (Special won't be used)</button>
+    </div>
+  </div>
+</div>`;
+    }
+
+    // phase === "result"
+    const chosen = triviaState.chosenIndex;
+    const correct = t.correctIndex;
+    const isCorrect = chosen === correct;
+    const resultClass = isCorrect ? "trivia-correct" : "trivia-wrong";
+    const resultHeading = isCorrect ? "Correct!" : "Not quite.";
+
+    const chosenText = t.options[chosen] !== undefined ? Render.escapeHtml(t.options[chosen]) : "";
+    const correctText = Render.escapeHtml(t.options[correct]);
+
+    const answerDetail = isCorrect
+      ? `<p>You chose: <strong>${OPTION_LABELS[chosen]}. ${chosenText}</strong></p>`
+      : `<p>You chose: <strong>${OPTION_LABELS[chosen]}. ${chosenText}</strong></p>
+         <p>Correct answer: <strong>${OPTION_LABELS[correct]}. ${correctText}</strong></p>`;
+
+    return `
+<div class="overlay">
+  <div class="overlay-card trivia-card">
+    <h3 class="${resultClass}">${resultHeading}</h3>
+    ${answerDetail}
+    <p class="trivia-explanation">${Render.escapeHtml(t.explanation)}</p>
+    <div class="overlay-buttons">
+      <button data-action="trivia-close">${isCorrect ? "Use Special!" : "Continue"}</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
-    renderArcadeRoadmap, renderDifficultySelect,
+    renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx
   };
