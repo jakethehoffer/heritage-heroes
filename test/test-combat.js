@@ -194,3 +194,41 @@ test("Esther's Reversal: does NOT trigger on opponent's non-attack moves", () =>
   Combat.applyMove(s, "defend"); // Rambam defends -- reversal should stay
   assert.strictEqual(s.players[0].statuses.reversal, true);
 });
+
+test("Judah's Menorah Flame: 8 immediate damage + 3 turns of 8 burn", () => {
+  const s = Combat.createMatch("judah", "moses"); // Moses 100 HP
+  Combat.applyMove(s, "special"); // Judah -> Moses: 8 dmg, burn=3
+  assert.strictEqual(s.players[1].hp, 92);
+  assert.strictEqual(s.players[1].statuses.burn, 3);
+
+  Combat.applyMove(s, "defend"); // Moses turn starts -> burn tick to 8 dmg, burn=2
+  assert.strictEqual(s.players[1].hp, 84);
+  assert.strictEqual(s.players[1].statuses.burn, 2);
+
+  Combat.applyMove(s, "defend"); // Judah turn (no burn on him)
+  Combat.applyMove(s, "defend"); // Moses turn -> 76, burn=1
+  assert.strictEqual(s.players[1].hp, 76);
+
+  Combat.applyMove(s, "defend"); // Judah
+  Combat.applyMove(s, "defend"); // Moses -> 68, burn expires
+  assert.strictEqual(s.players[1].hp, 68);
+  assert.strictEqual(s.players[1].statuses.burn, undefined);
+
+  Combat.applyMove(s, "defend"); // Judah
+  Combat.applyMove(s, "defend"); // Moses: no more burn
+  assert.strictEqual(s.players[1].hp, 68);
+});
+
+test("Rambam's Healing Touch: restores 20 HP, capped at maxHp", () => {
+  const s = Combat.createMatch("rambam", "moses");
+  s.players[0].hp = 50;
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[0].hp, 70);
+});
+
+test("Rambam's Healing Touch: caps at maxHp", () => {
+  const s = Combat.createMatch("rambam", "moses");
+  s.players[0].hp = 80; // max is 85
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[0].hp, 85);
+});

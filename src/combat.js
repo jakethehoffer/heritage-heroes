@@ -28,6 +28,16 @@ const Combat = (function () {
   function tickStartOfTurn(state) {
     const p = state.players[state.activePlayer];
     if (p.specialCooldown > 0) p.specialCooldown -= 1;
+
+    if (typeof p.statuses.burn === "number" && p.statuses.burn > 0) {
+      p.hp = Math.max(0, p.hp - 8);
+      p.statuses.burn -= 1;
+      if (p.statuses.burn === 0) delete p.statuses.burn;
+      if (p.hp === 0 && state.winner === null) {
+        // Burn KO: credit other player
+        state.winner = 1 - state.activePlayer;
+      }
+    }
   }
 
   function applySpecial(state, activeIdx, enemyIdx) {
@@ -46,6 +56,15 @@ const Combat = (function () {
     }
     if (heroId === "esther") {
       active.statuses.reversal = true;
+      return;
+    }
+    if (heroId === "judah") {
+      dealDamage(state, activeIdx, enemyIdx, 8);
+      enemy.statuses.burn = 3;
+      return;
+    }
+    if (heroId === "rambam") {
+      active.hp = Math.min(active.maxHp, active.hp + 20);
       return;
     }
     // other heroes implemented in later tasks
