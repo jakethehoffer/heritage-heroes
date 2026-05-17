@@ -124,3 +124,35 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 .hero-meta .bio { font-size: 14px; line-height: 1.4; margin-bottom: 6px; }
 .hero-meta .moves { font-size: 12px; line-height: 1.5; list-style: none; }
 .hero-meta .moves li { margin-bottom: 2px; }
+
+.screen-battle { gap: 14px; }
+.hp-bars { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; width: 100%; max-width: 900px; }
+.hp-cell { display: flex; }
+.hp-cell:nth-child(3) { justify-content: flex-end; }
+.vs-label { font-family: var(--font-heading); font-size: 28px; font-weight: 700; color: var(--terracotta); }
+
+.arena {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 8 / 3;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--cream);
+}
+.stage svg { display: block; width: 100%; height: 100%; }
+.fighter { position: absolute; bottom: 8%; width: 22%; }
+.fighter svg { width: 100%; height: auto; }
+.fighter-left { left: 4%; }
+.fighter-right { right: 4%; }
+
+.turn-banner { font-family: var(--font-heading); font-size: 22px; font-weight: 700; color: var(--navy); }
+
+.moves-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; width: 100%; max-width: 900px; }
+.moves-row button { display: flex; flex-direction: column; gap: 4px; padding: 14px 18px; text-align: left; }
+.moves-row button strong { font-size: 18px; }
+.moves-row button .sub { font-size: 13px; opacity: 0.85; font-weight: normal; }
+
+.move-log { width: 100%; max-width: 900px; min-height: 80px; padding: 10px 14px; background: var(--cream); border: 2px solid var(--ink); border-radius: 6px; font-size: 14px; line-height: 1.6; }
+.move-log div + div { border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px; }
