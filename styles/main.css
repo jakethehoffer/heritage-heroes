@@ -99,3 +99,28 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 .mode-card p { font-size: 16px; }
 
 @media (max-width: 700px) { .mode-grid { grid-template-columns: 1fr; } }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  max-width: 1000px;
+  width: 100%;
+}
+.hero-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  background: var(--cream);
+  color: var(--ink);
+  padding: 16px;
+  gap: 10px;
+}
+.hero-portrait { display: flex; justify-content: center; align-items: center; height: 160px; background: #fff; border: 2px solid var(--ink); border-radius: 6px; }
+.hero-portrait svg { max-height: 100%; max-width: 100%; }
+.hero-meta h3 { font-size: 20px; color: var(--navy); margin-bottom: 0; }
+.hero-meta .era { display: inline-block; font-size: 12px; background: var(--gold); color: var(--ink); padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+.hero-meta .bio { font-size: 14px; line-height: 1.4; margin-bottom: 6px; }
+.hero-meta .moves { font-size: 12px; line-height: 1.5; list-style: none; }
+.hero-meta .moves li { margin-bottom: 2px; }
