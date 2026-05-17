@@ -218,11 +218,12 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 
 /* Defend shield bubble */
 @keyframes shield-pop {
-  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
-  35%  { transform: translate(-50%, -50%) scale(1); }
-  80%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0deg); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(5deg); }
+  35%  { transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
+  60%  { transform: translate(-50%, -50%) scale(1.02) rotate(4deg); }
+  80%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1) rotate(0deg); }
 }
 
 /* Damage number float up */
@@ -250,12 +251,13 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 
 .defend-shield {
   position: absolute;
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(80,160,255,0.18) 60%, rgba(80,160,255,0.35) 100%);
-  border: 3px solid rgba(50,120,220,0.6);
-  box-shadow: 0 0 18px rgba(80,160,255,0.4), inset 0 0 12px rgba(80,160,255,0.2);
+  background: radial-gradient(circle, rgba(80,160,255,0.32) 50%, rgba(80,160,255,0.48) 100%);
+  border: 4px solid rgba(50,120,220,0.85);
+  box-shadow: 0 0 28px rgba(80,160,255,0.55), inset 0 0 18px rgba(80,160,255,0.3),
+              0 0 8px rgba(255,255,255,0.4);
   z-index: 7;
   pointer-events: none;
   animation: shield-pop 1300ms ease-out forwards;
@@ -313,79 +315,240 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 }
 
 /* ── Special FX overlays ─────────────────────────────────────────
-   Note: Moses wave is 80% width, flames are taller, bolt is wider
-   (see playSpecialFx in screens.js for size-up inline styles)
+   All per-hero special animations. Each has a dedicated keyframe set.
+   Inline styles in screens.js set position, size, and stagger delays.
    ──────────────────────────────────────────────────────────────── */
 
-/* Moses: Part the Sea — wave sweeps across the arena */
-@keyframes fx-wave-sweep {
-  0%   { opacity: 0; transform: scaleX(0); }
-  15%  { opacity: 1; }
-  60%  { opacity: 0.9; transform: scaleX(1); }
-  100% { opacity: 0; transform: scaleX(1.05); }
+/* ── Arena shake (shared by Moses crash + Einstein impact) ── */
+@keyframes arena-shake {
+  0%   { transform: translate(0, 0) rotate(0); }
+  15%  { transform: translate(-5px, 2px) rotate(-0.5deg); }
+  30%  { transform: translate(5px, -2px) rotate(0.5deg); }
+  50%  { transform: translate(-4px, 1px) rotate(-0.3deg); }
+  70%  { transform: translate(3px, -1px) rotate(0.3deg); }
+  85%  { transform: translate(-2px, 0) rotate(-0.1deg); }
+  100% { transform: translate(0, 0) rotate(0); }
 }
 
-/* David: Sling Stone — dark circle flies left→right or right→left */
-@keyframes fx-stone-fly-left {
-  0%   { opacity: 1; transform: translateX(0); }
-  80%  { opacity: 1; transform: translateX(280px) translateY(20px); }
-  100% { opacity: 0; transform: translateX(310px) translateY(30px); }
+/* ── MOSES: Part the Sea ────────────────────────────────────── */
+/*  Left wall: slides in from left edge to ~center, holds, then out to left */
+@keyframes moses-wall-left {
+  0%   { transform: translateX(-100%); opacity: 0.9; }
+  25%  { transform: translateX(75%);   opacity: 1; }     /* 0–325ms: flood in */
+  45%  { transform: translateX(75%);   opacity: 1; }     /* hold */
+  62%  { transform: translateX(-100%); opacity: 0.85; }  /* 450–806ms: part outward */
+  75%  { transform: translateX(-100%); opacity: 0.85; }  /* hold open */
+  100% { transform: translateX(-100%); opacity: 0; }     /* fade */
 }
-@keyframes fx-stone-fly-right {
-  0%   { opacity: 1; transform: translateX(0); }
-  80%  { opacity: 1; transform: translateX(-280px) translateY(20px); }
-  100% { opacity: 0; transform: translateX(-310px) translateY(30px); }
-}
-
-/* Esther: Reversal — shimmering protective arc */
-@keyframes fx-arc-shimmer {
-  0%   { opacity: 0; transform: scaleY(0.5); }
-  20%  { opacity: 1; transform: scaleY(1); }
-  70%  { opacity: 0.85; }
-  100% { opacity: 0; }
-}
-
-/* Judah: Menorah Flame — flame bursts on opponent */
-@keyframes fx-flame-burst {
-  0%   { opacity: 0; transform: scaleY(0) translateY(30px); }
-  20%  { opacity: 1; transform: scaleY(1) translateY(0); }
-  70%  { opacity: 0.9; transform: scaleY(1.05) translateY(-4px); }
-  85%  { opacity: 0.6; }
-  100% { opacity: 0; transform: scaleY(0.8) translateY(-10px); }
+/*  Right wall: slides in from right edge to ~center, holds, then slams back HARDER */
+@keyframes moses-wall-right {
+  0%   { transform: translateX(100%);  opacity: 0.9; }
+  25%  { transform: translateX(-75%);  opacity: 1; }     /* flood in */
+  45%  { transform: translateX(-75%);  opacity: 1; }     /* hold */
+  60%  { transform: translateX(100%);  opacity: 0.9; }   /* part outward */
+  75%  { transform: translateX(100%);  opacity: 0.95; }  /* hold ready to slam */
+  90%  { transform: translateX(-60%);  opacity: 1; }     /* SLAM toward opponent */
+  100% { transform: translateX(-60%);  opacity: 0; }     /* fade on opponent */
 }
 
-/* Rambam: Healing Touch — green/gold glow halo */
-@keyframes fx-halo-glow {
-  0%   { opacity: 0; transform: scale(0.7); }
-  25%  { opacity: 1; transform: scale(1.05); }
+/* ── DAVID: Sling Stone ─────────────────────────────────────── */
+/* Whirl: rotate the sling wrapper so the stone orbits */
+@keyframes david-whirl {
+  0%   { transform: rotate(0deg); opacity: 1; }
+  60%  { transform: rotate(1100deg); opacity: 1; }  /* ~3 full spins */
+  100% { transform: rotate(1080deg); opacity: 0; }
+}
+/* Stone projectile flies left→right (David is left) */
+@keyframes david-stone-fly-left {
+  0%   { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  60%  { opacity: 1; transform: translateX(420px) translateY(15px) scale(1.1); }
+  85%  { opacity: 0.6; transform: translateX(490px) translateY(20px) scale(0.9); }
+  100% { opacity: 0; transform: translateX(510px) translateY(22px) scale(0.7); }
+}
+/* Stone flies right→left (David is right) */
+@keyframes david-stone-fly-right {
+  0%   { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  60%  { opacity: 1; transform: translateX(-420px) translateY(15px) scale(1.1); }
+  85%  { opacity: 0.6; transform: translateX(-490px) translateY(20px) scale(0.9); }
+  100% { opacity: 0; transform: translateX(-510px) translateY(22px) scale(0.7); }
+}
+/* Impact starburst pop */
+@keyframes david-impact {
+  0%   { opacity: 0; transform: scale(0.3); }
+  25%  { opacity: 1; transform: scale(1.2); }
   60%  { opacity: 0.9; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.1); }
 }
 
-/* Golda: Resolve — golden sparkle aura */
-@keyframes fx-sparkle-aura {
-  0%   { opacity: 0; transform: scale(0.8); }
-  20%  { opacity: 1; transform: scale(1); }
-  50%  { opacity: 1; transform: scale(1.02) rotate(3deg); }
-  80%  { opacity: 0.7; transform: scale(1) rotate(-2deg); }
-  100% { opacity: 0; transform: scale(0.9); }
+/* ── ESTHER: Reversal ───────────────────────────────────────── */
+/* Mirror appears and holds */
+@keyframes esther-mirror {
+  0%   { opacity: 0; transform: scaleY(0.3); }
+  18%  { opacity: 1; transform: scaleY(1.04); }
+  28%  { opacity: 1; transform: scaleY(1); }
+  75%  { opacity: 1; }
+  95%  { opacity: 0.7; }
+  100% { opacity: 0; }
 }
-
-/* Einstein: E=mc² bolt strike — big lightning bolt */
-@keyframes fx-bolt-strike {
-  0%   { opacity: 0; }
-  10%  { opacity: 1; }
-  30%  { opacity: 0.7; }
-  50%  { opacity: 1; }
-  75%  { opacity: 0.9; }
+/* Arrows flying right→left (into left-side Esther's mirror) */
+@keyframes esther-arrow-rtl {
+  0%   { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 0.9; transform: translateX(-420px); }
+  100% { opacity: 0; transform: translateX(-440px); }
+}
+/* Arrows flying left→right (into right-side Esther's mirror) */
+@keyframes esther-arrow-ltr {
+  0%   { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 0.9; transform: translateX(420px); }
+  100% { opacity: 0; transform: translateX(440px); }
+}
+/* Bounce-back arrows (red, reversed) */
+@keyframes esther-bounce-ltr {
+  0%   { opacity: 0; transform: translateX(0) scaleX(1.4); }
+  20%  { opacity: 1; }
+  80%  { opacity: 0.85; transform: translateX(420px) scaleX(1.4); }
+  100% { opacity: 0; transform: translateX(450px) scaleX(1.4); }
+}
+@keyframes esther-bounce-rtl {
+  0%   { opacity: 0; transform: translateX(0) scaleX(1.4); }
+  20%  { opacity: 1; }
+  80%  { opacity: 0.85; transform: translateX(-420px) scaleX(1.4); }
+  100% { opacity: 0; transform: translateX(-450px) scaleX(1.4); }
+}
+/* "REVERSAL!" label */
+@keyframes esther-label {
+  0%   { opacity: 0; transform: scale(0.7) translateY(6px); }
+  25%  { opacity: 1; transform: scale(1.05) translateY(0); }
+  45%  { opacity: 1; transform: scale(1) translateY(0); }
+  80%  { opacity: 0.9; }
   100% { opacity: 0; }
 }
 
-/* Einstein: Charge tick — small lightning pulse */
-@keyframes fx-charge-pulse {
+/* ── JUDAH: Menorah Flame ───────────────────────────────────── */
+/* Chanukiah rises from the bottom */
+@keyframes judah-menorah-rise {
+  0%   { opacity: 0; transform: translateY(100%); }
+  30%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+/* Each candle flame ignites */
+@keyframes judah-flame-ignite {
+  0%   { opacity: 0; transform: scaleY(0) translateY(8px); }
+  40%  { opacity: 1; transform: scaleY(1.1) translateY(-2px); }
+  65%  { opacity: 1; transform: scaleY(1) translateY(0); }
+  80%  { opacity: 0.9; transform: scaleY(1.05) translateY(-1px); }
+  100% { opacity: 0; transform: scaleY(0.4) translateY(-20px); }
+}
+/* Fireball arcs from Judah's side to opponent (left→right) */
+@keyframes judah-fireball-left {
+  0%   { opacity: 0; transform: translateX(0) translateY(0) scale(0.5); }
+  15%  { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  70%  { opacity: 1; transform: translateX(430px) translateY(-20px) scale(1.2); }
+  100% { opacity: 0; transform: translateX(480px) translateY(-15px) scale(0.8); }
+}
+/* Fireball arcs right→left */
+@keyframes judah-fireball-right {
+  0%   { opacity: 0; transform: translateX(0) translateY(0) scale(0.5); }
+  15%  { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  70%  { opacity: 1; transform: translateX(-430px) translateY(-20px) scale(1.2); }
+  100% { opacity: 0; transform: translateX(-480px) translateY(-15px) scale(0.8); }
+}
+/* Fireball impact burst */
+@keyframes judah-fimpact {
+  0%   { opacity: 0; transform: scale(0.2); }
+  30%  { opacity: 1; transform: scale(1.3); }
+  60%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-10px); }
+}
+
+/* ── RAMBAM: Healing Touch ──────────────────────────────────── */
+/* Open book floats in and holds */
+@keyframes rambam-book {
+  0%   { opacity: 0; transform: translateY(-20px) scale(0.7) rotate(-4deg); }
+  20%  { opacity: 1; transform: translateY(0) scale(1.03) rotate(0deg); }
+  35%  { transform: scale(1) rotate(0deg); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-8px) scale(0.95); }
+}
+/* Golden particles fall from book into hero */
+@keyframes rambam-particle {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  15%  { opacity: 1; transform: translateY(0) scale(1); }
+  80%  { opacity: 0.8; transform: translateY(160px) scale(0.8); }
+  100% { opacity: 0; transform: translateY(200px) scale(0.5); }
+}
+/* Green-gold healing halo */
+@keyframes rambam-halo {
   0%   { opacity: 0; transform: scale(0.6); }
-  30%  { opacity: 1; transform: scale(1); }
-  60%  { opacity: 0.8; transform: scale(1.1); }
-  85%  { opacity: 0.5; }
-  100% { opacity: 0; transform: scale(0.8); }
+  30%  { opacity: 1; transform: scale(1.04); }
+  55%  { opacity: 0.9; transform: scale(1); }
+  85%  { opacity: 0.7; }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
+/* ── GOLDA: Resolve ─────────────────────────────────────────── */
+/* White-gold outline glow builds and fades */
+@keyframes golda-glow {
+  0%   { opacity: 0; transform: scale(0.9); }
+  20%  { opacity: 0.9; transform: scale(1.04); }
+  45%  { opacity: 1; transform: scale(1); }
+  75%  { opacity: 0.7; }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+/* Armor plates snap on then shatter */
+@keyframes golda-armor {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-8deg); }
+  20%  { opacity: 1; transform: scale(1.06) rotate(0deg); }
+  35%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  60%  { opacity: 1; transform: scale(1) rotate(0deg); }
+  80%  { opacity: 0.5; transform: scale(1.2) rotate(3deg); }
+  100% { opacity: 0; transform: scale(0.8) rotate(6deg); }
+}
+/* Shards fly upward */
+@keyframes golda-shard {
+  0%   { opacity: 0; transform: translateY(0) rotate(0deg); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-80px) rotate(360deg) scale(0.5); }
+}
+/* Fist icon pulses */
+@keyframes golda-fist {
+  0%   { opacity: 0; transform: scale(0.4); }
+  30%  { opacity: 1; transform: scale(1.25); }
+  55%  { opacity: 1; transform: scale(1); }
+  80%  { opacity: 0.9; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* ── EINSTEIN: E=mc² ────────────────────────────────────────── */
+/* Equation materialises and pulses */
+@keyframes einstein-eq {
+  0%   { opacity: 0; transform: scale(0.5) translateY(8px); filter: blur(4px); }
+  20%  { opacity: 1; transform: scale(1.08) translateY(0); filter: blur(0); }
+  40%  { transform: scale(1) translateY(0); }
+  60%  { opacity: 1; transform: scale(1.05); }    /* pulse */
+  80%  { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; }
+}
+/* Energy beam fires (scales width from 0) */
+@keyframes einstein-beam {
+  0%   { opacity: 0; transform: scaleX(0); }
+  20%  { opacity: 1; transform: scaleX(0.3); }
+  65%  { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+/* Explosion starburst at impact */
+@keyframes einstein-explosion {
+  0%   { opacity: 0; transform: scale(0.2); }
+  25%  { opacity: 1; transform: scale(1.3); }
+  55%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.85) translateY(-10px); }
+}
+/* Einstein charge energy ball — pulses and glows */
+@keyframes einstein-charge-ball {
+  0%   { opacity: 0; transform: scale(0.4); }
+  25%  { opacity: 1; transform: scale(1.12); }
+  50%  { opacity: 0.9; transform: scale(1); }
+  75%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(0.9); }
 }
