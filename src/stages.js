@@ -1,4 +1,4 @@
-const Stages = (function () {
+var Stages = (function () {
   const Render = (typeof require !== "undefined") ? require("./render.js") : window.Render;
   const C = Render.colors;
   const W = 800, H = 300;

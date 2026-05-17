@@ -1,4 +1,4 @@
-const Combat = (function () {
+var Combat = (function () {
   const Heroes = (typeof require !== "undefined") ? require("./heroes.js") : window.Heroes;
 
   function createMatch(heroAId, heroBId) {

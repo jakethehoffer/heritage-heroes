@@ -1,4 +1,4 @@
-const Render = (function () {
+var Render = (function () {
   const colors = {
     bg: "#faf3e0",
     ink: "#1a1a1a",

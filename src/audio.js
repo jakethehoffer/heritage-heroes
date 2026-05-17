@@ -1,4 +1,4 @@
-const Audio = (function () {
+var Sfx = (function () {
   const SOURCES = {
     attack:  "assets/sfx/attack.wav",
     defend:  "assets/sfx/defend.wav",
@@ -43,4 +43,4 @@ const Audio = (function () {
   return { preload, play, setMuted, isMuted };
 })();
 
-if (typeof module !== "undefined") module.exports = Audio;
+if (typeof module !== "undefined") module.exports = Sfx;

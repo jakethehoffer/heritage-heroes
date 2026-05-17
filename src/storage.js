@@ -1,4 +1,4 @@
-const Storage = (function () {
+var Storage = (function () {
   const KEY = "heritageHeroes.save";
 
   function defaults() {

@@ -1,4 +1,4 @@
-const Main = (function () {
+var Main = (function () {
   const state = {
     screen: "title",        // title | mode | opponent | charselect | battle | result
     overlay: null,          // null | 'tutorial' | 'help'
@@ -18,8 +18,8 @@ const Main = (function () {
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
     state.save = Storage.load(store);
-    Audio.setMuted(!state.save.sound);
-    Audio.preload();
+    Sfx.setMuted(!state.save.sound);
+    Sfx.preload();
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
@@ -97,7 +97,7 @@ const Main = (function () {
         return;
       case "toggle-sound":
         state.save.sound = !state.save.sound;
-        Audio.setMuted(!state.save.sound);
+        Sfx.setMuted(!state.save.sound);
         Storage.save(getStore(), state.save);
         render();
         return;
@@ -196,7 +196,7 @@ const Main = (function () {
     const lastLog = state.match.log[state.match.log.length - 1];
     if (lastLog) Screens.showCallout(lastLog);
     const activeHeroId = state.match.players[idx].heroId;
-    Audio.play(move === "attack" ? "attack" : move === "defend" ? "defend" : activeHeroId);
+    Sfx.play(move === "attack" ? "attack" : move === "defend" ? "defend" : activeHeroId);
 
     if (state.match.winner !== null) {
       window.setTimeout(onMatchEnd, 900);
@@ -210,7 +210,7 @@ const Main = (function () {
   }
 
   function onMatchEnd() {
-    Audio.play("victory");
+    Sfx.play("victory");
     if (state.mode === "arcade") {
       const playerSlot = state.match.players.findIndex(p => p.heroId === state.arcade.playerHeroId);
       const playerWon = state.match.winner === playerSlot;

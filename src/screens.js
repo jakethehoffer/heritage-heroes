@@ -1,4 +1,4 @@
-const Screens = (function () {
+var Screens = (function () {
   const Heroes = (typeof require !== "undefined") ? require("./heroes.js") : window.Heroes;
   const Render = (typeof require !== "undefined") ? require("./render.js") : window.Render;
   const Stages = (typeof require !== "undefined") ? require("./stages.js") : window.Stages;

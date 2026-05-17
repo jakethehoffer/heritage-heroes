@@ -1,4 +1,4 @@
-const Heroes = (function () {
+var Heroes = (function () {
   const list = [
     {
       id: "moses",
