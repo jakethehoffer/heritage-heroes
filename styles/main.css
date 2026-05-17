@@ -200,3 +200,78 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   color: var(--ink);
   z-index: 50;
 }
+
+/* ── Special FX overlays ──────────────────────────────────────── */
+
+/* Moses: Part the Sea — wave sweeps across the arena */
+@keyframes fx-wave-sweep {
+  0%   { opacity: 0; transform: scaleX(0); }
+  15%  { opacity: 1; }
+  60%  { opacity: 0.9; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1.05); }
+}
+
+/* David: Sling Stone — dark circle flies left→right or right→left */
+@keyframes fx-stone-fly-left {
+  0%   { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 1; transform: translateX(280px) translateY(20px); }
+  100% { opacity: 0; transform: translateX(310px) translateY(30px); }
+}
+@keyframes fx-stone-fly-right {
+  0%   { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 1; transform: translateX(-280px) translateY(20px); }
+  100% { opacity: 0; transform: translateX(-310px) translateY(30px); }
+}
+
+/* Esther: Reversal — shimmering protective arc */
+@keyframes fx-arc-shimmer {
+  0%   { opacity: 0; transform: scaleY(0.5); }
+  20%  { opacity: 1; transform: scaleY(1); }
+  70%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* Judah: Menorah Flame — flame bursts on opponent */
+@keyframes fx-flame-burst {
+  0%   { opacity: 0; transform: scaleY(0) translateY(30px); }
+  20%  { opacity: 1; transform: scaleY(1) translateY(0); }
+  70%  { opacity: 0.9; transform: scaleY(1.05) translateY(-4px); }
+  85%  { opacity: 0.6; }
+  100% { opacity: 0; transform: scaleY(0.8) translateY(-10px); }
+}
+
+/* Rambam: Healing Touch — green/gold glow halo */
+@keyframes fx-halo-glow {
+  0%   { opacity: 0; transform: scale(0.7); }
+  25%  { opacity: 1; transform: scale(1.05); }
+  60%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+
+/* Golda: Resolve — golden sparkle aura */
+@keyframes fx-sparkle-aura {
+  0%   { opacity: 0; transform: scale(0.8); }
+  20%  { opacity: 1; transform: scale(1); }
+  50%  { opacity: 1; transform: scale(1.02) rotate(3deg); }
+  80%  { opacity: 0.7; transform: scale(1) rotate(-2deg); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* Einstein: E=mc² bolt strike — big lightning bolt */
+@keyframes fx-bolt-strike {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  30%  { opacity: 0.7; }
+  50%  { opacity: 1; }
+  75%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Einstein: Charge tick — small lightning pulse */
+@keyframes fx-charge-pulse {
+  0%   { opacity: 0; transform: scale(0.6); }
+  30%  { opacity: 1; transform: scale(1); }
+  60%  { opacity: 0.8; transform: scale(1.1); }
+  85%  { opacity: 0.5; }
+  100% { opacity: 0; transform: scale(0.8); }
+}

@@ -221,6 +221,169 @@ var Screens = (function () {
     window.setTimeout(() => fighter.classList.remove(`act-${kind}`), 700);
   }
 
+  // Color tokens for FX (mirrors Render.colors)
+  const colors = { gold: "#d4a574", ink: "#1a1a1a", cream: "#fff8e7", terracotta: "#c1462d", navy: "#1a2a4f", olive: "#6b8e23" };
+
+  // Per-hero special FX injected as transient overlay nodes inside .arena
+  function playSpecialFx(activeIdx, heroId) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+
+    // Determine which side the active fighter is on (left=0, right=1)
+    // and where the opponent is
+    const isLeft = activeIdx === 0;
+    const activeSide = isLeft ? "left" : "right";
+    const opponentSide = isLeft ? "right" : "left";
+
+    const el = document.createElement("div");
+    el.className = `special-fx special-fx-${heroId}`;
+    el.setAttribute("aria-hidden", "true");
+
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    switch (heroId) {
+      case "moses": {
+        // Horizontal wave sweeping from Moses's side across the arena
+        el.className += " special-fx-wave";
+        el.style.cssText = `
+          position:absolute; bottom:10%; left:${isLeft ? "0" : "auto"}; right:${isLeft ? "auto" : "0"};
+          width:60%; height:30%; z-index:6; pointer-events:none;
+          animation: fx-wave-sweep 1200ms ease-out forwards;
+          transform-origin: ${isLeft ? "left" : "right"} center;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 200 80" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <path d="M0,40 Q25,10 50,40 Q75,70 100,40 Q125,10 150,40 Q175,70 200,40" fill="none" stroke="#1a8cff" stroke-width="8" opacity="0.85" stroke-linecap="round"/>
+          <path d="M0,50 Q25,20 50,50 Q75,80 100,50 Q125,20 150,50 Q175,80 200,50" fill="none" stroke="#5ab4ff" stroke-width="5" opacity="0.7" stroke-linecap="round"/>
+        </svg>`;
+        break;
+      }
+      case "david": {
+        // Stone flying from David to opponent
+        el.className += " special-fx-stone";
+        el.style.cssText = `
+          position:absolute; top:30%; ${isLeft ? "left:20%" : "right:20%"};
+          width:20px; height:20px; border-radius:50%;
+          background:#1a1a1a; border:2px solid #444;
+          z-index:6; pointer-events:none;
+          animation: fx-stone-fly-${activeSide} 1000ms ease-in forwards;
+        `;
+        break;
+      }
+      case "esther": {
+        // Shimmering arc in front of Esther
+        el.className += " special-fx-arc";
+        el.style.cssText = `
+          position:absolute; top:10%; ${isLeft ? "left:2%" : "right:2%"};
+          width:28%; height:80%; z-index:6; pointer-events:none;
+          animation: fx-arc-shimmer 1200ms ease-out forwards;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 80 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <path d="M${isLeft ? "20,10 Q70,100 20,190" : "60,10 Q10,100 60,190"}" fill="none" stroke="${colors.gold}" stroke-width="12" opacity="0.7" stroke-linecap="round"/>
+          <path d="M${isLeft ? "30,20 Q72,100 30,180" : "50,20 Q8,100 50,180"}" fill="none" stroke="#fff" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+        </svg>`;
+        break;
+      }
+      case "judah": {
+        // Orange/red flame shapes on opponent's position
+        el.className += " special-fx-flame";
+        el.style.cssText = `
+          position:absolute; bottom:5%; ${isLeft ? "right:2%" : "left:2%"};
+          width:26%; height:80%; z-index:6; pointer-events:none;
+          animation: fx-flame-burst 1200ms ease-out forwards;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 80 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <path d="M40,190 Q20,160 28,130 Q18,140 22,110 Q30,120 32,100 Q38,120 42,90 Q48,120 50,100 Q54,120 58,110 Q62,140 52,130 Q60,160 40,190Z" fill="#e85520" stroke="#c1462d" stroke-width="2"/>
+          <path d="M40,190 Q26,162 34,138 Q38,148 40,125 Q44,148 46,138 Q54,162 40,190Z" fill="#f5a623" opacity="0.8"/>
+          <path d="M40,185 Q30,168 36,155 Q40,162 40,148 Q44,162 44,155 Q50,168 40,185Z" fill="#ffdd44" opacity="0.9"/>
+        </svg>`;
+        break;
+      }
+      case "rambam": {
+        // Green/gold glow halo around Rambam
+        el.className += " special-fx-halo";
+        el.style.cssText = `
+          position:absolute; top:5%; ${isLeft ? "left:0%" : "right:0%"};
+          width:28%; height:55%; z-index:6; pointer-events:none;
+          animation: fx-halo-glow 1200ms ease-out forwards;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 100 150" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <ellipse cx="50" cy="75" rx="46" ry="68" fill="none" stroke="#44cc44" stroke-width="10" opacity="0.6"/>
+          <ellipse cx="50" cy="75" rx="38" ry="58" fill="none" stroke="${colors.gold}" stroke-width="6" opacity="0.5"/>
+          <ellipse cx="50" cy="75" rx="30" ry="48" fill="#44cc44" opacity="0.08"/>
+        </svg>`;
+        break;
+      }
+      case "golda": {
+        // Golden aura sparkles around Golda
+        el.className += " special-fx-sparkle";
+        el.style.cssText = `
+          position:absolute; top:0%; ${isLeft ? "left:0%" : "right:0%"};
+          width:32%; height:100%; z-index:6; pointer-events:none;
+          animation: fx-sparkle-aura 1200ms ease-out forwards;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 100 240" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <!-- star sparkles -->
+          <polygon points="50,10 52,16 58,16 53,20 55,26 50,22 45,26 47,20 42,16 48,16" fill="${colors.gold}" opacity="0.9"/>
+          <polygon points="20,50 21.5,55 26,55 22.5,58 24,63 20,60 16,63 17.5,58 14,55 18.5,55" fill="${colors.gold}" opacity="0.8"/>
+          <polygon points="80,50 81.5,55 86,55 82.5,58 84,63 80,60 76,63 77.5,58 74,55 78.5,55" fill="${colors.gold}" opacity="0.8"/>
+          <polygon points="15,120 16,124 20,124 17,127 18,131 15,128 12,131 13,127 10,124 14,124" fill="${colors.gold}" opacity="0.75"/>
+          <polygon points="85,120 86,124 90,124 87,127 88,131 85,128 82,131 83,127 80,124 84,124" fill="${colors.gold}" opacity="0.75"/>
+          <polygon points="50,180 52,186 58,186 53,190 55,196 50,192 45,196 47,190 42,186 48,186" fill="${colors.gold}" opacity="0.85"/>
+          <polygon points="30,220 31,224 35,224 32,227 33,231 30,228 27,231 28,227 25,224 29,224" fill="${colors.gold}" opacity="0.7"/>
+          <polygon points="70,220 71,224 75,224 72,227 73,231 70,228 67,231 68,227 65,224 69,224" fill="${colors.gold}" opacity="0.7"/>
+        </svg>`;
+        break;
+      }
+      case "einstein": {
+        // Big yellow lightning bolt streaking across arena to opponent
+        el.className += " special-fx-bolt";
+        el.style.cssText = `
+          position:absolute; top:15%; left:0; right:0;
+          height:60%; z-index:6; pointer-events:none;
+          animation: fx-bolt-strike 1200ms ease-out forwards;
+        `;
+        el.innerHTML = `<svg viewBox="0 0 400 200" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+          <polyline points="${isLeft ? "80,20 200,90 160,100 300,180" : "320,20 200,90 240,100 100,180"}"
+            fill="none" stroke="#ffdd00" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>
+          <polyline points="${isLeft ? "80,20 200,90 160,100 300,180" : "320,20 200,90 240,100 100,180"}"
+            fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" opacity="0.7"/>
+        </svg>`;
+        break;
+      }
+      default:
+        break;
+    }
+
+    arena.appendChild(el);
+    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+  }
+
+  // Small charge pulse FX for Einstein during charge turns
+  function playChargeFx(activeIdx) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+
+    const isLeft = activeIdx === 0;
+    const el = document.createElement("div");
+    el.className = "special-fx special-fx-charge-pulse";
+    el.setAttribute("aria-hidden", "true");
+    el.style.cssText = `
+      position:absolute; top:5%; ${isLeft ? "left:0%" : "right:0%"};
+      width:30%; height:55%; z-index:6; pointer-events:none;
+      animation: fx-charge-pulse 1200ms ease-out forwards;
+    `;
+    const svgNS = "http://www.w3.org/2000/svg";
+    el.innerHTML = `<svg viewBox="0 0 100 150" preserveAspectRatio="none" width="100%" height="100%" xmlns="${svgNS}">
+      <polyline points="52,10 38,70 52,70 48,140" fill="none" stroke="#ffdd00" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+      <polyline points="52,10 38,70 52,70 48,140" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity="0.6"/>
+    </svg>`;
+
+    arena.appendChild(el);
+    window.setTimeout(() => { if (el.isConnected) el.remove(); }, 1300);
+  }
+
   function showCallout(text) {
     if (typeof document === "undefined") return;
     const arena = document.querySelector(".arena");
@@ -297,7 +460,7 @@ var Screens = (function () {
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton,
-    animateAction, showCallout
+    animateAction, showCallout, playSpecialFx, playChargeFx
   };
 })();
 

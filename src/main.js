@@ -185,27 +185,41 @@ var Main = (function () {
 
   function resolveMove(move) {
     const idx = state.match.activePlayer;
+    const activeHeroId = state.match.players[idx].heroId;
+    const wasSpecialOrCharge = (move === "special" || move === "charge");
     try {
       Combat.applyMove(state.match, move);
     } catch (err) {
       console.warn(err);
       return;
     }
-    const kind = move === "special" || move === "charge" ? "special" : move;
+    const lastLog = state.match.log[state.match.log.length - 1] || "";
+    const kind = wasSpecialOrCharge ? "special" : move;
     Screens.animateAction(idx, kind);
-    const lastLog = state.match.log[state.match.log.length - 1];
     if (lastLog) Screens.showCallout(lastLog);
-    const activeHeroId = state.match.players[idx].heroId;
     Sfx.play(move === "attack" ? "attack" : move === "defend" ? "defend" : activeHeroId);
 
+    // Determine if this is a charge tick (Einstein winding up) vs unleash
+    const isUnleash = wasSpecialOrCharge && lastLog.toLowerCase().includes("unleash");
+    const isChargeTick = wasSpecialOrCharge && !isUnleash && move === "charge";
+
+    // Play per-special visual FX
+    if (move === "special" || isUnleash) {
+      Screens.playSpecialFx(idx, activeHeroId);
+    } else if (isChargeTick && activeHeroId === "einstein") {
+      Screens.playChargeFx(idx);
+    }
+
     if (state.match.winner !== null) {
-      window.setTimeout(onMatchEnd, 900);
+      window.setTimeout(onMatchEnd, 1500);
       return;
     }
     render();
     // Auto-trigger AI on next tick if it's their turn
+    // After special/charge-unleash give extra time for FX to resolve
     if (state.controllers[state.match.activePlayer] === "ai") {
-      window.setTimeout(aiStep, 700);
+      const delay = (move === "special" || isUnleash) ? 2000 : 1500;
+      window.setTimeout(aiStep, delay);
     }
   }
 
