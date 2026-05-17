@@ -140,7 +140,30 @@ const Screens = (function () {
     `;
   }
 
-  return { renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle };
+  function animateAction(playerIdx, kind) {
+    if (typeof document === "undefined") return;
+    const fighter = document.querySelector(playerIdx === 0 ? ".fighter-left" : ".fighter-right");
+    if (!fighter) return;
+    fighter.classList.remove("act-attack", "act-defend", "act-special");
+    void fighter.offsetWidth; // force reflow to restart animation
+    fighter.classList.add(`act-${kind}`);
+    window.setTimeout(() => fighter.classList.remove(`act-${kind}`), 700);
+  }
+
+  function showCallout(text) {
+    if (typeof document === "undefined") return;
+    const arena = document.querySelector(".arena");
+    if (!arena) return;
+    const old = arena.querySelector(".callout");
+    if (old) old.remove();
+    const node = document.createElement("div");
+    node.className = "callout";
+    node.textContent = text;
+    arena.appendChild(node);
+    window.setTimeout(() => { if (node.isConnected) node.remove(); }, 1200);
+  }
+
+  return { renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle, animateAction, showCallout };
 })();
 
 if (typeof module !== "undefined") module.exports = Screens;
