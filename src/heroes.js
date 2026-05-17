@@ -6,6 +6,11 @@ var Heroes = (function () {
       era: "Biblical",
       hp: 100,
       bio: "Led the Israelites out of Egypt; received the Ten Commandments at Mount Sinai.",
+      profile: {
+        dates: "c. 1391–1271 BCE",
+        bio: "Moses is the central prophet and lawgiver of the Hebrew Bible. Born in Egypt during Pharaoh's decree to kill all Hebrew newborns, his mother hid him in a basket on the Nile, where Pharaoh's daughter discovered and raised him in the royal palace. After killing an Egyptian overseer beating a Hebrew slave, Moses fled to Midian, married Zipporah, and became a shepherd. At the burning bush on Mount Horeb, God called him to return to Egypt and free the Israelites. Through ten plagues and the parting of the Red Sea, he led his people to freedom. On Mount Sinai he received the Ten Commandments. He led the Israelites for forty years in the wilderness, dying on Mount Nebo at 120 — allowed to see the Promised Land but not enter it.",
+        quote: "Let my people go."
+      },
       stageId: "redsea",
       moves: {
         attack:  { name: "Staff Strike",   damage: 10, description: "A solid strike with the staff." },
@@ -141,6 +146,11 @@ var Heroes = (function () {
       era: "Biblical",
       hp: 95,
       bio: "Shepherd boy who slew Goliath and became Israel’s greatest king.",
+      profile: {
+        dates: "c. 1040–970 BCE",
+        bio: "King David is celebrated as Israel’s greatest king and the founder of Jerusalem as its political and spiritual capital. The youngest son of Jesse of Bethlehem, he tended sheep before the prophet Samuel anointed him as Saul’s eventual successor. As a young man he killed the Philistine champion Goliath with a single stone from his sling. He served as harpist in Saul’s court and married Saul’s daughter Michal. After Saul’s death he united the twelve tribes and reigned for 40 years, expanding Israel’s borders and making Jerusalem the capital. Tradition credits him with composing much of the Psalms. His life mixed glory with moral failure — most famously his affair with Bathsheba, for which the prophet Nathan rebuked him. His son Solomon succeeded him and built the First Temple.",
+        quote: "The Lord is my shepherd; I shall not want."
+      },
       stageId: "elah",
       moves: {
         attack:  { name: "Shepherd’s Sling", damage: 12, description: "A whirling stone strike." },
@@ -276,6 +286,11 @@ var Heroes = (function () {
       era: "Biblical",
       hp: 90,
       bio: "Saved her people from Haman’s plot; her story is read every Purim.",
+      profile: {
+        dates: "5th century BCE",
+        bio: "Queen Esther is the heroine of one of the Hebrew Bible’s most dramatic narratives. Born Hadassah, an orphan raised by her cousin Mordecai in the Persian capital Susa, she was chosen by King Ahasuerus as his queen after the banishment of Queen Vashti. When the king’s advisor Haman plotted to massacre the Jews of Persia, Mordecai pleaded with Esther to intervene. After three days of fasting and prayer, she risked execution by approaching the king unsummoned, then exposed Haman’s plot at a private banquet. Haman was hanged on the gallows he had built for Mordecai, and the Jews were given the right to defend themselves. The holiday of Purim commemorates this deliverance, with the Megillah read aloud, hamantaschen eaten, and groggers shaken at every mention of Haman’s name.",
+        quote: "If I perish, I perish."
+      },
       stageId: "throne",
       moves: {
         attack:  { name: "Royal Decree",   damage: 10, description: "Authoritative strike." },
@@ -411,6 +426,11 @@ var Heroes = (function () {
       era: "Maccabees",
       hp: 100,
       bio: "Led the revolt that reclaimed and rededicated the Temple; the hero of Hanukkah.",
+      profile: {
+        dates: "d. 160 BCE",
+        bio: "Judah Maccabee led the Jewish revolt against the Seleucid Greek Empire after King Antiochus IV Epiphanes outlawed Jewish religious practice and desecrated the Temple in Jerusalem. The revolt began in 167 BCE when Judah's father Mattathias, an aged priest, killed a Jew who was about to sacrifice to a Greek god. After Mattathias's death, Judah took command, leading guerrilla warfare against vastly larger Seleucid forces and winning decisive battles. In 165 BCE he recaptured Jerusalem and rededicated the Temple. According to tradition, only one day's worth of pure oil was found, but it miraculously burned for eight days — the foundation of Hanukkah, the Hebrew word for 'dedication'. Judah died in battle at Elasa. His family founded the Hasmonean dynasty, which ruled an independent Jewish kingdom for nearly a century.",
+        quote: "Victory in war does not depend on numbers; strength comes from heaven."
+      },
       stageId: "temple",
       moves: {
         attack:  { name: "Spear Thrust",   damage: 11, description: "A swift spear jab." },
@@ -546,6 +566,11 @@ var Heroes = (function () {
       era: "Medieval",
       hp: 85,
       bio: "Medieval philosopher and physician; wrote the Mishneh Torah.",
+      profile: {
+        dates: "1138–1204",
+        bio: "Maimonides — Moses ben Maimon, known by the acronym 'Rambam' — was a 12th-century philosopher, physician, and the most influential rabbinic scholar of the medieval era. Born in Cordoba in 1138, his family fled the Almohad conquest when he was a child, eventually settling in Fustat near Cairo. There he served as personal physician to al-Fadil, the vizier to Sultan Saladin, while leading the local Jewish community. His Mishneh Torah, completed in 1180, is a 14-book code of Jewish law written in clear Hebrew so any educated Jew could understand it. His Guide for the Perplexed, written in Judeo-Arabic, addresses educated Jews struggling to reconcile faith with philosophy. He articulated the 13 Principles of Faith and codified all 613 mitzvot. He was buried in Tiberias, where his tomb remains a pilgrimage site.",
+        quote: "Anticipate charity by preventing poverty."
+      },
       stageId: "cordoba",
       moves: {
         attack:  { name: "Wisdom Bolt",         damage: 9, description: "A focused intellectual strike." },
@@ -681,6 +706,11 @@ var Heroes = (function () {
       era: "Modern",
       hp: 100,
       bio: "Israel’s fourth Prime Minister; the ‘Iron Lady of Israel.’",
+      profile: {
+        dates: "1898–1978",
+        bio: "Golda Meir was the fourth Prime Minister of Israel and one of the founders of the modern Jewish state. Born Goldie Mabovitch in Kiev during a wave of antisemitic pogroms, her family emigrated to Milwaukee, Wisconsin in 1906. She trained as a schoolteacher and joined the Labor Zionist movement, emigrating to Palestine in 1921 with her husband Morris Meyerson. She lived on Kibbutz Merhavia, helped organize the labor movement, and was among the 37 signatories of Israel’s Declaration of Independence in 1948. She served as Israel’s first Ambassador to the Soviet Union, then Minister of Labor, then Foreign Minister. She became Prime Minister in 1969 and led Israel through the Yom Kippur War in October 1973, resigning the following April. Known as ‘the Iron Lady of Israel,’ she often quipped she was ‘just a schoolteacher from Milwaukee.’",
+        quote: "I am not a great Prime Minister — I am a great-grandmother, and I think that is a higher calling."
+      },
       stageId: "knesset",
       moves: {
         attack:  { name: "Iron Word",          damage: 10, description: "A blunt verbal strike." },
@@ -816,6 +846,11 @@ var Heroes = (function () {
       era: "Modern",
       hp: 80,
       bio: "Physicist whose theory of relativity changed how we understand the universe.",
+      profile: {
+        dates: "1879–1955",
+        bio: "Albert Einstein was the German-born theoretical physicist whose theories of relativity transformed our understanding of space, time, and gravity. Born in Ulm, Germany, he showed an early gift for mathematics but struggled with formal schooling. In 1905 — his 'miracle year' — while working as a patent examiner in Bern, Switzerland, he published four groundbreaking papers including special relativity and E=mc². He developed general relativity in 1915, replacing Newton's law of gravity with a theory of curved spacetime. He won the 1921 Nobel Prize in Physics for explaining the photoelectric effect — not for relativity, which was still considered controversial. He fled Nazi Germany in 1933 and joined the Institute for Advanced Study in Princeton, where he spent the rest of his life. In 1939 he co-signed a letter to President Roosevelt that helped launch the Manhattan Project. After Chaim Weizmann's death in 1952, he was offered the presidency of Israel but declined.",
+        quote: "Imagination is more important than knowledge."
+      },
       stageId: "princeton",
       moves: {
         attack:  { name: "Equation Spark",  damage: 8, description: "A small bolt of energy." },

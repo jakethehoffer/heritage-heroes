@@ -21,6 +21,7 @@ var Screens = (function () {
   <p class="tagline">A turn-based duel through history.</p>
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
+    <button data-action="open-hall" class="secondary">Hall of Heroes</button>
     <button data-action="view-stats" class="secondary">View Stats</button>
     <button data-action="show-help" class="secondary">How to Play</button>
     <button data-action="toggle-sound" class="secondary">${state.save && state.save.sound ? "Sound: ON" : "Sound: OFF"}</button>
@@ -83,19 +84,22 @@ var Screens = (function () {
       const specialLine = `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`;
       const masteredStar = (state.mode === "study" && mastered[h.id]) ? "&#x1F31F; " : "";
       return `
-      <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
-        <div class="hero-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
-        <div class="hero-meta">
-          <h3>${masteredStar}${Render.escapeHtml(h.name)}</h3>
-          <span class="era">${Render.escapeHtml(h.era)}</span>
-          <p class="bio">${Render.escapeHtml(h.bio)}</p>
-          <ul class="moves">
-            <li><strong>${Render.escapeHtml(h.moves.attack.name)}</strong> — Basic Attack (${h.moves.attack.damage})</li>
-            <li><strong>${Render.escapeHtml(h.moves.defend.name)}</strong> — Defend (halves next hit)</li>
-            <li>${specialLine}</li>
-          </ul>
-        </div>
-      </button>
+      <div class="hero-card-wrap">
+        <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
+          <div class="hero-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
+          <div class="hero-meta">
+            <h3>${masteredStar}${Render.escapeHtml(h.name)}</h3>
+            <span class="era">${Render.escapeHtml(h.era)}</span>
+            <p class="bio">${Render.escapeHtml(h.bio)}</p>
+            <ul class="moves">
+              <li><strong>${Render.escapeHtml(h.moves.attack.name)}</strong> — Basic Attack (${h.moves.attack.damage})</li>
+              <li><strong>${Render.escapeHtml(h.moves.defend.name)}</strong> — Defend (halves next hit)</li>
+              <li>${specialLine}</li>
+            </ul>
+          </div>
+        </button>
+        <button class="info-pill" data-action="view-profile" data-hero="${h.id}">&#x2139; Info</button>
+      </div>
     `;
     }).join("");
 
@@ -1891,6 +1895,10 @@ var Screens = (function () {
       body: "Each hero has a unique signature move. Powerful — but it has a cooldown after you use it."
     },
     {
+      title: "Trivia Unlocks Your Special",
+      body: "Every time you use your hero's Special, a trivia question about that hero pops up. Get it right and the Special fires. Get it wrong and your turn passes — try again next time. Don't worry, there's no penalty for guessing!"
+    },
+    {
       title: "That's it!",
       body: "Take your time. There's no clock. Click 'BEGIN' on the main menu to play."
     }
@@ -2198,6 +2206,81 @@ var Screens = (function () {
     }, HOLD);
   }
 
+  // ── Hall of Heroes screen ────────────────────────────────────────────────
+  function renderHall(state) {
+    const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+    const cards = Heroes.list.map(h => {
+      const masteredStar = mastered[h.id] ? "&#x1F31F; " : "";
+      return `
+<div class="hall-hero-card" data-action="view-profile" data-hero="${h.id}">
+  <div class="hall-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
+  <div class="hall-hero-name">${masteredStar}${Render.escapeHtml(h.name)}</div>
+  <div class="era">${Render.escapeHtml(h.era)}</div>
+  <button class="hall-learn-btn" data-action="view-profile" data-hero="${h.id}">Learn More</button>
+</div>`;
+    }).join("");
+
+    return `
+<section class="screen hall-screen">
+  <h2>Hall of Heroes</h2>
+  <p class="tagline">Browse each hero and learn their story.</p>
+  <div class="hall-grid">${cards}</div>
+  <button data-action="goto-title" class="back">&larr; Back</button>
+</section>`;
+  }
+
+  // ── Hero Profile modal ───────────────────────────────────────────────────
+  function renderProfile(state, heroId) {
+    const h = Heroes.byId(heroId);
+    if (!h) return "";
+    const profile = h.profile || {};
+    const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+    const perHero = (state.save && state.save.stats && state.save.stats.perHero && state.save.stats.perHero[heroId])
+      ? state.save.stats.perHero[heroId]
+      : { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
+
+    const trivAcc = perHero.triviaTotal > 0
+      ? Math.round((perHero.triviaCorrect / perHero.triviaTotal) * 100)
+      : 0;
+    const masteryHtml = mastered[heroId]
+      ? `<span class="profile-mastery-earned">&#x1F31F; EARNED</span>`
+      : `<span class="profile-mastery-hint">Get all 20 trivia questions right in Study Mode to earn the star</span>`;
+
+    const portrait = Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" });
+
+    return `
+<div class="overlay profile-overlay">
+  <div class="overlay-card profile-card">
+    <div class="profile-portrait">${portrait}</div>
+    <h2 class="profile-name">${Render.escapeHtml(h.name)}</h2>
+    <div class="profile-meta">
+      <span class="era">${Render.escapeHtml(h.era)}</span>
+      ${profile.dates ? `<span class="profile-dates">${Render.escapeHtml(profile.dates)}</span>` : ""}
+    </div>
+    ${profile.bio ? `<p class="profile-bio">${Render.escapeHtml(profile.bio)}</p>` : ""}
+    ${profile.quote ? `<p class="profile-quote">&ldquo;${Render.escapeHtml(profile.quote)}&rdquo;</p>` : ""}
+
+    <div class="profile-section">
+      <h3 class="profile-section-title">Special Move</h3>
+      <p><strong>${Render.escapeHtml(h.moves.special.name)}</strong> &mdash; ${Render.escapeHtml(h.moves.special.description)}</p>
+    </div>
+
+    <div class="profile-section">
+      <h3 class="profile-section-title">Your Progress</h3>
+      <div class="profile-progress">
+        <div>Trivia accuracy: ${perHero.triviaCorrect}/${perHero.triviaTotal} (${trivAcc}%)</div>
+        <div>Matches won: ${perHero.won} of ${perHero.played} played</div>
+        <div>Mastery: ${masteryHtml}</div>
+      </div>
+    </div>
+
+    <div class="overlay-buttons">
+      <button data-action="close-profile">Close</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   // ── Stats screen ─────────────────────────────────────────────────────────
   function renderStats(state) {
     const save = state.save || {};
@@ -2297,7 +2380,7 @@ var Screens = (function () {
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
-    renderBossIntro,
+    renderBossIntro, renderHall, renderProfile,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,

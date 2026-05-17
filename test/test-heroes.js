@@ -75,6 +75,15 @@ test("pickTrivia returns a valid trivia result from the hero's pool", () => {
   assert.strictEqual(Heroes.pickTrivia("nobody", []), null, "unknown hero returns null");
 });
 
+test("every hero has a valid profile field with dates, bio, and quote", () => {
+  for (const h of Heroes.list) {
+    assert.ok(h.profile && typeof h.profile === "object", `${h.id}: missing profile object`);
+    assert.ok(typeof h.profile.dates === "string" && h.profile.dates.length > 0, `${h.id}: profile.dates missing or empty`);
+    assert.ok(typeof h.profile.bio === "string" && h.profile.bio.length > 100, `${h.id}: profile.bio too short or missing`);
+    assert.ok(typeof h.profile.quote === "string" && h.profile.quote.length > 5, `${h.id}: profile.quote too short or missing`);
+  }
+});
+
 test("pickTrivia uses Math.random when no rng provided", () => {
   // Just verify it returns a valid result on 20 calls (cycling through used)
   const used = [];

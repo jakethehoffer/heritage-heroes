@@ -1,7 +1,8 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats
-    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats'
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile'
+    profileHeroId: null,
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade' | 'study'
     difficulty: "normal",   // 'normal' | 'hard'
@@ -104,6 +105,7 @@ var Main = (function () {
     else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
     else if (state.screen === "stats") body = Screens.renderStats(state);
     else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
+    else if (state.screen === "hall") body = Screens.renderHall(state);
 
     let overlay = "";
     if (state.overlay === "tutorial")    overlay = Screens.renderTutorial(state.tutorialStep);
@@ -111,6 +113,7 @@ var Main = (function () {
     if (state.overlay === "quit")        overlay = Screens.renderQuitConfirm(state);
     if (state.overlay === "trivia")      overlay = Screens.renderTriviaOverlay(state, state.trivia);
     if (state.overlay === "reset-stats") overlay = Screens.renderResetStatsConfirm();
+    if (state.overlay === "profile")     overlay = Screens.renderProfile(state, state.profileHeroId);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -121,7 +124,7 @@ var Main = (function () {
     const target = e.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
-    handleAction(action, target);
+    handleAction(action, target, e);
   }
 
   function onKey(e) {
@@ -137,10 +140,23 @@ var Main = (function () {
     playerMove(move);
   }
 
-  function handleAction(action, target) {
+  function handleAction(action, target, e) {
     switch (action) {
       case "goto-title":   state.screen = "title"; state.overlay = null; render(); return;
       case "goto-mode":    state.screen = "mode"; render(); return;
+      case "open-hall":    state.screen = "hall"; render(); return;
+      case "view-profile": {
+        e.stopPropagation();
+        state.profileHeroId = target.dataset.hero;
+        state.overlay = "profile";
+        render();
+        return;
+      }
+      case "close-profile":
+        state.overlay = null;
+        state.profileHeroId = null;
+        render();
+        return;
       case "start-boss-battle": startBossBattle(); return;
       case "start-quick":  startQuick(); return;
       case "start-arcade": startArcade(); return;
