@@ -11,7 +11,8 @@ var Main = (function () {
     match: null,            // Combat state
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null,
-    trivia: null            // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
+    trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
+    triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] }
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -240,14 +241,22 @@ var Main = (function () {
       // Check cooldown first — if on cooldown, fall through to resolveMove which will reject it
       const playerState = state.match.players[state.match.activePlayer];
       if (playerState.specialCooldown <= 0) {
-        const picked = Heroes.pickTrivia(activeHeroId);
-        if (picked) {
+        const usedIndices = (state.triviaUsed && state.triviaUsed[activeHeroId]) || [];
+        const result = Heroes.pickTrivia(activeHeroId, usedIndices);
+        if (result) {
+          // Track the used index and handle cycle reset
+          if (!state.triviaUsed[activeHeroId]) state.triviaUsed[activeHeroId] = [];
+          state.triviaUsed[activeHeroId].push(result.index);
+          if (result.exhausted) {
+            // Reset after this turn so the next pick has access to all questions again
+            window.setTimeout(() => { state.triviaUsed[activeHeroId] = []; }, 0);
+          }
           state.trivia = {
             heroId: activeHeroId,
-            question: picked.question,
-            options: picked.options,
-            correctIndex: picked.correctIndex,
-            explanation: picked.explanation,
+            question: result.trivia.question,
+            options: result.trivia.options,
+            correctIndex: result.trivia.correctIndex,
+            explanation: result.trivia.explanation,
             phase: "question"
           };
           state.overlay = "trivia";

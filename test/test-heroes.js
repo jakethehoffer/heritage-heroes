@@ -41,9 +41,9 @@ test("every hero trivia is an array with at least 1 entry, each entry well-forme
   }
 });
 
-test("every hero has exactly 3 trivia questions", () => {
+test("every hero has exactly 10 trivia questions", () => {
   for (const h of Heroes.list) {
-    assert.strictEqual(h.trivia.length, 3, `${h.id}: should have 3 trivia questions`);
+    assert.strictEqual(h.trivia.length, 10, `${h.id}: should have 10 trivia questions`);
   }
 });
 
@@ -57,27 +57,68 @@ test("HP totals are within design tolerance", () => {
   assert.strictEqual(total, 100 + 95 + 90 + 100 + 85 + 100 + 80);
 });
 
-test("pickTrivia returns a valid trivia entry from the hero's pool", () => {
-  // Deterministic RNG that returns 0 → picks first entry
-  const first = Heroes.pickTrivia("moses", () => 0);
-  assert.ok(first !== null, "should return an entry");
-  assert.ok(typeof first.question === "string", "entry has question");
-  assert.ok(Array.isArray(first.options), "entry has options");
-  assert.strictEqual(first, Heroes.byId("moses").trivia[0], "rng=0 picks index 0");
+test("pickTrivia returns a valid trivia result from the hero's pool", () => {
+  // Deterministic RNG that returns 0 → picks first available index
+  const result0 = Heroes.pickTrivia("moses", [], () => 0);
+  assert.ok(result0 !== null, "should return a result object");
+  assert.ok(typeof result0.trivia.question === "string", "entry has question");
+  assert.ok(Array.isArray(result0.trivia.options), "entry has options");
+  assert.strictEqual(result0.index, 0, "rng=0 picks index 0");
+  assert.strictEqual(result0.trivia, Heroes.byId("moses").trivia[0], "trivia matches pool entry at index 0");
 
-  // Deterministic RNG that returns 0.99 → picks last entry
-  const last = Heroes.pickTrivia("moses", () => 0.99);
-  assert.strictEqual(last, Heroes.byId("moses").trivia[2], "rng=0.99 picks last entry");
+  // Deterministic RNG that returns 0.99 → picks last available index (index 9 when pool is [0..9])
+  const result99 = Heroes.pickTrivia("moses", [], () => 0.99);
+  assert.strictEqual(result99.index, 9, "rng=0.99 with empty used picks last index");
+  assert.strictEqual(result99.trivia, Heroes.byId("moses").trivia[9], "rng=0.99 picks last entry");
 
   // Returns null for unknown hero
-  assert.strictEqual(Heroes.pickTrivia("nobody"), null, "unknown hero returns null");
+  assert.strictEqual(Heroes.pickTrivia("nobody", []), null, "unknown hero returns null");
 });
 
 test("pickTrivia uses Math.random when no rng provided", () => {
-  // Just verify it returns a valid entry on 10 calls
+  // Just verify it returns a valid result on 10 calls (cycling through used)
+  const used = [];
   for (let i = 0; i < 10; i++) {
-    const entry = Heroes.pickTrivia("david");
-    assert.ok(entry !== null);
-    assert.ok(Heroes.byId("david").trivia.includes(entry));
+    const result = Heroes.pickTrivia("david", used);
+    assert.ok(result !== null);
+    assert.ok(Heroes.byId("david").trivia.includes(result.trivia));
+    used.push(result.index);
   }
+});
+
+test("pickTrivia no-recycle: all 10 indices appear exactly once before any repeat", () => {
+  const heroId = "moses";
+  const pool = Heroes.byId(heroId).trivia;
+  const used = [];
+  const seen = new Set();
+
+  for (let i = 0; i < pool.length; i++) {
+    const result = Heroes.pickTrivia(heroId, used);
+    assert.ok(result !== null, `pick ${i}: should return a result`);
+    assert.ok(!seen.has(result.index), `index ${result.index} should not repeat before cycle exhausted`);
+    seen.add(result.index);
+    used.push(result.index);
+  }
+  assert.strictEqual(seen.size, pool.length, "all 10 distinct indices should have been returned");
+
+  // After exhaustion, pickTrivia picks from the full pool again (exhausted === true on the last pick)
+  // Simulate the reset: pass an empty used array as the caller would after exhausted
+  const afterReset = Heroes.pickTrivia(heroId, []);
+  assert.ok(afterReset !== null, "after cycle reset, pick should succeed");
+  assert.ok(afterReset.index >= 0 && afterReset.index < pool.length, "reset pick index is in range");
+});
+
+test("pickTrivia exhausted flag is true only on the last question of a cycle", () => {
+  const heroId = "david";
+  const total = Heroes.byId(heroId).trivia.length;
+  const used = [];
+
+  for (let i = 0; i < total - 1; i++) {
+    const result = Heroes.pickTrivia(heroId, used);
+    assert.strictEqual(result.exhausted, false, `pick ${i}: exhausted should be false before last question`);
+    used.push(result.index);
+  }
+  // Last pick
+  const last = Heroes.pickTrivia(heroId, used);
+  assert.strictEqual(last.exhausted, true, "exhausted should be true on the final question of the cycle");
 });

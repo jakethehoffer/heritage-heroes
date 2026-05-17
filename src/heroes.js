@@ -30,6 +30,48 @@ var Heroes = (function () {
           options: ["The Jordan River", "The Sea of Galilee", "The Red Sea", "The Dead Sea"],
           correctIndex: 2,
           explanation: "Moses parted the Red Sea so the Israelites could escape Pharaoh’s army during the Exodus."
+        },
+        {
+          question: "What did God appear to Moses through?",
+          options: ["A burning bush", "A cloud", "A tablet of stone", "A voice from the sky"],
+          correctIndex: 0,
+          explanation: "God appeared to Moses through a bush that burned without being consumed and called him to lead the Israelites out of Egypt."
+        },
+        {
+          question: "Who was Moses’s brother who spoke on his behalf?",
+          options: ["Aaron", "Joshua", "Caleb", "Levi"],
+          correctIndex: 0,
+          explanation: "Aaron was Moses’s older brother and spoke for him before Pharaoh because Moses said he was ‘slow of speech.’"
+        },
+        {
+          question: "How many years did the Israelites wander in the desert?",
+          options: ["Seven", "Twenty", "Forty", "One hundred"],
+          correctIndex: 2,
+          explanation: "The Israelites wandered for 40 years before reaching the Promised Land. Moses himself did not enter."
+        },
+        {
+          question: "How many plagues did God send upon Egypt?",
+          options: ["Five", "Seven", "Ten", "Twelve"],
+          correctIndex: 2,
+          explanation: "Ten plagues struck Egypt, culminating in the death of the firstborn, which finally convinced Pharaoh to free the Israelites."
+        },
+        {
+          question: "Where was Moses found as a baby?",
+          options: ["In a basket on the Nile", "In a manger", "In a desert cave", "In a temple"],
+          correctIndex: 0,
+          explanation: "Moses’s mother hid him in a basket on the Nile to save him from Pharaoh’s decree. Pharaoh’s daughter found and raised him."
+        },
+        {
+          question: "What was Moses’s profession before God called him to lead the Israelites?",
+          options: ["Carpenter", "Shepherd", "Soldier", "Priest"],
+          correctIndex: 1,
+          explanation: "Moses fled Egypt to Midian, married Zipporah, and was tending his father-in-law Jethro’s flock when God called him at the burning bush."
+        },
+        {
+          question: "What did Moses’s staff transform into to prove his divine mission?",
+          options: ["A lion", "A flame", "A snake", "A tree"],
+          correctIndex: 2,
+          explanation: "At the burning bush, Moses’s staff turned into a snake. He later used it to perform miracles, including parting the Red Sea."
         }
       ]
     },
@@ -63,6 +105,48 @@ var Heroes = (function () {
           options: ["Flute", "Drum", "Trumpet", "Harp"],
           correctIndex: 3,
           explanation: "David was a skilled harpist; he played the harp to soothe King Saul, and the Book of Psalms is traditionally attributed to him."
+        },
+        {
+          question: "What people did Goliath fight for?",
+          options: ["Philistines", "Egyptians", "Romans", "Persians"],
+          correctIndex: 0,
+          explanation: "Goliath was a Philistine champion. David’s defeat of him broke the Philistine army."
+        },
+        {
+          question: "Which of David’s sons became king after him?",
+          options: ["Absalom", "Solomon", "Adonijah", "Jonathan"],
+          correctIndex: 1,
+          explanation: "Solomon succeeded David and built the First Temple in Jerusalem."
+        },
+        {
+          question: "David made which city the capital of Israel?",
+          options: ["Hebron", "Bethlehem", "Jerusalem", "Samaria"],
+          correctIndex: 2,
+          explanation: "After uniting the tribes, David captured Jerusalem and made it Israel’s political and religious capital."
+        },
+        {
+          question: "David was anointed as a future king by which prophet?",
+          options: ["Samuel", "Nathan", "Elijah", "Isaiah"],
+          correctIndex: 0,
+          explanation: "The prophet Samuel anointed the young shepherd David in his father Jesse’s house, foretelling he would replace King Saul."
+        },
+        {
+          question: "What was the name of the king David replaced?",
+          options: ["Solomon", "Saul", "Samuel", "Ahab"],
+          correctIndex: 1,
+          explanation: "King Saul, Israel’s first king, lost God’s favor. David served in his court before eventually succeeding him."
+        },
+        {
+          question: "David’s closest friend, the previous king’s son, was named:",
+          options: ["Jonathan", "Absalom", "Samuel", "Levi"],
+          correctIndex: 0,
+          explanation: "Jonathan was Saul’s son. He and David shared a deep friendship despite Saul’s hostility toward David."
+        },
+        {
+          question: "In Jewish tradition, David is the ancestor of:",
+          options: ["The High Priest", "Moses", "The future Messiah", "Abraham"],
+          correctIndex: 2,
+          explanation: "Jewish tradition holds that the Messiah will descend from the House of David — ‘Mashiach ben David.’"
         }
       ]
     },
@@ -96,6 +180,48 @@ var Heroes = (function () {
           options: ["Pharaoh", "Goliath", "Haman", "Nebuchadnezzar"],
           correctIndex: 2,
           explanation: "Haman was the king’s advisor who plotted to destroy the Jewish people; Esther exposed his plan and saved her people."
+        },
+        {
+          question: "Who raised Esther after her parents died?",
+          options: ["Her uncle Mordecai", "Her brother Aaron", "Queen Vashti", "King Ahasuerus"],
+          correctIndex: 0,
+          explanation: "Mordecai, Esther’s older cousin (often called her uncle), raised her in Susa and guided her throughout the events of the Book of Esther."
+        },
+        {
+          question: "What was Esther’s Hebrew name?",
+          options: ["Sarah", "Rachel", "Hadassah", "Miriam"],
+          correctIndex: 2,
+          explanation: "Esther’s Hebrew name was Hadassah, meaning ‘myrtle.’ Esther is a Persian name."
+        },
+        {
+          question: "In which Persian city does the story of Esther take place?",
+          options: ["Babylon", "Persepolis", "Susa (Shushan)", "Damascus"],
+          correctIndex: 2,
+          explanation: "Susa (Shushan in Hebrew) was a winter capital of the Persian Empire. The Book of Esther is set entirely there."
+        },
+        {
+          question: "What triangular pastries are traditionally eaten on Purim?",
+          options: ["Hamantaschen", "Latkes", "Sufganiyot", "Rugelach"],
+          correctIndex: 0,
+          explanation: "Hamantaschen are three-cornered cookies named after Haman’s hat (or ears). They’re filled with poppy seed, fruit jams, or chocolate."
+        },
+        {
+          question: "What is the special noisemaker used at Purim called?",
+          options: ["Shofar", "Dreidel", "Grogger", "Tambourine"],
+          correctIndex: 2,
+          explanation: "A grogger (or ‘ra’ashan’ in Hebrew) is used to drown out Haman’s name when it is read from the Megillah at Purim."
+        },
+        {
+          question: "What did Esther do for 3 days before approaching the king to plead for her people?",
+          options: ["Fast and pray", "Travel", "Train with a sword", "Hide in the palace"],
+          correctIndex: 0,
+          explanation: "Esther asked all the Jews of Susa to fast for three days before she risked her life by approaching the king without being summoned."
+        },
+        {
+          question: "Esther was queen of which empire?",
+          options: ["Egyptian", "Persian", "Greek", "Roman"],
+          correctIndex: 1,
+          explanation: "Esther was queen of the Persian Empire under King Ahasuerus, who many scholars identify with the historical Xerxes I."
         }
       ]
     },
@@ -129,6 +255,48 @@ var Heroes = (function () {
           options: ["Menorah", "Shofar", "Chanukiah", "Both menorah and chanukiah"],
           correctIndex: 3,
           explanation: "The nine-branched candelabrum lit during Hanukkah is called a chanukiah, though many people simply call it a Hanukkah menorah."
+        },
+        {
+          question: "The Maccabees fought against which empire?",
+          options: ["Roman", "Egyptian", "Seleucid Greek", "Persian"],
+          correctIndex: 2,
+          explanation: "Judah Maccabee led the revolt against the Seleucid Greek empire ruled by Antiochus IV, who had outlawed Jewish practice."
+        },
+        {
+          question: "In approximately what year did the Maccabean revolt take place?",
+          options: ["500 BCE", "165 BCE", "70 CE", "300 CE"],
+          correctIndex: 1,
+          explanation: "The Maccabean revolt began around 167 BCE and the Temple was rededicated in 165 BCE — the event Hanukkah commemorates."
+        },
+        {
+          question: "What fried food is traditional at Hanukkah?",
+          options: ["Latkes (potato pancakes)", "Matzah", "Challah", "Falafel"],
+          correctIndex: 0,
+          explanation: "Hanukkah foods are fried in oil to commemorate the oil miracle. Latkes in Ashkenazi tradition; sufganiyot (jelly donuts) in Israel."
+        },
+        {
+          question: "The Maccabee family is also known as the:",
+          options: ["Davidites", "Hasmoneans", "Cohens", "Levites"],
+          correctIndex: 1,
+          explanation: "The Maccabees founded the Hasmonean dynasty, which ruled an independent Jewish kingdom from 140 BCE until Rome’s takeover in 63 BCE."
+        },
+        {
+          question: "What spinning toy is played with at Hanukkah?",
+          options: ["Top", "Dreidel", "Yo-yo", "Pinwheel"],
+          correctIndex: 1,
+          explanation: "The dreidel (sevivon in Hebrew) has 4 Hebrew letters that stand for ‘a great miracle happened there’ (or ‘here’ in Israel)."
+        },
+        {
+          question: "The Hebrew word ‘Hanukkah’ means:",
+          options: ["Miracle", "Light", "Dedication", "Victory"],
+          correctIndex: 2,
+          explanation: "Hanukkah means ‘dedication’ — referring to the rededication of the Second Temple after it was reclaimed and purified by the Maccabees."
+        },
+        {
+          question: "What miracle is Hanukkah primarily celebrating?",
+          options: ["The parting of the sea", "Manna from heaven", "Oil burning for eight days", "Walls of Jericho falling"],
+          correctIndex: 2,
+          explanation: "When the Maccabees rededicated the Temple, only one day’s worth of pure oil was found, but it miraculously burned for eight days — long enough to prepare more."
         }
       ]
     },
@@ -162,6 +330,48 @@ var Heroes = (function () {
           options: ["10th century", "12th century", "14th century", "16th century"],
           correctIndex: 1,
           explanation: "Maimonides lived 1138–1204, during the 12th century. He was born in Cordoba, Spain."
+        },
+        {
+          question: "Maimonides was born in which city?",
+          options: ["Cordoba, Spain", "Cairo, Egypt", "Jerusalem", "Baghdad"],
+          correctIndex: 0,
+          explanation: "Maimonides was born in Cordoba in 1138. His family fled Almohad persecution when he was a child."
+        },
+        {
+          question: "Where did Maimonides spend the last decades of his life?",
+          options: ["Spain", "Egypt", "Morocco", "Yemen"],
+          correctIndex: 1,
+          explanation: "Maimonides settled in Fustat, near Cairo, Egypt. He served as personal physician to Saladin’s vizier and led the local Jewish community."
+        },
+        {
+          question: "What does ‘Rambam’ stand for?",
+          options: ["Rabbi Moses ben Maimon", "Rabbi of all Mishnah", "A type of prayer", "An Egyptian city"],
+          correctIndex: 0,
+          explanation: "Rambam is the Hebrew acronym for Rabbeinu Moshe ben Maimon — ‘Our rabbi, Moses son of Maimon.’"
+        },
+        {
+          question: "Maimonides articulated how many fundamental principles of Jewish faith?",
+          options: ["Five", "Ten", "Thirteen", "Twenty"],
+          correctIndex: 2,
+          explanation: "Maimonides’s 13 Principles of Faith are recited in many synagogues and form the basis of the Yigdal hymn."
+        },
+        {
+          question: "Maimonides’s major philosophical work is titled:",
+          options: ["Guide for the Perplexed", "The Book of Doubt", "On Wisdom", "The Way of Light"],
+          correctIndex: 0,
+          explanation: "The Guide for the Perplexed reconciles Jewish theology with Aristotelian philosophy. It was written in Judeo-Arabic around 1190."
+        },
+        {
+          question: "Maimonides served as personal physician at the court of:",
+          options: ["The Pope", "Saladin’s vizier in Egypt", "Caesar", "King Louis of France"],
+          correctIndex: 1,
+          explanation: "Maimonides was court physician to al-Fadil, Saladin’s vizier in Egypt, and reportedly to Saladin himself."
+        },
+        {
+          question: "In what language did Maimonides write most of his philosophical works?",
+          options: ["Hebrew", "Aramaic", "Arabic", "Latin"],
+          correctIndex: 2,
+          explanation: "Maimonides wrote his philosophical works in Judeo-Arabic — Arabic written in Hebrew letters — the everyday language of educated Jews in Muslim lands."
         }
       ]
     },
@@ -195,6 +405,48 @@ var Heroes = (function () {
           options: ["Defense minister", "Labor minister", "Education minister", "Finance minister"],
           correctIndex: 1,
           explanation: "Golda Meir served as Israel’s first Minister of Labor (1949–1956) and later as Foreign Minister before becoming Prime Minister."
+        },
+        {
+          question: "Golda Meir was born in what city?",
+          options: ["Tel Aviv", "Kiev", "New York", "London"],
+          correctIndex: 1,
+          explanation: "Golda Meir (born Goldie Mabovitch) was born in Kiev in 1898, in what was then the Russian Empire."
+        },
+        {
+          question: "Where did Golda Meir grow up after leaving Russia?",
+          options: ["England", "South Africa", "Milwaukee, Wisconsin", "Argentina"],
+          correctIndex: 2,
+          explanation: "Her family emigrated to the United States and settled in Milwaukee, Wisconsin in 1906. Golda became a teacher there before moving to Palestine."
+        },
+        {
+          question: "Which war broke out during Golda Meir’s term as Prime Minister?",
+          options: ["Six-Day War", "Yom Kippur War", "First Lebanon War", "First Gulf War"],
+          correctIndex: 1,
+          explanation: "The Yom Kippur War began on October 6, 1973, when Egypt and Syria launched a surprise attack on the holiest day of the Jewish year."
+        },
+        {
+          question: "Golda Meir was the first female to hold what position?",
+          options: ["Israeli Prime Minister", "Member of the Knesset", "U.N. Secretary General", "Foreign Minister of any country"],
+          correctIndex: 0,
+          explanation: "Golda Meir was Israel’s first female Prime Minister and only the third woman in modern history to lead a country."
+        },
+        {
+          question: "What was Golda Meir’s profession before politics?",
+          options: ["Lawyer", "Teacher", "Doctor", "Journalist"],
+          correctIndex: 1,
+          explanation: "Before emigrating to Palestine in 1921, Golda Meir trained and worked as a schoolteacher in Milwaukee, Wisconsin."
+        },
+        {
+          question: "Golda Meir served as Foreign Minister of Israel under which Prime Minister?",
+          options: ["David Ben-Gurion", "Levi Eshkol", "Yitzhak Rabin", "Menachem Begin"],
+          correctIndex: 0,
+          explanation: "She served as Foreign Minister from 1956 to 1966 under Prime Minister David Ben-Gurion, who urged her to adopt the Hebrew name ‘Meir.’"
+        },
+        {
+          question: "In what year did Golda Meir resign as Prime Minister?",
+          options: ["1972", "1974", "1977", "1979"],
+          correctIndex: 1,
+          explanation: "Meir resigned in April 1974, taking responsibility for Israel’s lack of preparation for the Yom Kippur War."
         }
       ]
     },
@@ -228,6 +480,48 @@ var Heroes = (function () {
           options: ["Cambridge, England", "Berlin, Germany", "Princeton, New Jersey", "Zurich, Switzerland"],
           correctIndex: 2,
           explanation: "Einstein fled Nazi Germany in 1933 and lived in Princeton, New Jersey until his death in 1955, working at the Institute for Advanced Study."
+        },
+        {
+          question: "Einstein was born in which country?",
+          options: ["Switzerland", "Germany", "Austria", "United States"],
+          correctIndex: 1,
+          explanation: "Einstein was born in Ulm, Germany in 1879. His family moved to Munich the next year."
+        },
+        {
+          question: "Einstein published his theory of special relativity in:",
+          options: ["1900", "1905", "1915", "1925"],
+          correctIndex: 1,
+          explanation: "1905 is called Einstein’s ‘miracle year’ — he published four groundbreaking papers, including special relativity, the photoelectric effect, Brownian motion, and E=mc²."
+        },
+        {
+          question: "Einstein’s general relativity replaced whose classical theory of gravity?",
+          options: ["Newton’s", "Kepler’s", "Galileo’s", "Aristotle’s"],
+          correctIndex: 0,
+          explanation: "General relativity, published in 1915, redefined gravity as the curvature of spacetime by mass — superseding Newton’s law of universal gravitation."
+        },
+        {
+          question: "Einstein once turned down an offer to become president of:",
+          options: ["The United States", "Switzerland", "Israel", "Germany"],
+          correctIndex: 2,
+          explanation: "In 1952, after Chaim Weizmann’s death, Israel offered Einstein its presidency. He declined, saying he lacked the ‘natural aptitude’ for human affairs."
+        },
+        {
+          question: "Einstein’s first wife, a fellow physics student, was named:",
+          options: ["Marie Curie", "Mileva Maric", "Lise Meitner", "Hedwig Born"],
+          correctIndex: 1,
+          explanation: "Mileva Maric, a Serbian physicist, married Einstein in 1903. Some historians debate her contributions to his early work."
+        },
+        {
+          question: "Einstein’s letter to which U.S. president led to the Manhattan Project?",
+          options: ["Wilson", "Roosevelt", "Truman", "Eisenhower"],
+          correctIndex: 1,
+          explanation: "In 1939, Einstein signed a letter to President Franklin D. Roosevelt warning of Germany’s potential to develop a nuclear weapon, prompting the U.S. atomic program."
+        },
+        {
+          question: "In what year did Einstein win the Nobel Prize?",
+          options: ["1905", "1915", "1921", "1933"],
+          correctIndex: 2,
+          explanation: "Einstein won the 1921 Nobel Prize in Physics for his explanation of the photoelectric effect — given in 1922 because the 1921 prize was initially withheld."
         }
       ]
     }
@@ -235,12 +529,21 @@ var Heroes = (function () {
 
   const byId = (id) => list.find(h => h.id === id);
 
-  function pickTrivia(heroId, rng) {
+  function pickTrivia(heroId, usedIndices, rng) {
     const hero = byId(heroId);
     if (!hero || !Array.isArray(hero.trivia) || hero.trivia.length === 0) return null;
     const rand = (typeof rng === "function") ? rng : Math.random;
-    const idx = Math.floor(rand() * hero.trivia.length);
-    return hero.trivia[idx];
+    const total = hero.trivia.length;
+    const used = Array.isArray(usedIndices) ? usedIndices : [];
+    // If every index has been used, pick from all (cycle exhausted)
+    const pool = (used.length >= total)
+      ? Array.from({ length: total }, (_, i) => i)
+      : Array.from({ length: total }, (_, i) => i).filter(i => !used.includes(i));
+    const chosenPos = Math.floor(rand() * pool.length);
+    const idx = pool[chosenPos];
+    // exhausted = after adding this index the full set would be covered
+    const exhausted = (used.length + 1 >= total);
+    return { trivia: hero.trivia[idx], index: idx, exhausted };
   }
 
   return { list, byId, pickTrivia };
