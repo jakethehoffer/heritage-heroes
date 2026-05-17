@@ -61,12 +61,8 @@ var Screens = (function () {
       ? "Pick your hero for the Arcade Ladder"
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
-    const unlockedMap = (state.save && state.save.specialsUnlocked) ? state.save.specialsUnlocked : {};
     const cards = Heroes.list.map(h => {
-      const specialUnlocked = !!unlockedMap[h.id];
-      const specialLine = specialUnlocked
-        ? `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`
-        : `&#x1F512; <strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Locked. Answer a question in battle to unlock.`;
+      const specialLine = `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`;
       return `
       <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
         <div class="hero-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
@@ -104,12 +100,9 @@ var Screens = (function () {
 
     const charging = Combat.isCharging(match, match.activePlayer);
     const isHumanTurn = state.controllers[match.activePlayer] === "human";
-    const specialLocked = isHumanTurn && state.save && state.save.specialsUnlocked
-      ? !state.save.specialsUnlocked[activeHero.id]
-      : false;
     const moveButtons = charging
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
-      : renderMoveButtons(activeHero, active, specialLocked);
+      : renderMoveButtons(activeHero, active);
 
     const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")}'s turn`;
 
@@ -137,24 +130,16 @@ var Screens = (function () {
 </section>`;
   }
 
-  function renderMoveButtons(hero, playerState, locked) {
+  function renderMoveButtons(hero, playerState) {
     const cd = playerState.specialCooldown;
-    let specialLabel, specialSub, specialClass, specialDisabled;
+    let specialLabel, specialSub, specialDisabled;
     if (cd > 0) {
-      // Cooldown takes precedence over lock
       specialLabel = Render.escapeHtml(hero.moves.special.name);
       specialSub = `Ready in ${cd}`;
-      specialClass = "";
       specialDisabled = "disabled";
-    } else if (locked) {
-      specialLabel = `&#x1F512; ${Render.escapeHtml(hero.moves.special.name)}`;
-      specialSub = "Answer a question to unlock";
-      specialClass = " locked";
-      specialDisabled = "";
     } else {
       specialLabel = Render.escapeHtml(hero.moves.special.name);
       specialSub = Render.escapeHtml(hero.moves.special.description);
-      specialClass = "";
       specialDisabled = "";
     }
     return `
@@ -166,7 +151,7 @@ var Screens = (function () {
         <strong>${Render.escapeHtml(hero.moves.defend.name)}</strong>
         <span class="sub">Halves the next incoming attack.</span>
       </button>
-      <button data-action="player-move" data-move="special" class="${specialClass.trim()}"${specialDisabled ? ` ${specialDisabled}` : ""}>
+      <button data-action="player-move" data-move="special"${specialDisabled ? ` ${specialDisabled}` : ""}>
         <strong>${specialLabel}</strong>
         <span class="sub">${specialSub}</span>
       </button>
@@ -1914,8 +1899,15 @@ var Screens = (function () {
   function renderTriviaOverlay(state, triviaState) {
     if (!triviaState) return "";
     const hero = Heroes.byId(triviaState.heroId);
-    if (!hero || !hero.trivia) return "";
-    const t = hero.trivia;
+    if (!hero) return "";
+    // Use the pre-picked question stashed on triviaState
+    const t = {
+      question: triviaState.question,
+      options: triviaState.options,
+      correctIndex: triviaState.correctIndex,
+      explanation: triviaState.explanation
+    };
+    if (!t.question || !Array.isArray(t.options)) return "";
 
     if (triviaState.phase === "question") {
       const optionButtons = t.options.map((opt, i) => `
@@ -1930,7 +1922,7 @@ var Screens = (function () {
     <p class="trivia-question">${Render.escapeHtml(t.question)}</p>
     <div class="trivia-options">${optionButtons}</div>
     <div class="overlay-buttons">
-      <button data-action="trivia-skip" class="secondary">Skip (Special won't be used)</button>
+      <button data-action="trivia-skip" class="secondary">Skip (turn will be lost)</button>
     </div>
   </div>
 </div>`;

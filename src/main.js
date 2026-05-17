@@ -11,7 +11,7 @@ var Main = (function () {
     match: null,            // Combat state
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null,
-    trivia: null            // { heroId, phase: 'question'|'result', chosenIndex? } when active
+    trivia: null            // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
   };
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -118,17 +118,9 @@ var Main = (function () {
       case "trivia-answer": {
         if (!state.trivia) return;
         const chosenIdx = parseInt(target.dataset.index, 10);
-        const hero = Heroes.byId(state.trivia.heroId);
-        const isCorrect = hero && hero.trivia && chosenIdx === hero.trivia.correctIndex;
+        const isCorrect = chosenIdx === state.trivia.correctIndex;
         state.trivia.phase = "result";
         state.trivia.chosenIndex = chosenIdx;
-        if (isCorrect) {
-          // Unlock in state and persist
-          if (state.save && state.save.specialsUnlocked) {
-            state.save.specialsUnlocked[state.trivia.heroId] = true;
-          }
-          Storage.unlockSpecial(getStore(), state.trivia.heroId);
-        }
         render();
         return;
       }
@@ -137,25 +129,28 @@ var Main = (function () {
         const wasCorrect = state.trivia
           && state.trivia.phase === "result"
           && state.trivia.chosenIndex !== undefined
-          && (() => {
-            const h = Heroes.byId(state.trivia.heroId);
-            return h && h.trivia && state.trivia.chosenIndex === h.trivia.correctIndex;
-          })();
+          && state.trivia.chosenIndex === state.trivia.correctIndex;
+        const triviaHeroId = state.trivia ? state.trivia.heroId : null;
         state.overlay = null;
         state.trivia = null;
-        render();
         if (wasCorrect) {
-          // Special is now unlocked — fire it
+          // Correct answer — fire the Special
           resolveMove("special");
+        } else {
+          // Wrong answer — fumble: consume the turn with no effect
+          _fumbleTurn(triviaHeroId);
         }
         return;
       }
 
-      case "trivia-skip":
+      case "trivia-skip": {
+        // Skip is treated the same as a wrong answer — turn is consumed
+        const skipHeroId = state.trivia ? state.trivia.heroId : null;
         state.overlay = null;
         state.trivia = null;
-        render();
+        _fumbleTurn(skipHeroId);
         return;
+      }
     }
   }
 
@@ -239,17 +234,26 @@ var Main = (function () {
     if (!state.match || state.match.winner !== null) return;
     if (state.controllers[state.match.activePlayer] !== "human") return;
 
-    // Trivia gate: if the player tries the Special and it's still locked, show the quiz
+    // Trivia gate: every Special attempt by a human player opens the quiz
     if (move === "special") {
       const activeHeroId = state.match.players[state.match.activePlayer].heroId;
-      const isLocked = state.save && state.save.specialsUnlocked
-        ? !state.save.specialsUnlocked[activeHeroId]
-        : true;
-      if (isLocked) {
-        state.trivia = { heroId: activeHeroId, phase: "question" };
-        state.overlay = "trivia";
-        render();
-        return;
+      // Check cooldown first — if on cooldown, fall through to resolveMove which will reject it
+      const playerState = state.match.players[state.match.activePlayer];
+      if (playerState.specialCooldown <= 0) {
+        const picked = Heroes.pickTrivia(activeHeroId);
+        if (picked) {
+          state.trivia = {
+            heroId: activeHeroId,
+            question: picked.question,
+            options: picked.options,
+            correctIndex: picked.correctIndex,
+            explanation: picked.explanation,
+            phase: "question"
+          };
+          state.overlay = "trivia";
+          render();
+          return;
+        }
       }
     }
 
@@ -402,9 +406,25 @@ var Main = (function () {
     startNextArcadeMatch();
   }
 
+  // Consume the active player's turn without any combat effect (fumbled trivia).
+  // Pushes a log entry, advances the turn, re-renders, and schedules AI if needed.
+  function _fumbleTurn(heroId) {
+    if (!state.match || state.match.winner !== null) return;
+    const hero = Heroes.byId(heroId);
+    const heroName = hero ? hero.name : "Hero";
+    state.match.log.push(`${heroName} fumbled the trivia and lost their turn.`);
+    // Advance turn manually (no combat math, no cooldown changes)
+    state.match.activePlayer = 1 - state.match.activePlayer;
+    state.match.turnNumber = (state.match.turnNumber || 0) + 1;
+    render();
+    if (state.controllers[state.match.activePlayer] === "ai") {
+      window.setTimeout(aiStep, 1500);
+    }
+  }
+
   if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", boot);
 
-  return { state, render, _testHook: { handleAction, resolveMove } };
+  return { state, render, _testHook: { handleAction, resolveMove, _fumbleTurn } };
 })();
 
 if (typeof module !== "undefined") module.exports = Main;
