@@ -77,6 +77,7 @@ var Screens = (function () {
     return `
 <section class="screen screen-title">
   ${sparkles}
+  ${state.incomingChallenge ? renderChallengeBanner(state.incomingChallenge) : ""}
   <h1>Heritage Heroes</h1>
   <p class="tagline">A turn-based duel through history.</p>
   ${featuredPanel}
@@ -95,6 +96,42 @@ var Screens = (function () {
   ${endlessStreakLine}
   ${dailyBannerLine}
 </section>`;
+  }
+
+  function renderChallengeBanner(c) {
+    const fromText = c.from ? `${Render.escapeHtml(c.from)} sent you a challenge` : "Someone sent you a challenge";
+    let descText = "";
+    if (c.type === "daily") {
+      descText = "Try today's Daily Challenge!";
+    } else if (c.type === "quick") {
+      const p = Heroes.byId(c.playerHeroId);
+      const o = Heroes.byId(c.opponentHeroId);
+      descText = `Quick Match: ${p ? Render.escapeHtml(p.name) : c.playerHeroId} vs ${o ? Render.escapeHtml(o.name) : c.opponentHeroId}${c.hard ? " (Hard mode)" : ""}`;
+    } else if (c.type === "endless") {
+      const h = Heroes.byId(c.heroId);
+      const hName = h ? Render.escapeHtml(h.name) : c.heroId;
+      descText = c.streakToBeat > 0
+        ? `Endless Survival as ${hName} — beat a streak of ${c.streakToBeat}`
+        : `Endless Survival as ${hName}`;
+    } else if (c.type === "arcade") {
+      const h = Heroes.byId(c.heroId);
+      descText = `Arcade Ladder as ${h ? Render.escapeHtml(h.name) : c.heroId}`;
+    } else if (c.type === "tournament") {
+      const h = Heroes.byId(c.heroId);
+      descText = `Tournament as ${h ? Render.escapeHtml(h.name) : c.heroId}`;
+    }
+    return `
+<div class="challenge-banner">
+  <div class="challenge-banner-icon">&#x1F3AF;</div>
+  <div class="challenge-banner-text">
+    <p class="challenge-from">${fromText}</p>
+    <p class="challenge-desc">${descText}</p>
+  </div>
+  <div class="challenge-banner-buttons">
+    <button data-action="accept-challenge" class="challenge-accept">Accept</button>
+    <button data-action="dismiss-challenge" class="secondary">Dismiss</button>
+  </div>
+</div>`;
   }
 
   function renderModeSelect(state) {
@@ -412,6 +449,7 @@ var Screens = (function () {
   ${recap}
   <div class="result-buttons">
     <button data-action="arcade-next">Next Opponent</button>
+    <button data-action="share-arcade" class="share-btn">&#x1F4E8; Share this arcade run</button>
     <button data-action="goto-title" class="secondary">Quit Run</button>
   </div>
 </section>`;
@@ -444,6 +482,7 @@ var Screens = (function () {
   ${dailyResultInfo}
   ${recap}
   <div class="result-buttons">
+    ${playerWon ? `<button data-action="share-daily" class="share-btn">&#x1F4E8; Share this challenge</button>` : ""}
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -457,6 +496,7 @@ var Screens = (function () {
   ${recap}
   <div class="result-buttons">
     <button data-action="rematch">Play Again</button>
+    <button data-action="share-quick" class="share-btn">&#x1F4E8; Share this matchup</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -2397,6 +2437,18 @@ var Screens = (function () {
     _drainToastQueue();
   }
 
+  function showToast(message) {
+    if (typeof document === "undefined") return;
+    const toast = document.createElement("div");
+    toast.className = "share-toast";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("share-toast-out");
+      setTimeout(() => { if (toast.isConnected) toast.remove(); }, 400);
+    }, 2400);
+  }
+
   function showAchievementToast(key, onDone) {
     if (typeof document === "undefined") { if (onDone) onDone(); return; }
     const meta = ACHIEVEMENT_LIST.find(a => a.key === key);
@@ -2556,6 +2608,7 @@ var Screens = (function () {
   ${newBestHtml}
   <div class="endless-result-actions">
     <button data-action="retry-endless">Try Again</button>
+    <button data-action="share-endless" class="share-btn">&#x1F4E8; Share your streak (${e.streak})</button>
     <button data-action="pick-different-hero" class="secondary">Pick Different Hero</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
@@ -3053,6 +3106,7 @@ var Screens = (function () {
   </div>
   <div class="result-buttons">
     <button data-action="start-tournament">Play Another</button>
+    <button data-action="share-tournament" class="share-btn">&#x1F4E8; Share this tournament</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -3141,7 +3195,7 @@ var Screens = (function () {
     renderTournamentBracket, renderTournamentResult,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
-    queueAchievementToast, showAchievementToast,
+    queueAchievementToast, showAchievementToast, showToast,
     ACHIEVEMENT_LIST
   };
 })();

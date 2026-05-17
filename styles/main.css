@@ -3364,3 +3364,103 @@ button.danger:hover {
     font-size: 26px;
   }
 }
+
+/* ── Share-via-URL toast ─────────────────────────────────────────────────── */
+.share-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 14px 22px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 4px 4px 0 var(--shadow);
+  z-index: 1000;
+  animation: share-toast-in 350ms ease-out;
+}
+.share-toast-out {
+  animation: share-toast-out 400ms ease-out forwards;
+}
+@keyframes share-toast-in {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes share-toast-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, 20px); }
+}
+
+/* ── Incoming-challenge banner on title ──────────────────────────────────── */
+.challenge-banner {
+  background: var(--cream);
+  border: 3px solid var(--gold);
+  border-radius: 12px;
+  padding: 16px 20px;
+  max-width: 600px;
+  width: 90%;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 4px 4px 0 var(--shadow);
+  animation: challenge-banner-in 500ms ease-out;
+}
+@keyframes challenge-banner-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.challenge-banner-icon {
+  font-size: 36px;
+}
+.challenge-banner-text {
+  flex: 1;
+  text-align: left;
+}
+.challenge-from {
+  font-weight: 700;
+  color: var(--terracotta);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.challenge-desc {
+  font-size: 17px;
+  color: var(--ink);
+}
+.challenge-banner-buttons {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+.challenge-accept {
+  background: var(--terracotta);
+  color: var(--cream);
+}
+
+/* ── Share button on result screens ─────────────────────────────────────── */
+.share-btn {
+  background: var(--cream);
+  color: var(--ink);
+  border-color: var(--gold);
+  font-size: 16px;
+  padding: 10px 18px;
+}
+.share-btn:hover {
+  background: #fffbe6;
+}
+
+/* Mobile adjustments for challenge banner */
+@media (max-width: 600px) {
+  .challenge-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+  .challenge-banner-text { text-align: center; }
+  .challenge-banner-buttons { flex-direction: row; }
+}

@@ -47,6 +47,139 @@ var Main = (function () {
   // Stable ordering for AI's random hero pick in Quick vs AI mode
   const HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
+  // ── Share-via-URL helpers ─────────────────────────────────────────────────
+
+  function parseIncomingChallenge() {
+    if (typeof window === "undefined" || !window.location || !window.location.search) return null;
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get("share");
+    if (!type) return null;
+
+    const validHero = (h) => HERO_ORDER.includes(h);
+    const from = params.get("from") || null;
+
+    if (type === "daily") {
+      return { type: "daily", from };
+    }
+    if (type === "quick") {
+      const p = params.get("p");
+      const o = params.get("o");
+      const d = params.get("d");
+      if (!validHero(p) || !validHero(o) || p === o) return null;
+      const hard = d === "hard";
+      return { type: "quick", playerHeroId: p, opponentHeroId: o, hard, from };
+    }
+    if (type === "endless") {
+      const h = params.get("h");
+      const s = parseInt(params.get("s") || "0", 10);
+      if (!validHero(h)) return null;
+      return { type: "endless", heroId: h, streakToBeat: Math.max(0, s), from };
+    }
+    if (type === "arcade") {
+      const h = params.get("h");
+      if (!validHero(h)) return null;
+      return { type: "arcade", heroId: h, from };
+    }
+    if (type === "tournament") {
+      const h = params.get("h");
+      if (!validHero(h)) return null;
+      return { type: "tournament", heroId: h, from };
+    }
+    return null;
+  }
+
+  function buildShareUrl(type, params) {
+    const base = window.location.origin + window.location.pathname;
+    const search = new URLSearchParams();
+    search.set("share", type);
+    for (const [k, v] of Object.entries(params)) {
+      if (v != null && v !== "") search.set(k, String(v));
+    }
+    return base + "?" + search.toString();
+  }
+
+  function copyToClipboard(text) {
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+
+  function copyShareLink(type, params) {
+    const url = buildShareUrl(type, params);
+    copyToClipboard(url).then(
+      () => Screens.showToast && Screens.showToast("Link copied! Send it to a friend."),
+      () => Screens.showToast && Screens.showToast("Copy failed — please copy from address bar.")
+    );
+  }
+
+  function acceptChallenge() {
+    const c = state.incomingChallenge;
+    if (!c) return;
+    state.incomingChallenge = null;
+
+    if (c.type === "daily") {
+      startDaily();
+      return;
+    }
+    if (c.type === "quick") {
+      state.mode = "quick";
+      state.controllers = ["human", "ai"];
+      state.difficulty = c.hard ? "hard" : "normal";
+      state.picks = { 1: c.playerHeroId, 2: c.opponentHeroId };
+      state.matchStats = _freshMatchStats();
+      state.bossIntroShown = true;
+      state.match = Combat.createMatch(c.playerHeroId, c.opponentHeroId, {
+        hardMode: c.hard,
+        hardOpponentSlot: 1
+      });
+      state.screen = "battle";
+      render();
+      return;
+    }
+    if (c.type === "endless") {
+      state.incomingEndlessStreakToBeat = c.streakToBeat;
+      state.mode = "endless";
+      state.controllers = ["human", "ai"];
+      state.endless = { heroId: c.heroId, streak: 0, lastOpponentId: null };
+      startNextEndlessMatch();
+      return;
+    }
+    if (c.type === "arcade") {
+      state.mode = "arcade";
+      state.controllers = ["human", "ai"];
+      state.difficulty = "normal";
+      state.arcade = {
+        playerHeroId: c.heroId,
+        defeated: [],
+        remaining: Combat.arcadeOrder(c.heroId).slice()
+      };
+      state.bossIntroShown = false;
+      startNextArcadeMatch();
+      return;
+    }
+    if (c.type === "tournament") {
+      state.mode = "tournament";
+      state.controllers = ["human", "ai"];
+      state.picks = { 1: c.heroId, 2: null };
+      state.selecting = 1;
+      pickHero(c.heroId);
+      return;
+    }
+  }
+
   // Fisher-Yates shuffle of [0..n-1]
   function shuffleIndices(n) {
     const arr = Array.from({ length: n }, (_, i) => i);
@@ -208,6 +341,11 @@ var Main = (function () {
     // Randomise starting featured hero so each session feels fresh
     state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
+    // Parse and consume incoming share challenge from URL
+    state.incomingChallenge = parseIncomingChallenge();
+    if (state.incomingChallenge && window.history && window.history.replaceState) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
     render();
@@ -662,6 +800,42 @@ var Main = (function () {
         state.screen = "charselect";
         render();
         return;
+
+      case "accept-challenge": acceptChallenge(); return;
+      case "dismiss-challenge":
+        state.incomingChallenge = null;
+        render();
+        return;
+
+      case "share-daily":     copyShareLink("daily", {}); return;
+      case "share-quick": {
+        const m = state.match;
+        if (!m) return;
+        copyShareLink("quick", {
+          p: m.players[0].heroId,
+          o: m.players[1].heroId,
+          d: state.difficulty === "hard" ? "hard" : ""
+        });
+        return;
+      }
+      case "share-endless": {
+        if (!state.endless) return;
+        copyShareLink("endless", {
+          h: state.endless.heroId,
+          s: state.endless.streak
+        });
+        return;
+      }
+      case "share-arcade": {
+        if (!state.arcade) return;
+        copyShareLink("arcade", { h: state.arcade.playerHeroId });
+        return;
+      }
+      case "share-tournament": {
+        if (!state.tournament) return;
+        copyShareLink("tournament", { h: state.tournament.slots[0] });
+        return;
+      }
     }
   }
 
