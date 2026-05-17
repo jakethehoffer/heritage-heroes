@@ -2881,6 +2881,19 @@ var Screens = (function () {
     <p class="settings-help">Slow gives more time between AI turns. Fast cuts wait time roughly in half.</p>
   </div>
 
+  ${typeof Main !== "undefined" && Main.isInstallable && Main.isInstallable() ? `
+  <div class="settings-group">
+    <h3>Install</h3>
+    <button data-action="install-app" class="settings-toggle on">&#x1F4E5; Install App</button>
+    <p class="settings-help">Add to your home screen for fullscreen play and offline access.</p>
+  </div>
+  ` : ""}
+
+  <div class="settings-group">
+    <h3>Install on iPhone / iPad</h3>
+    <p class="settings-help">In Safari, tap the Share button and choose "Add to Home Screen" to install Heritage Heroes as an app icon.</p>
+  </div>
+
   <div class="settings-group settings-danger">
     <h3>Reset</h3>
     <button data-action="reset-all-prompt" class="settings-reset">Reset All Progress</button>

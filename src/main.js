@@ -1,4 +1,17 @@
 var Main = (function () {
+  // ── PWA install prompt capture ────────────────────────────────────────────
+  // Capture beforeinstallprompt so the Settings page can show an "Install App"
+  // button on browsers that support it (Chrome/Edge desktop & Android).
+  // iOS uses the Share → "Add to Home Screen" flow instead, which we document
+  // in renderSettings but cannot trigger programmatically.
+  let deferredInstallPrompt = null;
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+    });
+  }
   const state = {
     screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
@@ -332,6 +345,18 @@ var Main = (function () {
     }
   }
 
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      // Service workers require HTTPS or localhost. Skip silently on file://, etc.
+      return;
+    }
+    // Use a relative URL so it works under GitHub Pages subpath as well as root
+    navigator.serviceWorker.register("sw.js").catch(() => {
+      // Swallow errors — SW failure shouldn't block gameplay
+    });
+  }
+
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
     state.save = Storage.load(store);
@@ -349,6 +374,7 @@ var Main = (function () {
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
     render();
+    registerServiceWorker();
   }
 
   function getStore() {
@@ -836,6 +862,17 @@ var Main = (function () {
         copyShareLink("tournament", { h: state.tournament.slots[0] });
         return;
       }
+
+      case "install-app":
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(() => {
+            deferredInstallPrompt = null;
+            // Re-render so the button disappears if the app was installed
+            render();
+          });
+        }
+        return;
     }
   }
 
@@ -1579,7 +1616,7 @@ var Main = (function () {
 
   if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", boot);
 
-  return { state, render, _testHook: { handleAction, resolveMove, _fumbleTurn } };
+  return { state, render, _testHook: { handleAction, resolveMove, _fumbleTurn }, isInstallable: () => !!deferredInstallPrompt };
 })();
 
 if (typeof module !== "undefined") module.exports = Main;

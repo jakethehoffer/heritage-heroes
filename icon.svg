@@ -1,0 +1,8 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Heritage Heroes PWA icon: cream rounded-square, gold border ring, navy HH letters -->
+  <!-- SVG-only approach: modern Chrome/Edge/Safari/Firefox accept SVG icons with sizes="any".
+       No PNG fallbacks needed — ancient IE is not a supported target. -->
+  <rect width="512" height="512" rx="80" fill="#faf3e0"/>
+  <rect x="32" y="32" width="448" height="448" rx="60" fill="none" stroke="#d4a574" stroke-width="20"/>
+  <text x="256" y="320" font-family="Georgia,'Times New Roman',serif" font-size="280" font-weight="700" fill="#1a2a4f" text-anchor="middle">HH</text>
+</svg>

@@ -1,0 +1,20 @@
+{
+  "name": "Heritage Heroes",
+  "short_name": "Heritage",
+  "description": "A turn-based duel through history. Play seven heroes across 3,300 years.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf3e0",
+  "theme_color": "#c1462d",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "education", "casual"]
+}
