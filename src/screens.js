@@ -1786,9 +1786,26 @@ var Screens = (function () {
     return `<button class="help-button" data-action="show-help" title="How to Play">?</button>`;
   }
 
+  function renderQuitConfirm(state) {
+    // In arcade, "pick new heroes" restarts the ladder; in quick, it returns to char select.
+    const charSelectLabel = state.mode === "arcade" ? "Pick a different hero" : "Pick new heroes";
+    return `
+<div class="overlay">
+  <div class="overlay-card">
+    <h3>Quit this match?</h3>
+    <p>What would you like to do?</p>
+    <div class="overlay-buttons">
+      <button data-action="cancel-quit" class="secondary">Keep playing</button>
+      <button data-action="quit-to-charselect" class="secondary">${Render.escapeHtml(charSelectLabel)}</button>
+      <button data-action="quit-to-title">Main menu</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
-    renderResult, renderTutorial, renderHelp, renderHelpButton,
+    renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx
   };

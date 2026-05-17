@@ -43,6 +43,7 @@ var Main = (function () {
     let overlay = "";
     if (state.overlay === "tutorial") overlay = Screens.renderTutorial(state.tutorialStep);
     if (state.overlay === "help")     overlay = Screens.renderHelp();
+    if (state.overlay === "quit")     overlay = Screens.renderQuitConfirm(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -82,7 +83,10 @@ var Main = (function () {
       case "rematch":      rematch(); return;
       case "arcade-next":  arcadeNext(); return;
       case "arcade-retry": startArcade(); return;
-      case "confirm-quit": if (confirm("Quit this match?")) { state.screen = "title"; render(); } return;
+      case "confirm-quit":       state.overlay = "quit"; render(); return;
+      case "cancel-quit":        state.overlay = null; render(); return;
+      case "quit-to-title":      quitToTitle(); return;
+      case "quit-to-charselect": quitToCharSelect(); return;
       case "show-help":    state.overlay = "help"; render(); return;
       case "close-overlay": state.overlay = null; render(); return;
       case "tutorial-next": state.tutorialStep += 1; render(); return;
@@ -275,6 +279,28 @@ var Main = (function () {
       }
     }
     state.screen = "result";
+    render();
+  }
+
+  function quitToTitle() {
+    state.overlay = null;
+    state.match = null;
+    state.arcade = null;
+    state.picks = { 1: null, 2: null };
+    state.selecting = 1;
+    state.screen = "title";
+    render();
+  }
+
+  function quitToCharSelect() {
+    // Returns to character select, preserving the current mode and controllers.
+    // In arcade, this restarts the ladder (player must repick their hero).
+    state.overlay = null;
+    state.match = null;
+    state.arcade = null;
+    state.picks = { 1: null, 2: null };
+    state.selecting = 1;
+    state.screen = "charselect";
     render();
   }
 
