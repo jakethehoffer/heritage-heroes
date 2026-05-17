@@ -1,13 +1,19 @@
 var Combat = (function () {
   const Heroes = (typeof require !== "undefined") ? require("./heroes.js") : window.Heroes;
 
-  function createMatch(heroAId, heroBId) {
+  function createMatch(heroAId, heroBId, options) {
+    options = options || {};
     const a = Heroes.byId(heroAId);
     const b = Heroes.byId(heroBId);
     if (!a) throw new Error(`unknown hero: ${heroAId}`);
     if (!b) throw new Error(`unknown hero: ${heroBId}`);
+    const players = [makePlayer(a), makePlayer(b)];
+    // Hard mode: boost the AI opponent's damage by 1.25x
+    if (options.hardMode && options.hardOpponentSlot != null) {
+      players[options.hardOpponentSlot].damageMultiplier = 1.25;
+    }
     return {
-      players: [makePlayer(a), makePlayer(b)],
+      players,
       activePlayer: 0,
       turnNumber: 1,
       winner: null,
@@ -21,7 +27,8 @@ var Combat = (function () {
       hp: hero.hp,
       maxHp: hero.hp,
       specialCooldown: 0,
-      statuses: {} // populated by specials and defend
+      statuses: {}, // populated by specials and defend
+      damageMultiplier: 1  // hard mode may set to 1.25
     };
   }
 
@@ -46,14 +53,15 @@ var Combat = (function () {
     const active = state.players[activeIdx];
     const enemy = state.players[enemyIdx];
     const heroId = active.heroId;
+    const mult = (active.damageMultiplier && active.damageMultiplier !== 1) ? active.damageMultiplier : 1;
 
     if (heroId === "moses") {
-      dealDamage(state, activeIdx, enemyIdx, 25);
+      dealDamage(state, activeIdx, enemyIdx, Math.round(25 * mult));
       return;
     }
     if (heroId === "david") {
       const bonus = enemy.hp > 50 ? 10 : 0;
-      dealDamage(state, activeIdx, enemyIdx, 22 + bonus);
+      dealDamage(state, activeIdx, enemyIdx, Math.round((22 + bonus) * mult));
       return;
     }
     if (heroId === "esther") {
@@ -61,11 +69,12 @@ var Combat = (function () {
       return;
     }
     if (heroId === "judah") {
-      const wasReversed = dealDamage(state, activeIdx, enemyIdx, 8);
+      const wasReversed = dealDamage(state, activeIdx, enemyIdx, Math.round(8 * mult));
       if (!wasReversed) enemy.statuses.burn = 3;
       return;
     }
     if (heroId === "rambam") {
+      // healing is not damage, no multiplier
       active.hp = Math.min(active.maxHp, active.hp + 20);
       return;
     }
@@ -97,7 +106,9 @@ var Combat = (function () {
       active.statuses.charging -= 1;
       if (active.statuses.charging === 0) {
         delete active.statuses.charging;
-        dealDamage(state, activeIdx, enemyIdx, 40);
+        const chargeDmg = (active.damageMultiplier && active.damageMultiplier !== 1)
+          ? Math.round(40 * active.damageMultiplier) : 40;
+        dealDamage(state, activeIdx, enemyIdx, chargeDmg);
         state.log.push(`${hero.name} unleashes ${hero.moves.special.name}!`);
         active.specialCooldown = 3;
       } else {
@@ -112,6 +123,9 @@ var Combat = (function () {
       if (active.statuses.doubleNextAttack) {
         dmg = dmg * 2;
         delete active.statuses.doubleNextAttack;
+      }
+      if (active.damageMultiplier && active.damageMultiplier !== 1) {
+        dmg = Math.round(dmg * active.damageMultiplier);
       }
       dealDamage(state, activeIdx, enemyIdx, dmg);
       state.log.push(`${hero.name} uses ${hero.moves.attack.name}.`);
@@ -184,11 +198,24 @@ var Combat = (function () {
     return typeof state.players[playerIdx].statuses.charging === "number";
   }
 
-  function chooseAIMove(state, playerIdx, rng) {
+  function chooseAIMove(state, playerIdx, rng, difficulty) {
     rng = rng || Math.random;
+    difficulty = difficulty || "normal";
     const p = state.players[playerIdx];
     if (typeof p.statuses.charging === "number") return "charge";
     const r = rng();
+    if (difficulty === "hard") {
+      // Harder AI: more aggressive when special available, no fallback to defend
+      if (p.specialCooldown > 0) {
+        // attack 65%, defend 35%
+        return r < 0.65 ? "attack" : "defend";
+      }
+      // special available: attack 45%, defend 25%, special 30%
+      if (r < 0.45) return "attack";
+      if (r < 0.70) return "defend";
+      return "special";
+    }
+    // Normal difficulty
     if (p.specialCooldown > 0) {
       return r < 0.70 ? "attack" : "defend";
     }

@@ -5,7 +5,8 @@ var Storage = (function () {
     return {
       arcade: { moses: 0, david: 0, esther: 0, judah: 0, rambam: 0, golda: 0, einstein: 0 },
       sound: false,
-      tutorialSeen: false
+      tutorialSeen: false,
+      hardUnlocked: false
     };
   }
 
@@ -23,6 +24,7 @@ var Storage = (function () {
         }
         if (typeof parsed.sound === "boolean") out.sound = parsed.sound;
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
+        if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;
       }
       return out;
     } catch (_) {

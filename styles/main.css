@@ -863,3 +863,174 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   80%  { opacity: 1; }
   100% { opacity: 0; transform: scale(0.95) translateY(-4px); }
 }
+
+/* ── Arcade Roadmap ───────────────────────────────────────── */
+.arcade-roadmap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap, 4px);
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.arcade-roadmap.full {
+  gap: var(--gap, 8px);
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+
+.roadmap-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  border-radius: 8px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: transform 150ms;
+}
+
+.roadmap-node.beaten {
+  opacity: 0.4;
+}
+
+.roadmap-node.current {
+  opacity: 1;
+  border-color: var(--gold);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--gold), 0 2px 8px rgba(212, 165, 116, 0.5);
+  transform: scale(1.08);
+  animation: roadmap-pulse 1.8s ease-in-out infinite;
+}
+
+.roadmap-node.upcoming {
+  opacity: 0.7;
+}
+
+.roadmap-node.boss {
+  border-color: #c8a000;
+  border-width: 3px;
+}
+
+.roadmap-node.boss.current {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px #c8a000, 0 2px 10px rgba(200, 160, 0, 0.6);
+}
+
+@keyframes roadmap-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 2px 8px rgba(212, 165, 116, 0.4); }
+  50%       { box-shadow: 0 0 0 4px var(--gold), 0 4px 14px rgba(212, 165, 116, 0.7); }
+}
+
+.roadmap-portrait {
+  width: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Compact: portrait takes most of card height */
+.arcade-roadmap.compact .roadmap-portrait {
+  height: 46px;
+}
+.arcade-roadmap.compact .roadmap-portrait svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Full: portrait takes upper portion, name below */
+.arcade-roadmap.full .roadmap-portrait {
+  height: 75px;
+}
+.arcade-roadmap.full .roadmap-portrait svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.roadmap-name {
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+  padding: 2px 2px 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  color: var(--ink);
+}
+
+.roadmap-check {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 14px;
+  color: #22aa44;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  line-height: 1;
+}
+
+.roadmap-boss-indicator,
+.roadmap-crown {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* ── Arcade quit warning ─────────────────────────────────── */
+.arcade-warning {
+  background: #fde8e8;
+  border: 2px solid #c1462d;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: #7a1010;
+  line-height: 1.4;
+}
+
+/* ── Hard mode unlock celebration ───────────────────────── */
+.unlock-celebration {
+  background: linear-gradient(135deg, #1a2a4f, #3a5a9f);
+  color: #ffd700;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 3px solid #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 4px 4px 0 rgba(0,0,0,0.3);
+  margin: 16px 0;
+  animation: unlock-pop 600ms ease-out forwards;
+}
+
+@keyframes unlock-pop {
+  0%   { opacity: 0; transform: scale(0.75); }
+  60%  { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Hard mode card in difficulty select ─────────────────── */
+.hard-mode-card {
+  border-color: #c8a000;
+  background: linear-gradient(135deg, #1a2a4f 0%, #2a4a8f 100%);
+  color: #ffd700;
+}
+.hard-mode-card h3 { color: #ffd700; }
+.hard-mode-card p  { color: #d4c080; }

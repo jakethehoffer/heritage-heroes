@@ -366,3 +366,65 @@ test("Esther's Reversal blocks Judah's Menorah Flame burn entirely", () => {
   // Judah took bounced damage (8 * 1.5 = 12)
   assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 12);
 });
+
+// Hard mode tests
+test("Hard mode: createMatch with hardMode=true sets damageMultiplier 1.25 on slot 1", () => {
+  const s = Combat.createMatch("moses", "david", { hardMode: true, hardOpponentSlot: 1 });
+  assert.strictEqual(s.players[1].damageMultiplier, 1.25);
+  assert.strictEqual(s.players[0].damageMultiplier, 1); // player slot unaffected
+});
+
+test("Hard mode: createMatch with no options leaves damageMultiplier at 1 (backwards compat)", () => {
+  const s = Combat.createMatch("moses", "david");
+  assert.strictEqual(s.players[0].damageMultiplier, 1);
+  assert.strictEqual(s.players[1].damageMultiplier, 1);
+});
+
+test("Hard mode: attack damage is multiplied by 1.25 and rounded", () => {
+  // Moses attack = 10, * 1.25 = 12.5 -> 13 (Math.round)
+  const s = Combat.createMatch("moses", "david", { hardMode: true, hardOpponentSlot: 0 });
+  const startHp = s.players[1].hp;
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, startHp - 13);
+});
+
+test("Hard mode: special damage is multiplied by 1.25 and rounded", () => {
+  // Moses special = 25, * 1.25 = 31.25 -> 31 (Math.round)
+  const s = Combat.createMatch("moses", "david", { hardMode: true, hardOpponentSlot: 0 });
+  const startHp = s.players[1].hp;
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[1].hp, startHp - 31);
+});
+
+test("Hard mode AI weights: special on cooldown → attack 65%, defend 35%", () => {
+  const s = Combat.createMatch("moses", "david");
+  s.players[0].specialCooldown = 2;
+  // r < 0.65 → attack
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0,  "hard"), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.64, "hard"), "attack");
+  // r >= 0.65 → defend
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.65, "hard"), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "defend");
+});
+
+test("Hard mode AI weights: special available → attack 45%, defend 25%, special 30%", () => {
+  const s = Combat.createMatch("moses", "david");
+  s.players[0].specialCooldown = 0;
+  // r < 0.45 → attack
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0,  "hard"), "attack");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.44, "hard"), "attack");
+  // 0.45 <= r < 0.70 → defend
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.45, "hard"), "defend");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.69, "hard"), "defend");
+  // r >= 0.70 → special
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.70, "hard"), "special");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "special");
+});
+
+test("Hard mode AI: charging always returns 'charge' regardless of difficulty", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special"); // charging=2
+  s.activePlayer = 0;
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.0, "hard"), "charge");
+  assert.strictEqual(Combat.chooseAIMove(s, 0, () => 0.99, "hard"), "charge");
+});

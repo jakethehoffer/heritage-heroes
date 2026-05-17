@@ -1,14 +1,15 @@
 var Main = (function () {
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | battle | result
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result
     overlay: null,          // null | 'tutorial' | 'help'
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade'
+    difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
     picks: { 1: null, 2: null },  // hero ids
     match: null,            // Combat state
-    arcade: null,           // { playerHeroId, defeated: [], remaining: [] }
+    arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null
   };
 
@@ -36,6 +37,7 @@ var Main = (function () {
     if (state.screen === "title")       body = Screens.renderTitle(state);
     else if (state.screen === "mode")   body = Screens.renderModeSelect(state);
     else if (state.screen === "opponent") body = Screens.renderOpponentSelect(state);
+    else if (state.screen === "difficulty") body = Screens.renderDifficultySelect(state);
     else if (state.screen === "charselect") body = Screens.renderCharSelect(state);
     else if (state.screen === "battle") body = Screens.renderBattle(state);
     else if (state.screen === "result") body = Screens.renderResult(state);
@@ -87,6 +89,11 @@ var Main = (function () {
       case "cancel-quit":        state.overlay = null; render(); return;
       case "quit-to-title":      quitToTitle(); return;
       case "quit-to-charselect": quitToCharSelect(); return;
+      case "set-difficulty":
+        state.difficulty = target.dataset.difficulty === "hard" ? "hard" : "normal";
+        state.screen = "charselect";
+        render();
+        return;
       case "show-help":    state.overlay = "help"; render(); return;
       case "close-overlay": state.overlay = null; render(); return;
       case "tutorial-next": state.tutorialStep += 1; render(); return;
@@ -129,7 +136,13 @@ var Main = (function () {
     state.selecting = 1;
     state.picks = { 1: null, 2: null };
     state.arcade = null;
-    state.screen = "charselect";
+    if (state.save && state.save.hardUnlocked) {
+      // Show difficulty selection before char select
+      state.screen = "difficulty";
+    } else {
+      state.difficulty = "normal";
+      state.screen = "charselect";
+    }
     render();
   }
 
@@ -168,7 +181,12 @@ var Main = (function () {
 
   function startNextArcadeMatch() {
     const opponent = state.arcade.remaining[0];
-    state.match = Combat.createMatch(state.arcade.playerHeroId, opponent);
+    const hardMode = state.difficulty === "hard";
+    state.match = Combat.createMatch(
+      state.arcade.playerHeroId,
+      opponent,
+      { hardMode, hardOpponentSlot: 1 }
+    );
     state.screen = "battle";
     render();
   }
@@ -183,7 +201,7 @@ var Main = (function () {
     if (!state.match || state.match.winner !== null) return;
     const idx = state.match.activePlayer;
     if (state.controllers[idx] !== "ai" && !Combat.isCharging(state.match, idx)) return;
-    const move = Combat.chooseAIMove(state.match, idx);
+    const move = Combat.chooseAIMove(state.match, idx, null, state.difficulty);
     resolveMove(move);
   }
 
@@ -274,7 +292,18 @@ var Main = (function () {
         if (state.arcade.remaining.length === 0) {
           // Whole ladder complete
           Storage.incrementArcadeWin(getStore(), state.arcade.playerHeroId);
+          // Check if this is the first time hard mode gets unlocked
+          const wasAlreadyUnlocked = state.save && state.save.hardUnlocked;
+          if (!wasAlreadyUnlocked) {
+            // Snapshot before reload: mark firstClear so the ending screen celebrates
+            state.arcade.firstClear = true;
+          }
           state.save = Storage.load(getStore());
+          // Unlock hard mode if not already unlocked
+          if (!state.save.hardUnlocked) {
+            state.save.hardUnlocked = true;
+            Storage.save(getStore(), state.save);
+          }
         }
       }
     }

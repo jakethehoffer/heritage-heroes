@@ -103,8 +103,13 @@ var Screens = (function () {
 
     const turnLabel = `${activeHero.name}${state.controllers[match.activePlayer] === "ai" ? " (AI)" : (state.mode === "quick" ? ` — Player ${match.activePlayer + 1}` : "")}'s turn`;
 
+    const arcadeRoadmapBanner = state.mode === "arcade" && state.arcade
+      ? renderArcadeRoadmap(state, "compact")
+      : "";
+
     return `
 <section class="screen screen-battle">
+  ${arcadeRoadmapBanner}
   <div class="hp-bars">
     <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: h0.name, side: "left" })}</div>
     <div class="vs-label">vs</div>
@@ -173,12 +178,14 @@ var Screens = (function () {
       }
       const remaining = state.arcade.remaining.length;
       if (remaining === 0) {
-        return renderArcadeEnding(playerHeroId);
+        return renderArcadeEnding(playerHeroId, state.arcade.firstClear);
       }
+      const roadmap = renderArcadeRoadmap(state, "full");
       return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}!</h2>
   <p class="tagline">${remaining} opponent${remaining === 1 ? "" : "s"} left.</p>
+  ${roadmap}
   <div class="result-buttons">
     <button data-action="arcade-next">Next Opponent</button>
     <button data-action="goto-title" class="secondary">Quit Run</button>
@@ -197,14 +204,82 @@ var Screens = (function () {
 </section>`;
   }
 
-  function renderArcadeEnding(heroId) {
+  function renderArcadeRoadmap(state, variant) {
+    // Reconstruct full ladder order: defeated + current (remaining[0]) + rest of remaining
+    const arcade = state.arcade;
+    const fullOrder = arcade.defeated.concat(arcade.remaining);
+    const currentOpponent = arcade.remaining[0] || null;
+
+    const isCompact = variant === "compact";
+    const cardW = isCompact ? 50 : 90;
+    const cardH = isCompact ? 60 : 110;
+    const gap = isCompact ? 4 : 8;
+
+    const nodes = fullOrder.map((heroId, idx) => {
+      const hero = Heroes.byId(heroId);
+      const isBeaten = idx < arcade.defeated.length;
+      const isCurrent = heroId === currentOpponent && !isBeaten;
+      const isBoss = idx === 5; // last opponent (index 5 of 6)
+      const isUpcoming = !isBeaten && !isCurrent;
+
+      let nodeClass = "roadmap-node";
+      if (isBeaten) nodeClass += " beaten";
+      else if (isCurrent) nodeClass += " current";
+      else nodeClass += " upcoming";
+      if (isBoss) nodeClass += " boss";
+
+      const checkmark = isBeaten ? `<div class="roadmap-check">&#10003;</div>` : "";
+      const crown = (isBoss && !isCompact) ? `<span class="roadmap-crown">&#x1F451;</span>` : "";
+      const bossIndicator = (isBoss && isCompact) ? `<div class="roadmap-boss-indicator">&#x1F451;</div>` : "";
+
+      // Portrait using inline SVG scaled via CSS
+      const portraitSvg = Render.renderHero({ heroId: hero.id, pose: "idle", facing: "right" });
+
+      const nameLabel = isCompact ? "" : `<div class="roadmap-name">${Render.escapeHtml(hero.name)}</div>`;
+
+      return `<div class="${nodeClass}" style="width:${cardW}px;height:${cardH}px;">
+  <div class="roadmap-portrait">${portraitSvg}</div>
+  ${nameLabel}
+  ${checkmark}
+  ${bossIndicator}
+  ${crown}
+</div>`;
+    }).join("\n");
+
+    const variantClass = isCompact ? "compact" : "full";
+    return `<div class="arcade-roadmap ${variantClass}" style="--gap:${gap}px;">${nodes}</div>`;
+  }
+
+  function renderDifficultySelect(state) {
+    return `
+<section class="screen screen-mode">
+  <h2>Choose difficulty</h2>
+  <div class="mode-grid">
+    <button data-action="set-difficulty" data-difficulty="normal" class="mode-card">
+      <h3>Normal</h3>
+      <p>Standard AI. A fair challenge for all heroes.</p>
+    </button>
+    <button data-action="set-difficulty" data-difficulty="hard" class="mode-card hard-mode-card">
+      <h3>Hard</h3>
+      <p>Tougher AI and +25% opponent damage. Prove your mastery.</p>
+    </button>
+  </div>
+  <button data-action="goto-mode" class="back">&larr; Back</button>
+</section>`;
+  }
+
+  function renderArcadeEnding(heroId, isFirstClear) {
     const hero = Heroes.byId(heroId);
     const ending = ARCADE_ENDINGS[heroId] || "Victory.";
+    const unlockBanner = isFirstClear
+      ? `<div class="unlock-celebration">&#x1F389; HARD MODE UNLOCKED! Tougher AI awaits.</div>`
+      : "";
     return `
 <section class="screen screen-result screen-ending">
   <h2>${Render.escapeHtml(hero.name)} prevails!</h2>
   <p class="ending">${Render.escapeHtml(ending)}</p>
   <p class="tagline">Arcade Ladder complete.</p>
+  ${unlockBanner}
   <div class="result-buttons">
     <button data-action="goto-title">Main Menu</button>
   </div>
@@ -1789,11 +1864,14 @@ var Screens = (function () {
   function renderQuitConfirm(state) {
     // In arcade, "pick new heroes" restarts the ladder; in quick, it returns to char select.
     const charSelectLabel = state.mode === "arcade" ? "Pick a different hero" : "Pick new heroes";
+    const arcadeWarning = (state.mode === "arcade" && state.arcade)
+      ? `<div class="arcade-warning">This will end your Arcade Ladder run. You've defeated <strong>${state.arcade.defeated.length} of 6</strong> opponents &mdash; that progress will be lost.</div>`
+      : `<p>What would you like to do?</p>`;
     return `
 <div class="overlay">
   <div class="overlay-card">
     <h3>Quit this match?</h3>
-    <p>What would you like to do?</p>
+    ${arcadeWarning}
     <div class="overlay-buttons">
       <button data-action="cancel-quit" class="secondary">Keep playing</button>
       <button data-action="quit-to-charselect" class="secondary">${Render.escapeHtml(charSelectLabel)}</button>
@@ -1806,6 +1884,7 @@ var Screens = (function () {
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
+    renderArcadeRoadmap, renderDifficultySelect,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx
   };
