@@ -4,8 +4,15 @@ var Sfx = (function () {
 
   let ctx = null;        // AudioContext, created lazily
   let masterGain = null; // GainNode wired to ctx.destination
+  let musicGain  = null; // Separate gain node for ambient music (quieter than SFX)
   let muted = true;
   let unlocked = false;  // whether AudioContext has been resumed after user gesture
+
+  // ── Music state ────────────────────────────────────────────────────────────
+  let activeMusicNodes = [];   // oscillators/sources currently playing
+  let activeMusicStage = null; // current stage id, prevents restarts when unchanged
+
+  const MUSIC_MASTER_VOLUME = 0.15; // much quieter than SFX master (0.5)
 
   // ── Context bootstrap ──────────────────────────────────────────────────────
 
@@ -19,6 +26,10 @@ var Sfx = (function () {
       masterGain = ctx.createGain();
       masterGain.gain.value = muted ? 0 : 0.5;
       masterGain.connect(ctx.destination);
+
+      musicGain = ctx.createGain();
+      musicGain.gain.value = 0; // always starts at 0; fade in via playMusic
+      musicGain.connect(ctx.destination);
     } catch (_) {
       ctx = null;
     }
@@ -319,6 +330,483 @@ var Sfx = (function () {
     }
   };
 
+  // ── Music recipes ──────────────────────────────────────────────────────────
+  // Each recipe is (c, mg) where c = AudioContext, mg = musicGain destination node.
+  // Returns an array of oscillator/source nodes for later cleanup.
+  // Uses option 1 for accent scheduling: pre-schedule 60 seconds of accents up-front.
+
+  const MUSIC_RECIPES = {
+
+    // redsea (Moses) — Aquatic, vast, peaceful
+    redsea(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine 80 Hz
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(80, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.3, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Pad: A3 (220 Hz) + E4 (330 Hz) — open fifth
+      const padFreqs = [220, 330];
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.15, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // LFO: 0.2 Hz modulating the pad's frequency ±4 Hz (wave-like vibrato)
+      // Attach to first pad oscillator (220 Hz)
+      const lfo = c.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.setValueAtTime(0.2, t0);
+      const lfoGain = c.createGain();
+      lfoGain.gain.setValueAtTime(4, t0);
+      lfo.connect(lfoGain);
+      // Connect LFO to frequency of both pad oscs (nodes[2] and nodes[4] are the pad oscs)
+      lfoGain.connect(nodes[2].frequency);
+      lfoGain.connect(nodes[4].frequency);
+      lfo.start(t0);
+      nodes.push(lfo, lfoGain);
+
+      // Sparse accent: bell tone at 880 Hz every 4 seconds, 0.8s duration
+      // Pre-schedule 60 seconds worth (15 bells)
+      for (let i = 0; i < 15; i++) {
+        const bt = t0 + i * 4;
+        const bellOsc = c.createOscillator();
+        bellOsc.type = "sine";
+        bellOsc.frequency.setValueAtTime(880, bt);
+        const bellGain = c.createGain();
+        bellGain.gain.setValueAtTime(0, bt);
+        bellGain.gain.linearRampToValueAtTime(0.1, bt + 0.1);  // slow attack
+        bellGain.gain.linearRampToValueAtTime(0, bt + 0.8);    // long decay
+        bellOsc.connect(bellGain);
+        bellGain.connect(mg);
+        bellOsc.start(bt);
+        bellOsc.stop(bt + 0.85);
+        nodes.push(bellOsc, bellGain);
+      }
+
+      return nodes;
+    },
+
+    // elah (David) — Pastoral, hopeful, major
+    elah(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine C3 (130.8 Hz)
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(130.8, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.3, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Pad: C major triad — C4 (261.6), E4 (329.6), G4 (392)
+      const padFreqs = [261.6, 329.6, 392];
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.12, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // Sparse arpeggio: pluck-like at C5/E5/G5/C5 cycling every 6 seconds
+      // 4 notes x 0.4s each = 1.6s of notes per cycle
+      const arpeggioFreqs = [523.25, 659.25, 784, 523.25]; // C5, E5, G5, C5
+      const arpCycle = 6; // seconds between arpeggio starts
+      const arpCount = Math.floor(60 / arpCycle); // ~10 cycles
+      for (let cycle = 0; cycle < arpCount; cycle++) {
+        for (let note = 0; note < arpeggioFreqs.length; note++) {
+          const nt = t0 + cycle * arpCycle + note * 0.4;
+          const arpOsc = c.createOscillator();
+          arpOsc.type = "triangle";
+          arpOsc.frequency.setValueAtTime(arpeggioFreqs[note], nt);
+          const arpGain = c.createGain();
+          arpGain.gain.setValueAtTime(0, nt);
+          arpGain.gain.linearRampToValueAtTime(0.1, nt + 0.02);  // pluck attack
+          arpGain.gain.linearRampToValueAtTime(0, nt + 0.4);
+          arpOsc.connect(arpGain);
+          arpGain.connect(mg);
+          arpOsc.start(nt);
+          arpOsc.stop(nt + 0.42);
+          nodes.push(arpOsc, arpGain);
+        }
+      }
+
+      return nodes;
+    },
+
+    // throne (Esther) — Royal, mysterious, minor with eastern flavor
+    throne(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sawtooth A2 (110 Hz) — slightly aggressive timbre
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sawtooth";
+      droneOsc.frequency.setValueAtTime(110, t0);
+      const droneFilt = c.createBiquadFilter();
+      droneFilt.type = "lowpass";
+      droneFilt.frequency.setValueAtTime(800, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.2, t0);
+      droneOsc.connect(droneFilt);
+      droneFilt.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneFilt, droneGain);
+
+      // Pad: A3 (220 Hz) + C4 (261.6 Hz) — minor second, tense interval
+      const padFreqs = [220, 261.6];
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.10, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // Slow ascending phrase: every 8 seconds, A4→B4→C5→D5 (0.5s each)
+      const phraseFreqs = [440, 493.88, 523.25, 587.33]; // A4, B4, C5, D5
+      const phraseCycle = 8;
+      const phraseCount = Math.floor(60 / phraseCycle); // ~7 cycles
+      for (let cycle = 0; cycle < phraseCount; cycle++) {
+        for (let note = 0; note < phraseFreqs.length; note++) {
+          const nt = t0 + cycle * phraseCycle + note * 0.5;
+          const pOsc = c.createOscillator();
+          pOsc.type = "triangle";
+          pOsc.frequency.setValueAtTime(phraseFreqs[note], nt);
+          const pGain = c.createGain();
+          pGain.gain.setValueAtTime(0, nt);
+          pGain.gain.linearRampToValueAtTime(0.08, nt + 0.08);
+          pGain.gain.linearRampToValueAtTime(0, nt + 0.5);
+          pOsc.connect(pGain);
+          pGain.connect(mg);
+          pOsc.start(nt);
+          pOsc.stop(nt + 0.52);
+          nodes.push(pOsc, pGain);
+        }
+      }
+
+      return nodes;
+    },
+
+    // temple (Judah) — Solemn, triumphant, open
+    temple(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine 110 Hz (A2)
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(110, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.3, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Pad: A3 (220 Hz) + E4 (329.6 Hz) — open fifth
+      const padFreqs = [220, 329.6];
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.15, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // Bell accents: E6 (1320 Hz) every 5 seconds, exponential-like decay 1s
+      const bellCycle = 5;
+      const bellCount = Math.floor(60 / bellCycle); // 12 bells
+      for (let i = 0; i < bellCount; i++) {
+        const bt = t0 + i * bellCycle;
+        const bellOsc = c.createOscillator();
+        bellOsc.type = "sine";
+        bellOsc.frequency.setValueAtTime(1320, bt);
+        const bellGain = c.createGain();
+        bellGain.gain.setValueAtTime(0, bt);
+        bellGain.gain.linearRampToValueAtTime(0.12, bt + 0.005); // very fast attack
+        bellGain.gain.linearRampToValueAtTime(0, bt + 1.0);      // 1s decay
+        bellOsc.connect(bellGain);
+        bellGain.connect(mg);
+        bellOsc.start(bt);
+        bellOsc.stop(bt + 1.05);
+        nodes.push(bellOsc, bellGain);
+      }
+
+      return nodes;
+    },
+
+    // cordoba (Rambam) — Contemplative, ancient, modal
+    cordoba(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine F2 (87.3 Hz)
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(87.3, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.3, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Pad: F3 (175 Hz) + G#3 (207.7 Hz) + A3 (220 Hz) — Phrygian flavor
+      const padFreqs = [175, 207.7, 220];  // closer spacing = modal tension
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.10, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // Sparse oud-like notes: every 7 seconds, Bb4 (466 Hz) → G#4 (415 Hz), 0.6s each
+      const oudFreqs = [466, 415]; // Bb4, G#4
+      const oudCycle = 7;
+      const oudCount = Math.floor(60 / oudCycle); // ~8 cycles
+      for (let cycle = 0; cycle < oudCount; cycle++) {
+        for (let note = 0; note < oudFreqs.length; note++) {
+          const nt = t0 + cycle * oudCycle + note * 0.6;
+          const oudOsc = c.createOscillator();
+          oudOsc.type = "triangle";
+          oudOsc.frequency.setValueAtTime(oudFreqs[note], nt);
+          const oudGain = c.createGain();
+          oudGain.gain.setValueAtTime(0, nt);
+          oudGain.gain.linearRampToValueAtTime(0.08, nt + 0.03);
+          oudGain.gain.linearRampToValueAtTime(0, nt + 0.6);
+          oudOsc.connect(oudGain);
+          oudGain.connect(mg);
+          oudOsc.start(nt);
+          oudOsc.stop(nt + 0.62);
+          nodes.push(oudOsc, oudGain);
+        }
+      }
+
+      return nodes;
+    },
+
+    // knesset (Golda) — Determined, modern, minor mode
+    knesset(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine A2 (110 Hz)
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(110, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.25, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Pad: A minor triad — A3 (220), C4 (261.6), E4 (329.6)
+      const padFreqs = [220, 261.6, 329.6];
+      for (const f of padFreqs) {
+        const padOsc = c.createOscillator();
+        padOsc.type = "sine";
+        padOsc.frequency.setValueAtTime(f, t0);
+        const padGain = c.createGain();
+        padGain.gain.setValueAtTime(0.10, t0);
+        padOsc.connect(padGain);
+        padGain.connect(mg);
+        padOsc.start(t0);
+        nodes.push(padOsc, padGain);
+      }
+
+      // Heartbeat pulse: triangle 110 Hz repeating every 2 seconds for 0.2s
+      const pulseCycle = 2;
+      const pulseCount = Math.floor(60 / pulseCycle); // 30 pulses
+      for (let i = 0; i < pulseCount; i++) {
+        const pt = t0 + i * pulseCycle;
+        const pulseOsc = c.createOscillator();
+        pulseOsc.type = "triangle";
+        pulseOsc.frequency.setValueAtTime(110, pt);
+        const pulseGain = c.createGain();
+        pulseGain.gain.setValueAtTime(0, pt);
+        pulseGain.gain.linearRampToValueAtTime(0.12, pt + 0.02);
+        pulseGain.gain.linearRampToValueAtTime(0, pt + 0.2);
+        pulseOsc.connect(pulseGain);
+        pulseGain.connect(mg);
+        pulseOsc.start(pt);
+        pulseOsc.stop(pt + 0.22);
+        nodes.push(pulseOsc, pulseGain);
+      }
+
+      return nodes;
+    },
+
+    // princeton (Einstein) — Cerebral, minimalist, modern
+    princeton(c, mg) {
+      const nodes = [];
+      const t0 = c.currentTime;
+
+      // Drone: sine C3 (130.8 Hz), very quiet
+      const droneOsc = c.createOscillator();
+      droneOsc.type = "sine";
+      droneOsc.frequency.setValueAtTime(130.8, t0);
+      const droneGain = c.createGain();
+      droneGain.gain.setValueAtTime(0.15, t0);
+      droneOsc.connect(droneGain);
+      droneGain.connect(mg);
+      droneOsc.start(t0);
+      nodes.push(droneOsc, droneGain);
+
+      // Mid drone: sine C4 (261.6 Hz)
+      const midOsc = c.createOscillator();
+      midOsc.type = "sine";
+      midOsc.frequency.setValueAtTime(261.6, t0);
+      const midGain = c.createGain();
+      midGain.gain.setValueAtTime(0.10, t0);
+      midOsc.connect(midGain);
+      midGain.connect(mg);
+      midOsc.start(t0);
+      nodes.push(midOsc, midGain);
+
+      // Sparse high notes: triangle from C5/D5/E5/G5/A5, every 4-6 seconds (alternating 4/6)
+      const highFreqs = [523.25, 587.33, 659.25, 784, 880]; // C5, D5, E5, G5, A5
+      let elapsed = 0;
+      let freqIdx = 0;
+      while (elapsed < 60) {
+        const nt = t0 + elapsed;
+        const noteFreq = highFreqs[freqIdx % highFreqs.length];
+        const interval = (freqIdx % 2 === 0) ? 4 : 6; // alternate 4s and 6s
+
+        const hOsc = c.createOscillator();
+        hOsc.type = "triangle";
+        hOsc.frequency.setValueAtTime(noteFreq, nt);
+        const hGain = c.createGain();
+        hGain.gain.setValueAtTime(0, nt);
+        hGain.gain.linearRampToValueAtTime(0.10, nt + 0.4);  // slow attack
+        hGain.gain.linearRampToValueAtTime(0, nt + 1.0);     // slow decay
+        hOsc.connect(hGain);
+        hGain.connect(mg);
+        hOsc.start(nt);
+        hOsc.stop(nt + 1.05);
+        nodes.push(hOsc, hGain);
+
+        elapsed += interval;
+        freqIdx++;
+      }
+
+      return nodes;
+    }
+  };
+
+  // ── Music playback ─────────────────────────────────────────────────────────
+
+  function playMusic(stageId) {
+    // No-op if same stage is already playing
+    if (activeMusicStage === stageId && activeMusicNodes.length > 0) return;
+
+    const c = getCtx();
+    if (!c) return;
+    ensureUnlocked();
+    if (c.state === "suspended") return; // not yet unlocked by user gesture
+
+    const recipe = MUSIC_RECIPES[stageId];
+    if (!recipe) return; // graceful: unknown stage
+
+    // Fade out any currently-playing music
+    if (activeMusicNodes.length > 0) {
+      const oldNodes = activeMusicNodes.slice();
+      const now = c.currentTime;
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, now);
+      musicGain.gain.linearRampToValueAtTime(0, now + 0.8);
+      window.setTimeout(function () {
+        for (const node of oldNodes) {
+          try { node.stop && node.stop(); } catch (_) {}
+          try { node.disconnect(); } catch (_) {}
+        }
+      }, 850);
+    }
+
+    // Start new recipe
+    let newNodes;
+    try {
+      newNodes = recipe(c, musicGain);
+    } catch (_) {
+      return;
+    }
+
+    activeMusicNodes = newNodes || [];
+    activeMusicStage = stageId;
+
+    // Fade in
+    const now = c.currentTime;
+    const targetVol = muted ? 0 : MUSIC_MASTER_VOLUME;
+    musicGain.gain.cancelScheduledValues(now);
+    musicGain.gain.setValueAtTime(0, now);
+    if (!muted) {
+      musicGain.gain.linearRampToValueAtTime(targetVol, now + 1.5);
+    }
+  }
+
+  function stopMusic() {
+    if (!ctx || activeMusicNodes.length === 0) return;
+
+    const now = ctx.currentTime;
+    musicGain.gain.cancelScheduledValues(now);
+    musicGain.gain.setValueAtTime(musicGain.gain.value, now);
+    musicGain.gain.linearRampToValueAtTime(0, now + 0.8);
+
+    const nodesToStop = activeMusicNodes.slice();
+    activeMusicNodes = [];
+    activeMusicStage = null;
+
+    window.setTimeout(function () {
+      for (const node of nodesToStop) {
+        try { node.stop && node.stop(); } catch (_) {}
+        try { node.disconnect(); } catch (_) {}
+      }
+    }, 850);
+  }
+
+  function getActiveMusicStage() {
+    return activeMusicStage;
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   function preload() {
@@ -343,11 +831,16 @@ var Sfx = (function () {
     if (masterGain) {
       masterGain.gain.setValueAtTime(muted ? 0 : 0.5, ctx ? ctx.currentTime : 0);
     }
+    if (musicGain && ctx) {
+      const now = ctx.currentTime;
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.setValueAtTime(muted ? 0 : MUSIC_MASTER_VOLUME, now);
+    }
   }
 
   function isMuted() { return muted; }
 
-  return { preload, play, setMuted, isMuted };
+  return { preload, play, setMuted, isMuted, playMusic, stopMusic, getActiveMusicStage };
 })();
 
 if (typeof module !== "undefined") module.exports = Sfx;

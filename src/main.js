@@ -118,6 +118,20 @@ var Main = (function () {
     else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
     else if (state.screen === "hall") body = Screens.renderHall(state);
 
+    // ── Ambient music routing ────────────────────────────────────────────────
+    // Play stage music during battle; stop it on any other screen.
+    // The stage is fixed for the match at players[1]'s hero (P2 is the initial defender).
+    // playMusic is no-op if already on the same stage, so it's safe to call every render.
+    if (state.screen === "battle" && state.match) {
+      const defenderHeroId = state.match.players[1].heroId;
+      const defenderHero = (typeof Heroes !== "undefined") && Heroes.byId(defenderHeroId);
+      if (defenderHero && defenderHero.stageId) {
+        Sfx.playMusic(defenderHero.stageId);
+      }
+    } else {
+      Sfx.stopMusic();
+    }
+
     let overlay = "";
     if (state.overlay === "tutorial")    overlay = Screens.renderTutorial(state.tutorialStep);
     if (state.overlay === "help")        overlay = Screens.renderHelp();
