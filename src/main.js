@@ -228,6 +228,7 @@ var Main = (function () {
     else if (state.screen === "endless-result")   body = Screens.renderEndlessResult(state);
     else if (state.screen === "settings")         body = Screens.renderSettings(state);
     else if (state.screen === "history")          body = Screens.renderHistory(state);
+    else if (state.screen === "timeline")         body = Screens.renderTimeline(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
@@ -283,8 +284,9 @@ var Main = (function () {
     switch (action) {
       case "goto-title":   state.screen = "title"; state.overlay = null; render(); return;
       case "goto-mode":    state.screen = "mode"; render(); return;
-      case "open-hall":    state.screen = "hall"; render(); return;
-      case "open-history": state.screen = "history"; render(); return;
+      case "open-hall":      state.screen = "hall"; render(); return;
+      case "open-timeline":  state.screen = "timeline"; render(); return;
+      case "open-history":   state.screen = "history"; render(); return;
       case "view-match-detail": {
         e.stopPropagation();
         state.viewingMatchId = parseInt(target.dataset.matchId, 10);

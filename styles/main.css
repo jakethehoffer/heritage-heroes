@@ -2949,3 +2949,141 @@ button.danger:hover {
   margin: 12px 0;
   font-style: italic;
 }
+
+/* ── Heritage Timeline screen ─────────────────────────────────────────────── */
+.screen-timeline {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.screen-timeline .subtitle {
+  text-align: center;
+  font-style: italic;
+  opacity: 0.85;
+  margin-bottom: 24px;
+}
+
+.timeline-track {
+  position: relative;
+  padding-left: 24px;
+  border-left: 3px solid var(--ink);
+  margin: 24px 0;
+}
+
+.timeline-era {
+  margin-bottom: 24px;
+}
+
+.era-label {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--terracotta);
+  margin: 20px 0 12px -36px;
+  background: var(--bg);
+  padding-left: 8px;
+  letter-spacing: 1px;
+}
+
+.timeline-hero {
+  display: grid;
+  grid-template-columns: 120px 100px 1fr;
+  gap: 16px;
+  align-items: center;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  position: relative;
+}
+
+.timeline-hero::before {
+  content: "";
+  position: absolute;
+  left: -32px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--terracotta);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.timeline-hero:hover {
+  box-shadow: 4px 4px 0 var(--ink);
+  transform: translate(-2px, -2px);
+}
+
+.timeline-date {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  text-align: right;
+  line-height: 1.3;
+}
+
+.timeline-portrait {
+  width: 100px;
+  height: 100px;
+}
+
+.timeline-portrait svg {
+  width: 100%;
+  height: auto;
+}
+
+.timeline-info .timeline-name {
+  font-size: 20px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.timeline-info .era {
+  display: inline-block;
+  font-size: 11px;
+  background: var(--gold);
+  color: var(--ink);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.timeline-info .timeline-bio {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+@media (max-width: 600px) {
+  .timeline-track {
+    padding-left: 16px;
+  }
+  .timeline-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .timeline-date {
+    text-align: center;
+  }
+  .timeline-portrait {
+    margin: 0 auto;
+  }
+  .timeline-hero::before {
+    left: -24px;
+    top: 24px;
+    transform: none;
+  }
+  .era-label {
+    margin-left: -28px;
+    text-align: center;
+  }
+}

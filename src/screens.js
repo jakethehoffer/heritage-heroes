@@ -83,6 +83,7 @@ var Screens = (function () {
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
     <button data-action="open-hall" class="secondary">Hall of Heroes</button>
+    <button data-action="open-timeline" class="secondary">Heritage Timeline</button>
     ${state.save.recentMatches && state.save.recentMatches.length > 0 ? `
     <button data-action="open-history" class="secondary">Match History</button>` : ""}
     <button data-action="view-stats" class="secondary">View Stats</button>
@@ -2866,6 +2867,54 @@ var Screens = (function () {
 </div>`;
   }
 
+  // ── Heritage Timeline screen ─────────────────────────────────────────────
+  const TIMELINE_ORDER = [
+    { eraLabel: "Ancient Israel",  heroes: ["moses", "david"] },
+    { eraLabel: "Persian Era",     heroes: ["esther"] },
+    { eraLabel: "Maccabean Era",   heroes: ["judah"] },
+    { eraLabel: "Medieval",        heroes: ["rambam"] },
+    { eraLabel: "Modern",          heroes: ["einstein", "golda"] }
+  ];
+
+  function renderTimeline(state) {
+    const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+
+    const trackHtml = TIMELINE_ORDER.map(group => {
+      const heroCards = group.heroes.map(heroId => {
+        const h = Heroes.byId(heroId);
+        if (!h) return "";
+        const isMastered = !!mastered[heroId];
+        const portrait = Render.renderHero({ heroId, pose: "idle", facing: "right" });
+        return `
+<button class="timeline-hero" data-action="view-profile" data-hero="${heroId}">
+  <div class="timeline-date">${Render.escapeHtml(h.profile && h.profile.dates ? h.profile.dates : "")}</div>
+  <div class="timeline-portrait">${portrait}</div>
+  <div class="timeline-info">
+    <h3 class="timeline-name">${isMastered ? "&#x1F31F; " : ""}${Render.escapeHtml(h.name)}</h3>
+    <span class="era">${Render.escapeHtml(h.era)}</span>
+    <p class="timeline-bio">${Render.escapeHtml(h.bio)}</p>
+  </div>
+</button>`;
+      }).join("");
+
+      return `
+<div class="timeline-era">
+  <h3 class="era-label">&mdash;&mdash; ${Render.escapeHtml(group.eraLabel)} &mdash;&mdash;</h3>
+  ${heroCards}
+</div>`;
+    }).join("");
+
+    return `
+<section class="screen screen-timeline">
+  <h2>Heritage Timeline</h2>
+  <p class="subtitle">Seven heroes across 3,300 years of Jewish history</p>
+  <div class="timeline-track">
+    ${trackHtml}
+  </div>
+  <button data-action="goto-title" class="back">&larr; Back</button>
+</section>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
@@ -2876,6 +2925,7 @@ var Screens = (function () {
     renderSettings, renderResetAllConfirm,
     renderHistory, renderMatchDetail,
     renderDailyAlreadyDone,
+    renderTimeline,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast,
