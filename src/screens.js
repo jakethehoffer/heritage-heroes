@@ -199,17 +199,76 @@ var Screens = (function () {
     einstein: "Einstein bows from the lectern. The equations balance once more."
   };
 
+  // ── Helper: pick a "Did You Know?" fact from heroes not seen this match ──
+  function _pickDidYouKnow(h0, h1, stats) {
+    const seen0 = (stats && stats.triviaSeen && stats.triviaSeen[h0.id]) || [];
+    const seen1 = (stats && stats.triviaSeen && stats.triviaSeen[h1.id]) || [];
+    const candidates = [];
+    h0.trivia.forEach((t, i) => { if (!seen0.includes(i)) candidates.push({ hero: h0, trivia: t }); });
+    h1.trivia.forEach((t, i) => { if (!seen1.includes(i)) candidates.push({ hero: h1, trivia: t }); });
+    if (candidates.length === 0) {
+      // Fallback: pick any (player has seen them all this match — rare)
+      const h = Math.random() < 0.5 ? h0 : h1;
+      const t = h.trivia[Math.floor(Math.random() * h.trivia.length)];
+      return { hero: h, trivia: t };
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  // ── Helper: render Match Summary + Did You Know? sections ───────────────
+  function _renderRecapSections(match, stats, h0, h1) {
+    if (!stats) return "";
+    const turns = (match.turnNumber || 1) - 1;
+    const bh = stats.biggestHit;
+    const biggestHitText = bh
+      ? `${bh.damage} dmg on ${Render.escapeHtml(bh.targetName)} (${Render.escapeHtml(bh.moveName)})`
+      : "None &mdash; no damage dealt";
+
+    const triviaStat = stats.triviaTotal > 0
+      ? `<div class="summary-row"><span class="summary-label">Trivia</span><span class="summary-value">${stats.triviaCorrect}&thinsp;/&thinsp;${stats.triviaTotal} correct</span></div>`
+      : "";
+
+    const fact = _pickDidYouKnow(h0, h1, stats);
+    const portrait = Render.renderHero({ heroId: fact.hero.id, pose: "idle", facing: "right" });
+
+    return `
+<div class="match-summary">
+  <h3>Match Summary</h3>
+  <div class="summary-grid">
+    <div class="summary-row"><span class="summary-label">Turns</span><span class="summary-value">${turns}</span></div>
+    <div class="summary-row"><span class="summary-label">Biggest hit</span><span class="summary-value">${biggestHitText}</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h0.name)}'s specials</span><span class="summary-value">${stats.specialsUsed[0]}</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h1.name)}'s specials</span><span class="summary-value">${stats.specialsUsed[1]}</span></div>
+    ${triviaStat}
+  </div>
+</div>
+<div class="did-you-know">
+  <h3>Did You Know?</h3>
+  <div class="dyk-card">
+    <div class="dyk-portrait">${portrait}</div>
+    <div class="dyk-body">
+      <p class="dyk-hero-name">${Render.escapeHtml(fact.hero.name)}</p>
+      <p class="dyk-text">${Render.escapeHtml(fact.trivia.explanation)}</p>
+    </div>
+  </div>
+</div>`;
+  }
+
   function renderResult(state) {
     const match = state.match;
     const winnerIdx = match.winner;
     const winnerHero = Heroes.byId(match.players[winnerIdx].heroId);
     const loserHero  = Heroes.byId(match.players[1 - winnerIdx].heroId);
+    // h0/h1 always reflect slot order (for specials count display)
+    const h0 = Heroes.byId(match.players[0].heroId);
+    const h1 = Heroes.byId(match.players[1].heroId);
 
     if (state.mode === "arcade") {
       const playerHeroId = state.arcade.playerHeroId;
       const playerSlot = match.players.findIndex(p => p.heroId === playerHeroId);
       const playerWon = winnerIdx === playerSlot;
       if (!playerWon) {
+        // Arcade loss — keep it simple, no recap
         return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins this round.</h2>
@@ -225,11 +284,13 @@ var Screens = (function () {
         return renderArcadeEnding(playerHeroId, state.arcade.firstClear);
       }
       const roadmap = renderArcadeRoadmap(state, "full");
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
       return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}!</h2>
   <p class="tagline">${remaining} opponent${remaining === 1 ? "" : "s"} left.</p>
   ${roadmap}
+  ${recap}
   <div class="result-buttons">
     <button data-action="arcade-next">Next Opponent</button>
     <button data-action="goto-title" class="secondary">Quit Run</button>
@@ -237,10 +298,12 @@ var Screens = (function () {
 </section>`;
     }
 
+    const recap = _renderRecapSections(match, state.matchStats, h0, h1);
     return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
   <p class="tagline">${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}.</p>
+  ${recap}
   <div class="result-buttons">
     <button data-action="rematch">Play Again</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>

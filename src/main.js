@@ -10,6 +10,7 @@ var Main = (function () {
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
     picks: { 1: null, 2: null },  // hero ids
     match: null,            // Combat state
+    matchStats: null,       // { biggestHit, specialsUsed, triviaCorrect, triviaTotal, triviaSeen }
     arcade: null,           // { playerHeroId, defeated: [], remaining: [], firstClear: bool }
     save: null,
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
@@ -20,6 +21,16 @@ var Main = (function () {
     currentMatchLowHp: { 0: false, 1: false },  // per-match low-HP flag per player slot
     bossIntroShown: false   // reset at start of each arcade run
   };
+
+  function _freshMatchStats() {
+    return {
+      biggestHit: null,       // { damage, attackerName, targetName, moveName } | null
+      specialsUsed: [0, 0],   // count per player slot
+      triviaCorrect: 0,
+      triviaTotal: 0,
+      triviaSeen: {}          // heroId -> array of trivia indices seen this match
+    };
+  }
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
   const HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
@@ -229,6 +240,21 @@ var Main = (function () {
         state.trivia.phase = "result";
         state.trivia.chosenIndex = chosenIdx;
 
+        // Track per-match trivia stats
+        if (state.matchStats) {
+          state.matchStats.triviaTotal += 1;
+          if (isCorrect) state.matchStats.triviaCorrect += 1;
+          // Record the trivia question index so "Did You Know?" can avoid it
+          const tHeroId = state.trivia.heroId;
+          const tIdx = state.trivia.triviaIndex;
+          if (tHeroId && typeof tIdx === "number") {
+            if (!state.matchStats.triviaSeen[tHeroId]) state.matchStats.triviaSeen[tHeroId] = [];
+            if (!state.matchStats.triviaSeen[tHeroId].includes(tIdx)) {
+              state.matchStats.triviaSeen[tHeroId].push(tIdx);
+            }
+          }
+        }
+
         // Record trivia stat and update streak
         const tStore = getStore();
         if (tStore) {
@@ -410,6 +436,7 @@ var Main = (function () {
         const choices = HERO_ORDER.filter(id => id !== heroId);
         state.picks[2] = choices[Math.floor(Math.random() * choices.length)];
         state.currentMatchLowHp = { 0: false, 1: false };
+        state.matchStats = _freshMatchStats();
         state.match = Combat.createMatch(state.picks[1], state.picks[2]);
         state.screen = "battle";
         render();
@@ -421,6 +448,7 @@ var Main = (function () {
     }
     // Both human and both picked → begin
     state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
     state.screen = "battle";
     render();
@@ -443,6 +471,7 @@ var Main = (function () {
     const opponent = state.arcade.remaining[0];
     const hardMode = state.difficulty === "hard";
     state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
     const opts = { hardMode, hardOpponentSlot: 1 };
     if (isBossFight) opts.bossSlot = 1;
     state.match = Combat.createMatch(
@@ -480,6 +509,7 @@ var Main = (function () {
           }
           state.trivia = {
             heroId: activeHeroId,
+            triviaIndex: result.index,
             question: result.trivia.question,
             options: result.trivia.options,
             correctIndex: result.trivia.correctIndex,
@@ -526,6 +556,42 @@ var Main = (function () {
 
     // Compute HP deltas BEFORE re-rendering (so we use the pre/post snapshot)
     const deltas = state.match.players.map((p, i) => hpBefore[i] - p.hp);
+
+    // ── Match stats tracking ─────────────────────────────────────────────────
+    if (state.matchStats) {
+      // Derive move name from match log (last entry) or fall back to move type
+      const activeHero = Heroes.byId(activeHeroId);
+      let moveName;
+      if (move === "attack") {
+        moveName = (activeHero && activeHero.moves.attack.name) || "Attack";
+      } else if (move === "special" || isUnleash) {
+        moveName = (activeHero && activeHero.moves.special.name) || "Special";
+      } else if (move === "defend") {
+        moveName = (activeHero && activeHero.moves.defend.name) || "Defend";
+      } else {
+        moveName = (activeHero && activeHero.moves.special.name) || "Charge";
+      }
+
+      // Biggest hit: largest HP swing on either slot, attributed to active player
+      deltas.forEach((delta, pIdx) => {
+        if (delta > 0) {
+          const targetHero = Heroes.byId(state.match.players[pIdx].heroId);
+          if (!state.matchStats.biggestHit || delta > state.matchStats.biggestHit.damage) {
+            state.matchStats.biggestHit = {
+              damage: delta,
+              attackerName: (activeHero && activeHero.name) || activeHeroId,
+              targetName: (targetHero && targetHero.name) || state.match.players[pIdx].heroId,
+              moveName
+            };
+          }
+        }
+      });
+
+      // Specials used: count when move === "special" OR it's the unleash of Einstein's charge
+      if (move === "special" || isUnleash) {
+        state.matchStats.specialsUsed[idx] = (state.matchStats.specialsUsed[idx] || 0) + 1;
+      }
+    }
 
     // CRITICAL: render BEFORE applying animations. render() does
     // root.innerHTML = ... which destroys every existing DOM node, so any
@@ -686,6 +752,7 @@ var Main = (function () {
 
   function rematch() {
     state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
     state.screen = "battle";
     render();
