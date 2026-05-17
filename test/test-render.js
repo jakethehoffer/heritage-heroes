@@ -26,3 +26,21 @@ test("callout returns markup containing the given text", () => {
   const out = Render.callout("Moses uses Part the Sea!");
   assert.match(out, /Part the Sea/);
 });
+
+const HERO_IDS = ["moses","david","esther","judah","rambam","golda","einstein"];
+
+test("renderHero returns non-empty SVG for each hero in both poses and facings", () => {
+  for (const id of HERO_IDS) {
+    for (const pose of ["idle", "attack"]) {
+      for (const facing of ["left", "right"]) {
+        const svg = Render.renderHero({ heroId: id, pose, facing });
+        assert.match(svg, /<svg/, `${id} ${pose} ${facing} missing <svg`);
+        assert.ok(svg.length > 100, `${id} svg too short`);
+      }
+    }
+  }
+});
+
+test("renderHero throws on unknown hero id", () => {
+  assert.throws(() => Render.renderHero({ heroId: "nobody", pose: "idle", facing: "left" }));
+});
