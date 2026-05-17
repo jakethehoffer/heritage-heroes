@@ -232,3 +232,68 @@ test("Rambam's Healing Touch: caps at maxHp", () => {
   Combat.applyMove(s, "special");
   assert.strictEqual(s.players[0].hp, 85);
 });
+
+// append
+
+// Golda
+test("Golda's Resolve: doubles damage on her next Basic Attack only", () => {
+  const s = Combat.createMatch("golda", "moses");
+  Combat.applyMove(s, "special"); // Golda Resolve
+  Combat.applyMove(s, "defend");  // Moses defends — irrelevant
+  // Golda attacks: 10 doubled = 20. Moses no defend. Hits for 20.
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, 100 - 20);
+  assert.strictEqual(s.players[0].statuses.doubleNextAttack, undefined);
+});
+
+test("Golda's Resolve: buff persists across defends until attack consumes it", () => {
+  const s = Combat.createMatch("golda", "moses");
+  Combat.applyMove(s, "special"); // Golda Resolve set
+  Combat.applyMove(s, "attack");  // Moses
+  Combat.applyMove(s, "defend");  // Golda defends — should NOT consume buff
+  assert.strictEqual(s.players[0].statuses.doubleNextAttack, true);
+});
+
+test("Golda's Diplomatic Shield: counters for 5 when struck", () => {
+  const s = Combat.createMatch("moses", "golda"); // Moses goes first
+  Combat.applyMove(s, "defend"); // Moses defends — irrelevant for now
+  Combat.applyMove(s, "defend"); // Golda defends (Diplomatic Shield)
+  // Moses attacks Golda for 10 -> halved to 5 -> Moses takes 5 counter
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, 100 - 5);
+  assert.strictEqual(s.players[0].hp, 100 - 5);
+});
+
+// Einstein
+test("Einstein's E=mc^2: charge phase blocks normal moves and ticks down", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special"); // Einstein starts charging (charging=2)
+  assert.strictEqual(s.players[0].statuses.charging, 2);
+  // Moses turn
+  Combat.applyMove(s, "attack");
+  // Einstein's turn — must call applyMove(state, "charge") to advance charge
+  // applyMove with any other action throws while charging.
+  assert.throws(() => Combat.applyMove(s, "attack"));
+  assert.throws(() => Combat.applyMove(s, "defend"));
+  assert.throws(() => Combat.applyMove(s, "special"));
+});
+
+test("Einstein's E=mc^2: 'charge' move ticks charging and ends turn", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special");        // charging=2
+  Combat.applyMove(s, "attack");         // Moses
+  Combat.applyMove(s, "charge");         // Einstein: tick to 1
+  assert.strictEqual(s.players[0].statuses.charging, 1);
+  Combat.applyMove(s, "attack");         // Moses
+  Combat.applyMove(s, "charge");         // Einstein: tick to 0, blast for 40
+  assert.strictEqual(s.players[0].statuses.charging, undefined);
+  assert.strictEqual(s.players[1].hp, 100 - 40);
+  assert.strictEqual(s.players[0].specialCooldown, 3);
+});
+
+test("Einstein: while charging, isCharging exposes true", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  assert.strictEqual(Combat.isCharging(s, 0), false);
+  Combat.applyMove(s, "special");
+  assert.strictEqual(Combat.isCharging(s, 0), true);
+});

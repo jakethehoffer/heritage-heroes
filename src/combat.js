@@ -67,6 +67,14 @@ const Combat = (function () {
       active.hp = Math.min(active.maxHp, active.hp + 20);
       return;
     }
+    if (heroId === "golda") {
+      active.statuses.doubleNextAttack = true;
+      return;
+    }
+    if (heroId === "einstein") {
+      active.statuses.charging = 2;
+      return;
+    }
     // other heroes implemented in later tasks
   }
 
@@ -79,8 +87,31 @@ const Combat = (function () {
     const active = state.players[activeIdx];
     const hero = Heroes.byId(active.heroId);
 
+    if (active.statuses.charging) {
+      if (moveType !== "charge") {
+        throw new Error(`${hero.name} is charging and cannot use ${moveType}`);
+      }
+      active.statuses.charging -= 1;
+      if (active.statuses.charging === 0) {
+        delete active.statuses.charging;
+        dealDamage(state, activeIdx, enemyIdx, 40);
+        state.log.push(`${hero.name} unleashes ${hero.moves.special.name}!`);
+        active.specialCooldown = 3;
+      } else {
+        state.log.push(`${hero.name} is charging...`);
+      }
+      endTurn(state);
+      return;
+    }
+
     if (moveType === "attack") {
-      const dmg = hero.moves.attack.damage;
+      let dmg = hero.moves.attack.damage;
+      if (active.statuses.doubleNextAttack) {
+        dmg = dmg * 2;
+        delete active.statuses.doubleNextAttack;
+        // Resolve bypasses the opponent's defend
+        delete state.players[enemyIdx].statuses.defend;
+      }
       dealDamage(state, activeIdx, enemyIdx, dmg);
       state.log.push(`${hero.name} uses ${hero.moves.attack.name}.`);
       endTurn(state);
@@ -122,14 +153,21 @@ const Combat = (function () {
     }
 
     // 2. Defend halves
+    let counterDmg = 0;
     if (target.statuses.defend) {
       dmg = Math.floor(dmg / 2);
       delete target.statuses.defend;
-      // Golda counter handled in later task
+      if (target.heroId === "golda") counterDmg = 5;
     }
     target.hp = Math.max(0, target.hp - dmg);
     if (target.hp === 0 && state.winner === null) {
       state.winner = fromIdx;
+      return;
+    }
+    if (counterDmg > 0) {
+      const attacker = state.players[fromIdx];
+      attacker.hp = Math.max(0, attacker.hp - counterDmg);
+      if (attacker.hp === 0 && state.winner === null) state.winner = toIdx;
     }
   }
 
@@ -140,7 +178,11 @@ const Combat = (function () {
 
   function isMatchOver(state) { return state.winner !== null; }
 
-  return { createMatch, applyMove, isMatchOver };
+  function isCharging(state, playerIdx) {
+    return typeof state.players[playerIdx].statuses.charging === "number";
+  }
+
+  return { createMatch, applyMove, isMatchOver, isCharging };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;
