@@ -25,7 +25,36 @@ const Combat = (function () {
     };
   }
 
-  return { createMatch };
+  function applyMove(state, moveType) {
+    if (state.winner !== null) return;
+    const activeIdx = state.activePlayer;
+    const enemyIdx = 1 - activeIdx;
+    const active = state.players[activeIdx];
+    const enemy = state.players[enemyIdx];
+    const hero = Heroes.byId(active.heroId);
+
+    if (moveType === "attack") {
+      const dmg = hero.moves.attack.damage;
+      dealDamage(state, activeIdx, enemyIdx, dmg);
+      state.log.push(`${hero.name} uses ${hero.moves.attack.name}.`);
+      endTurn(state);
+      return;
+    }
+    throw new Error(`unknown move: ${moveType}`);
+  }
+
+  function dealDamage(state, fromIdx, toIdx, rawDmg) {
+    const target = state.players[toIdx];
+    const dmg = Math.max(0, Math.floor(rawDmg));
+    target.hp = Math.max(0, target.hp - dmg);
+  }
+
+  function endTurn(state) {
+    state.activePlayer = 1 - state.activePlayer;
+    state.turnNumber += 1;
+  }
+
+  return { createMatch, applyMove };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;

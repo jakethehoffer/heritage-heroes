@@ -29,3 +29,32 @@ test("createMatch throws on unknown hero id", () => {
   assert.throws(() => Combat.createMatch("nobody", "david"));
   assert.throws(() => Combat.createMatch("moses", "nobody"));
 });
+
+test("attack: reduces opponent HP by attack damage", () => {
+  const s = Combat.createMatch("moses", "david");
+  const startDavidHp = s.players[1].hp;
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, startDavidHp - Heroes.byId("moses").moves.attack.damage);
+});
+
+test("attack: advances turn to other player and increments turn number", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.activePlayer, 1);
+  assert.strictEqual(s.turnNumber, 2);
+});
+
+test("attack: writes an entry to the log", () => {
+  const s = Combat.createMatch("moses", "david");
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.log.length, 1);
+  assert.match(s.log[0], /Moses/);
+  assert.match(s.log[0], /Staff Strike/);
+});
+
+test("attack: HP cannot go negative", () => {
+  const s = Combat.createMatch("moses", "einstein");
+  s.players[1].hp = 5;
+  Combat.applyMove(s, "attack"); // Moses 10 dmg
+  assert.strictEqual(s.players[1].hp, 0);
+});
