@@ -155,3 +155,42 @@ test("special: becomes usable after cooldown reaches 0", () => {
   Combat.applyMove(s, "special"); // does not throw
   assert.strictEqual(s.players[0].specialCooldown, 3);
 });
+
+test("David's special: +10 bonus damage when opponent HP > 50", () => {
+  const s = Combat.createMatch("david", "moses");
+  // Moses starts at 100, >50, so 22+10 = 32
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[1].hp, 100 - 32);
+});
+
+test("David's special: no bonus when opponent HP <= 50", () => {
+  const s = Combat.createMatch("david", "moses");
+  s.players[1].hp = 50;
+  Combat.applyMove(s, "special");
+  assert.strictEqual(s.players[1].hp, 50 - 22);
+});
+
+test("Esther's Reversal: next attack against her bounces back at 1.5x", () => {
+  const s = Combat.createMatch("esther", "moses"); // Moses attack = 10
+  Combat.applyMove(s, "special"); // Esther sets reversal
+  // Moses attacks Esther for 10; reversed to Moses at 15
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[0].hp, s.players[0].maxHp, "Esther unharmed");
+  assert.strictEqual(s.players[1].hp, 100 - 15, "Moses takes 15 reflected");
+  assert.strictEqual(s.players[0].statuses.reversal, undefined, "reversal expired");
+});
+
+test("Esther's Reversal: rounds down on fractional damage", () => {
+  const s = Combat.createMatch("esther", "rambam"); // Rambam attack = 9
+  Combat.applyMove(s, "special");
+  // 9 * 1.5 = 13.5 -> 13
+  Combat.applyMove(s, "attack");
+  assert.strictEqual(s.players[1].hp, s.players[1].maxHp - 13);
+});
+
+test("Esther's Reversal: does NOT trigger on opponent's non-attack moves", () => {
+  const s = Combat.createMatch("esther", "rambam");
+  Combat.applyMove(s, "special"); // Esther reversal up
+  Combat.applyMove(s, "defend"); // Rambam defends -- reversal should stay
+  assert.strictEqual(s.players[0].statuses.reversal, true);
+});

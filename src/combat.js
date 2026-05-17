@@ -32,11 +32,23 @@ const Combat = (function () {
 
   function applySpecial(state, activeIdx, enemyIdx) {
     const active = state.players[activeIdx];
-    const hero = Heroes.byId(active.heroId);
-    // Per-hero logic added in next tasks; default: damage = hero.moves.special.damage
-    if (typeof hero.moves.special.damage === "number") {
-      dealDamage(state, activeIdx, enemyIdx, hero.moves.special.damage);
+    const enemy = state.players[enemyIdx];
+    const heroId = active.heroId;
+
+    if (heroId === "moses") {
+      dealDamage(state, activeIdx, enemyIdx, 25);
+      return;
     }
+    if (heroId === "david") {
+      const bonus = enemy.hp > 50 ? 10 : 0;
+      dealDamage(state, activeIdx, enemyIdx, 22 + bonus);
+      return;
+    }
+    if (heroId === "esther") {
+      active.statuses.reversal = true;
+      return;
+    }
+    // other heroes implemented in later tasks
   }
 
   function applyMove(state, moveType) {
@@ -77,9 +89,24 @@ const Combat = (function () {
   function dealDamage(state, fromIdx, toIdx, rawDmg) {
     const target = state.players[toIdx];
     let dmg = Math.max(0, Math.floor(rawDmg));
+
+    // 1. Esther's Reversal (if active on target) — redirect to attacker
+    if (target.statuses.reversal) {
+      delete target.statuses.reversal;
+      const bounced = Math.floor(dmg * 1.5);
+      const attacker = state.players[fromIdx];
+      attacker.hp = Math.max(0, attacker.hp - bounced);
+      if (attacker.hp === 0 && state.winner === null) {
+        state.winner = toIdx;
+      }
+      return;
+    }
+
+    // 2. Defend halves
     if (target.statuses.defend) {
       dmg = Math.floor(dmg / 2);
       delete target.statuses.defend;
+      // Golda counter handled in later task
     }
     target.hp = Math.max(0, target.hp - dmg);
     if (target.hp === 0 && state.winner === null) {
