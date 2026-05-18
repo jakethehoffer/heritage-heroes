@@ -46,7 +46,9 @@ var Main = (function () {
     dailyToday: null,       // { challenge, stats } precomputed for title screen
     // Pause support
     pendingAiTimeout: null,      // id of scheduled aiStep timeout (clearable on pause)
-    pendingMatchEndTimeout: null // id of scheduled onMatchEnd timeout (clearable on pause)
+    pendingMatchEndTimeout: null, // id of scheduled onMatchEnd timeout (clearable on pause)
+    // Stage Select (Quick Match vs AI only)
+    selectedStageId: null        // populated when player picks a stage in Quick Match vs AI
   };
 
   function _freshMatchStats() {
@@ -428,16 +430,16 @@ var Main = (function () {
     else if (state.screen === "tournament-bracket") body = Screens.renderTournamentBracket(state);
     else if (state.screen === "tournament-result")  body = Screens.renderTournamentResult(state);
     else if (state.screen === "trophy-room")        body = Screens.renderTrophyRoom(state);
+    else if (state.screen === "stage-select")       body = Screens.renderStageSelect(state);
 
     // ── Ambient music routing ────────────────────────────────────────────────
     // Play stage music during battle; stop it on any other screen.
-    // The stage is fixed for the match at players[1]'s hero (P2 is the initial defender).
+    // The locked stageId on the match object is the single source of truth.
     // playMusic is no-op if already on the same stage, so it's safe to call every render.
     if (state.screen === "battle" && state.match) {
-      const defenderHeroId = state.match.players[1].heroId;
-      const defenderHero = (typeof Heroes !== "undefined") && Heroes.byId(defenderHeroId);
-      if (defenderHero && defenderHero.stageId) {
-        Sfx.playMusic(defenderHero.stageId);
+      const lockedStageId = state.match.stageId;
+      if (lockedStageId) {
+        Sfx.playMusic(lockedStageId);
       }
     } else {
       Sfx.stopMusic();
@@ -530,6 +532,7 @@ var Main = (function () {
       case "start-arcade": startArcade(); return;
       case "set-opponent": setOpponent(target.dataset.opp); return;
       case "pick-hero":    pickHero(target.dataset.hero); return;
+      case "pick-stage":   pickStage(target.dataset.stage); return;
       case "player-move":  playerMove(target.dataset.move); return;
       case "ai-step":      aiStep(); return;
       case "rematch":      rematch(); return;
@@ -1105,10 +1108,18 @@ var Main = (function () {
     }
 
     if (state.selecting === 1) {
-      // If P2 is AI, auto-pick a random hero (not P1's choice) and start
+      // If P2 is AI, auto-pick a random hero (not P1's choice)
       if (state.controllers[1] === "ai") {
         const choices = HERO_ORDER.filter(id => id !== heroId);
         state.picks[2] = choices[Math.floor(Math.random() * choices.length)];
+        // Quick Match vs AI: route to Stage Select before starting the match
+        if (state.mode === "quick") {
+          state.selectedStageId = null;
+          state.screen = "stage-select";
+          render();
+          return;
+        }
+        // Other AI modes (Arcade, Endless, etc.) start the match immediately
         state.currentMatchLowHp = { 0: false, 1: false };
         state.matchStats = _freshMatchStats();
         state.match = Combat.createMatch(state.picks[1], state.picks[2]);
@@ -1124,6 +1135,24 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+    state.screen = "battle";
+    render();
+  }
+
+  function pickStage(stageId) {
+    state.selectedStageId = stageId;
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
+    state.bossIntroShown = true;
+    state.match = Combat.createMatch(
+      state.picks[1],
+      state.picks[2],
+      { stageId: state.selectedStageId }
+    );
+    // Switch music to player's chosen stage
+    if (typeof Sfx !== "undefined" && Sfx.playMusic) {
+      Sfx.playMusic(state.selectedStageId);
+    }
     state.screen = "battle";
     render();
   }

@@ -25,12 +25,14 @@ var Combat = (function () {
         bp.statuses.defend = true;
       }
     }
+    const stageId = (options && options.stageId) || b.stageId;
     return {
       players,
       activePlayer: 0,
       turnNumber: 1,
       winner: null,
-      log: []
+      log: [],
+      stageId
     };
   }
 

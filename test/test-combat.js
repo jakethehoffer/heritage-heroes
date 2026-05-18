@@ -684,3 +684,14 @@ test("Boss Esther twist: Reversal reflects at 2.0x instead of 1.5x", () => {
   assert.strictEqual(s.players[0].hp, s.players[0].maxHp, "Esther unharmed");
   assert.strictEqual(s.players[1].hp, 100 - 20, "Moses takes 20 reflected (2x)");
 });
+
+test("createMatch defaults stageId to slot 1 hero's stageId", () => {
+  const s = Combat.createMatch("moses", "david");
+  const davidHero = Heroes.byId("david");
+  assert.strictEqual(s.stageId, davidHero.stageId);
+});
+
+test("createMatch respects stageId option override", () => {
+  const s = Combat.createMatch("moses", "david", { stageId: "princeton" });
+  assert.strictEqual(s.stageId, "princeton");
+});

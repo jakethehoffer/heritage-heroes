@@ -270,7 +270,7 @@ var Screens = (function () {
     const p1 = match.players[1];
     const h0 = Heroes.byId(p0.heroId);
     const h1 = Heroes.byId(p1.heroId);
-    const defenderId = match.activePlayer === 0 ? h1.stageId : h0.stageId;
+    const stageId = match.stageId || h1.stageId;  // fallback for any legacy state
     const active = match.players[match.activePlayer];
     const activeHero = match.activePlayer === 0 ? h0 : h1;
 
@@ -324,7 +324,7 @@ var Screens = (function () {
     <div class="hp-cell">${Render.hpBar({ hp: p1.hp, max: p1.maxHp, label: label1, side: "right", rawLabel: true })}</div>
   </div>
   <div class="arena">
-    <div class="stage">${Stages.byId(defenderId)}</div>
+    <div class="stage">${Stages.byId(stageId)}</div>
     <div class="${fighter0Class}">
       ${renderFighterBadges(0, match)}
       ${Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" })}
@@ -3665,6 +3665,49 @@ ${recordsHtml || ""}
 </section>`;
   }
 
+  const STAGE_NAMES = {
+    redsea:    "Red Sea",
+    elah:      "Valley of Elah",
+    throne:    "Persian Throne",
+    temple:    "Temple",
+    cordoba:   "Cordoba Study",
+    knesset:   "Knesset",
+    princeton: "Princeton Study"
+  };
+  function stageNameOf(stageId) { return STAGE_NAMES[stageId] || stageId; }
+
+  const STAGE_SELECT_HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
+
+  function renderStageSelect(state) {
+    const p1Hero = Heroes.byId(state.picks[1]);
+    const p2Hero = Heroes.byId(state.picks[2]);
+    const p1Name = p1Hero ? Render.escapeHtml(p1Hero.name) : state.picks[1];
+    const p2Name = p2Hero ? Render.escapeHtml(p2Hero.name) : state.picks[2];
+    const suggestedStageId = p2Hero ? p2Hero.stageId : null;
+
+    const cards = STAGE_SELECT_HERO_ORDER.map(heroId => {
+      const hero = Heroes.byId(heroId);
+      if (!hero) return "";
+      const isDefault = suggestedStageId && hero.stageId === suggestedStageId && heroId === state.picks[2];
+      return `
+        <button class="stage-card${isDefault ? " recommended" : ""}" data-action="pick-stage" data-stage="${Render.escapeHtml(hero.stageId)}">
+          ${isDefault ? '<span class="stage-recommended-badge">Suggested</span>' : ""}
+          <div class="stage-thumbnail">${Stages.byId(hero.stageId)}</div>
+          <p class="stage-name">${Render.escapeHtml(hero.name)}&rsquo;s ${Render.escapeHtml(stageNameOf(hero.stageId))}</p>
+        </button>`;
+    }).join("");
+
+    return `
+<section class="screen screen-stage-select">
+  <h2>Pick your battlefield</h2>
+  <p class="subtitle">${p1Name} vs ${p2Name}</p>
+  <div class="stage-grid">
+    ${cards}
+  </div>
+  <button data-action="goto-mode" class="back">&larr; Back</button>
+</section>`;
+  }
+
   return {
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
@@ -3679,6 +3722,7 @@ ${recordsHtml || ""}
     renderTimeline,
     renderTournamentSetup, renderTournamentBracket, renderTournamentResult,
     renderTrophyRoom,
+    renderStageSelect,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,
