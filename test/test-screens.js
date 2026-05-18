@@ -877,3 +877,115 @@ test("renderSettings: defaults to 'default' selected when theme is missing", () 
   assert.doesNotMatch(block[0], /data-theme="high-contrast"[^>]*class="settings-radio selected"/);
 });
 
+// ── Daily Quests panel on title ───────────────────────────────────────────
+
+test("renderTitle: includes daily-quests-panel when state.save.dailyQuests has quests", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 2, progress: 1, completed: false, label: "Win 2 matches today" },
+    { id: "q2", type: "triviaCorrect", target: 5, progress: 0, completed: false, label: "Answer 5 trivia questions correctly today" }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /class="daily-quests-panel/);
+  assert.match(html, /Daily Quests/);
+  assert.match(html, /Win 2 matches today/);
+  assert.match(html, /Answer 5 trivia questions correctly today/);
+});
+
+test("renderTitle: daily-quests-panel shows progress and completed states correctly", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 2, progress: 2, completed: true, label: "Win 2 matches today", completedAt: Date.now() },
+    { id: "q2", type: "triviaCorrect", target: 10, progress: 3, completed: false, label: "Answer 10 trivia questions correctly today" }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  // Header shows partial completion.
+  assert.match(html, /1 of 2 done/);
+  // Per-quest progress strings render.
+  assert.match(html, /2 \/ 2/);
+  assert.match(html, /3 \/ 10/);
+  // Completed quest has the "completed" class and a checkmark.
+  assert.match(html, /dq-quest completed/);
+  assert.match(html, /dq-check/);
+});
+
+test("renderTitle: daily-quests-panel does NOT render when no quests (empty array)", () => {
+  const save = freshSave();
+  save.dailyQuests.quests = [];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /class="daily-quests-panel/);
+  assert.doesNotMatch(html, /Daily Quests/);
+});
+
+test("renderTitle: daily-quests-panel does NOT render when dailyQuests is null", () => {
+  const save = freshSave();
+  save.dailyQuests = null;
+  // Should not throw on a missing dailyQuests bucket either.
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /class="daily-quests-panel/);
+});
+
+test("renderTitle: daily-quests-panel includes all-complete styling when completedAll is true", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.completedAll = true;
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 1, progress: 1, completed: true, label: "Win a match today", completedAt: Date.now() },
+    { id: "q2", type: "triviaCorrect", target: 1, progress: 1, completed: true, label: "Answer a trivia question correctly today", completedAt: Date.now() }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /class="daily-quests-panel all-complete/);
+  assert.match(html, /All daily quests complete/);
+});
+
+test("renderTitle: daily-quests-panel renders streak line when currentStreak > 0", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.currentStreak = 3;
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win a match today" },
+    { id: "q2", type: "tryMode", target: 1, progress: 0, completed: false, modeId: "endless", label: "Play an Endless Survival match today" }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /class="dq-streak"/);
+  assert.match(html, /3-day quest streak/);
+});
+
+test("renderTitle: daily-quests-panel hides streak line when currentStreak is 0", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.currentStreak = 0;
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win a match today" }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /dq-streak/);
+});
+
+test("renderTitle: daily-quests-panel escapes quest labels to prevent HTML injection", () => {
+  const save = freshSave();
+  save.dailyQuests.date = "2026-05-17";
+  save.dailyQuests.quests = [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "<script>alert(1)</script>" }
+  ];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+  assert.match(html, /&lt;script&gt;/);
+});
+
+test("ACHIEVEMENT_LIST contains the 3 new quest achievement entries", () => {
+  const keys = Screens.ACHIEVEMENT_LIST.map(function (a) { return a.key; });
+  assert.ok(keys.includes("questFirst"), "questFirst should be in ACHIEVEMENT_LIST");
+  assert.ok(keys.includes("questTriple"), "questTriple should be in ACHIEVEMENT_LIST");
+  assert.ok(keys.includes("questStreak7"), "questStreak7 should be in ACHIEVEMENT_LIST");
+  // Sanity: titles and descriptions are present.
+  const first = Screens.ACHIEVEMENT_LIST.find(function (a) { return a.key === "questFirst"; });
+  assert.strictEqual(first.title, "Goal Setter");
+  const triple = Screens.ACHIEVEMENT_LIST.find(function (a) { return a.key === "questTriple"; });
+  assert.strictEqual(triple.title, "Daily Sweep");
+  const streak7 = Screens.ACHIEVEMENT_LIST.find(function (a) { return a.key === "questStreak7"; });
+  assert.strictEqual(streak7.title, "Quest Champion");
+});
+

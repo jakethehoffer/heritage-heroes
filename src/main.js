@@ -361,7 +361,40 @@ var Main = (function () {
     tryUnlock("quizStreak10", maxQuizStreak >= 10);
     tryUnlock("quizStreak20", maxQuizStreak >= 20);
 
+    // Daily Quest achievements. questTriple should latch on the first day
+    // the player clears both quests; once unlocked it stays unlocked even
+    // when tomorrow's set resets completedAll to false.
+    const dq = save.dailyQuests || {};
+    const lifetime = dq.lifetimeCompleted || 0;
+    tryUnlock("questFirst",   lifetime >= 1);
+    tryUnlock("questTriple",  !!dq.completedAll);
+    tryUnlock("questStreak7", (dq.bestStreak || 0) >= 7);
+
     return newKeys;
+  }
+
+  // ── Daily Quests helpers ──────────────────────────────────────────────────
+  // Apply a quest-event to storage and fire toasts/state refresh for any
+  // newly-completed quests. Caller passes the resolved event payload; we own
+  // the side effects (save reload, achievement check, toast queueing).
+  function _applyQuestEvent(eventType, eventData) {
+    const store = getStore();
+    if (!store) return;
+    const result = Storage.recordQuestProgress(store, eventType, eventData);
+    if (result && result.newlyCompleted && result.newlyCompleted.length > 0) {
+      state.save = Storage.load(store);
+      for (const quest of result.newlyCompleted) {
+        if (typeof Screens !== "undefined" && Screens.showToast) {
+          Screens.showToast("Quest complete: " + quest.label);
+        }
+      }
+      // Quest completions may unlock the questFirst/questTriple/questStreak7 achievements.
+      const newAchKeys = checkAchievements();
+      if (newAchKeys.length) applyAchievements(newAchKeys);
+    } else if (result && result.allJustCompleted) {
+      // Edge case: should be covered above, but be defensive.
+      state.save = Storage.load(store);
+    }
   }
 
   // Unlock achievements, save, and fire toasts.
@@ -413,6 +446,11 @@ var Main = (function () {
 
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
+    state.save = Storage.load(store);
+    // Refresh today's daily quests (generates a fresh set on day rollover, or
+    // is a no-op if today's set is already current). Safe to call without a
+    // store; the helper will return defaults in that case.
+    Storage.refreshDailyQuests(store, todayIso());
     state.save = Storage.load(store);
     Sfx.setMusicMuted(!state.save.music);
     Sfx.setSfxMuted(!state.save.sfx);
@@ -480,6 +518,13 @@ var Main = (function () {
         challenge: getDailyChallenge(todayIso()),
         stats: Storage.dailyStats(getStore())
       };
+      // Refresh daily quests on every title visit so an open tab that crosses
+      // midnight picks up the new day's set. No-op when today's set is current.
+      const titleStore = getStore();
+      if (titleStore) {
+        Storage.refreshDailyQuests(titleStore, todayIso());
+        state.save = Storage.load(titleStore);
+      }
     }
 
     let body;
@@ -829,6 +874,8 @@ var Main = (function () {
           Storage.recordTrivia(tStore, state.trivia.heroId, isCorrect);
           state.save = Storage.load(tStore);
         }
+        // Daily quest progress for trivia answers (any mode).
+        _applyQuestEvent("triviaAnswer", { wasCorrect: isCorrect });
         if (isCorrect) {
           state.triviaStreak += 1;
           Sfx.play("triviaCorrect");
@@ -901,6 +948,13 @@ var Main = (function () {
         const chosenIdx = parseInt(target.dataset.index, 10);
         state.study.lastChoice = chosenIdx;
         state.study.answers.push(chosenIdx);
+        // Daily quest progress for study mode trivia answers.
+        {
+          const sHero = Heroes.byId(state.study.heroId);
+          const qIdx = state.study.questionOrder[state.study.currentIndex];
+          const isCorrect = !!(sHero && sHero.trivia[qIdx] && chosenIdx === sHero.trivia[qIdx].correctIndex);
+          _applyQuestEvent("triviaAnswer", { wasCorrect: isCorrect });
+        }
         render();
         return;
       }
@@ -1261,6 +1315,8 @@ var Main = (function () {
       Storage.recordTrivia(store, cur.heroId, isCorrect);
       state.save = Storage.load(store);
     }
+    // Daily quest progress for trivia answers (Heritage Quiz).
+    _applyQuestEvent("triviaAnswer", { wasCorrect: isCorrect });
 
     if (isCorrect) {
       state.quiz.streak += 1;
@@ -1935,6 +1991,13 @@ var Main = (function () {
         const dailyAchKeys = checkAchievements();
         applyAchievements(dailyAchKeys);
       }
+      // Daily quest progress (player is always slot 0 in daily mode).
+      _applyQuestEvent("matchEnd", {
+        playerWon,
+        heroId: state.match.players[0].heroId,
+        turnsTaken: (state.match.turnNumber || 1) - 1,
+        mode: "daily"
+      });
       // Record matchup
       if (store) {
         const playerHero  = state.match.players[0].heroId;
@@ -1967,6 +2030,14 @@ var Main = (function () {
         if (endlessHeroId) Storage.recordLastSession(store, "endless", endlessHeroId);
         state.save = Storage.load(store);
       }
+
+      // Daily quest progress (player is always slot 0 in endless mode).
+      _applyQuestEvent("matchEnd", {
+        playerWon,
+        heroId: state.match.players[0].heroId,
+        turnsTaken: (state.match.turnNumber || 1) - 1,
+        mode: "endless"
+      });
 
       // Record matchup (directional: slot 0 is player)
       if (store) {
@@ -2053,6 +2124,22 @@ var Main = (function () {
         if (playerHeroId) Storage.recordLastSession(store, state.mode, playerHeroId);
       }
       state.save = Storage.load(store);
+    }
+
+    // Daily quest progress for default match-end paths (quick / arcade /
+    // single-player flows). We resolve "the player" via the human slot so
+    // arcade's flippable slot order is handled correctly. Vs-human matches
+    // count toward winMatches/winAsHero/quickFinish for whichever side won.
+    {
+      const humanSlotForQuest = state.controllers.indexOf("human");
+      const playerSlot = humanSlotForQuest !== -1 ? humanSlotForQuest : 0;
+      const playerWonForQuest = state.match.winner === playerSlot;
+      _applyQuestEvent("matchEnd", {
+        playerWon: playerWonForQuest,
+        heroId: state.match.players[playerSlot].heroId,
+        turnsTaken: (state.match.turnNumber || 1) - 1,
+        mode: state.mode
+      });
     }
 
     // Record matchup (directional: slot 0 is always "player")

@@ -244,6 +244,94 @@ button.secondary { background: var(--cream); color: var(--ink); }
   .title-funfact-attribution { font-size: 11px; }
 }
 
+/* Daily Quests panel — today's flexible goals tile, sits below the Did You
+   Know card and above the Arcade/stat banners. Uses a faded terracotta
+   border by default and shifts to a soft olive wash when both quests for
+   the day are complete (a small "you did it" treatment). */
+.daily-quests-panel {
+  max-width: 480px;
+  margin: 14px auto 0;
+  padding: 12px 18px;
+  background: var(--cream);
+  border: 2px solid rgba(193, 70, 45, 0.35);  /* faded terracotta */
+  border-radius: 12px;
+  font-family: var(--font-body);
+}
+.daily-quests-panel.all-complete {
+  border-color: var(--olive);
+  background: linear-gradient(180deg, var(--cream) 0%, rgba(107, 142, 35, 0.08) 100%);
+}
+.dq-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.dq-quest {
+  padding: 6px 0;
+  border-top: 1px solid rgba(26, 42, 79, 0.08);
+}
+.dq-quest:first-of-type { border-top: none; }
+.dq-quest.completed { opacity: 0.7; }
+.dq-quest-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.dq-quest-label { flex: 1; }
+.dq-quest-progress {
+  font-weight: 600;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+.dq-quest.completed .dq-quest-progress { color: var(--olive); }
+.dq-check { color: var(--olive); font-weight: 700; }
+.dq-quest-bar {
+  height: 4px;
+  background: rgba(26, 42, 79, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.dq-quest-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--terracotta));
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+.dq-quest.completed .dq-quest-fill { background: var(--olive); }
+.dq-streak {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--terracotta);
+  text-align: right;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .daily-quests-panel { max-width: 95%; padding: 10px 14px; }
+  .dq-header { font-size: 13px; }
+  .dq-quest-header { font-size: 12px; }
+}
+
+/* High-contrast theme overrides — mirrors the title-funfact treatment so the
+   panel stays legible on the black background. */
+body.theme-high-contrast .daily-quests-panel {
+  border-color: rgba(255, 122, 89, 0.55);  /* faded bright orange */
+}
+body.theme-high-contrast .daily-quests-panel.all-complete {
+  border-color: rgba(110, 224, 110, 0.7);
+  background: linear-gradient(180deg, var(--cream) 0%, rgba(110, 224, 110, 0.12) 100%);
+}
+body.theme-high-contrast .dq-quest {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+body.theme-high-contrast .dq-quest-bar {
+  background: rgba(108, 180, 255, 0.2);
+}
+
 /* Quick Play — tertiary treatment: inviting "shortcut" button between BEGIN
    and the secondary stack. Cream base like .secondary, but with a bold
    gold left-border accent and an icon+sub-label layout so it reads as a

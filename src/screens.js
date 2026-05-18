@@ -158,6 +158,47 @@ var Screens = (function () {
   </button>`;
     }
 
+    // Daily Quests panel — shows today's 2 quests, their progress bars, and
+    // the player's current streak. Lives between the Did You Know card and
+    // the existing stat banners. Hidden when no quests are generated yet
+    // (e.g. tests/headless paths where Storage.refreshDailyQuests never ran).
+    const dq = state.save && state.save.dailyQuests;
+    let dailyQuestsPanel = "";
+    if (dq && Array.isArray(dq.quests) && dq.quests.length > 0) {
+      const allComplete = !!dq.completedAll;
+      const completedCount = dq.quests.filter(function (q) { return q.completed; }).length;
+      const totalCount = dq.quests.length;
+      const headerText = allComplete
+        ? `&#x2728; All daily quests complete!`
+        : `&#x1F4DC; Daily Quests &mdash; ${completedCount} of ${totalCount} done`;
+
+      const questItems = dq.quests.map(function (q) {
+        const target = q.target > 0 ? q.target : 1;
+        const pct = Math.min(100, Math.round((q.progress / target) * 100));
+        const checkmark = q.completed ? `<span class="dq-check">&#x2713;</span>` : "";
+        return `
+    <div class="dq-quest ${q.completed ? 'completed' : ''}">
+      <div class="dq-quest-header">
+        ${checkmark}
+        <span class="dq-quest-label">${Render.escapeHtml(q.label || "")}</span>
+        <span class="dq-quest-progress">${q.progress} / ${q.target}</span>
+      </div>
+      <div class="dq-quest-bar"><div class="dq-quest-fill" style="width:${pct}%"></div></div>
+    </div>`;
+      }).join("");
+
+      const streakLine = (dq.currentStreak && dq.currentStreak > 0)
+        ? `<div class="dq-streak">&#x1F525; ${dq.currentStreak}-day quest streak</div>`
+        : "";
+
+      dailyQuestsPanel = `
+<div class="daily-quests-panel ${allComplete ? 'all-complete' : ''}">
+  <div class="dq-header">${headerText}</div>
+  ${questItems}
+  ${streakLine}
+</div>`;
+    }
+
     // "Did You Know?" rotating fact card — surfaces one of the 140 hand-crafted
     // trivia explanations on every visit to the title screen. Click opens that
     // hero's profile via the existing view-profile action handler. A fresh fact
@@ -203,6 +244,7 @@ var Screens = (function () {
   </div>
   ${achievementProgress}
   ${factCard}
+  ${dailyQuestsPanel}
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
   ${endlessStreakLine}
@@ -3029,7 +3071,10 @@ ${recordsHtml || ""}
     { key: "tournamentLegend", title: "Tournament Legend",      description: "Win 20 Tournaments",                                icon: "👑", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 20 }) },
     { key: "quizStreak5",      title: "Heritage Spark",         description: "Got 5 quiz questions correct in a row",             icon: "✨", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 5 }) },
     { key: "quizStreak10",     title: "Heritage Flame",         description: "Got 10 quiz questions correct in a row",            icon: "🔥", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 10 }) },
-    { key: "quizStreak20",     title: "Heritage Beacon",        description: "Got 20 quiz questions correct in a row",            icon: "🌟", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 20 }) }
+    { key: "quizStreak20",     title: "Heritage Beacon",        description: "Got 20 quiz questions correct in a row",            icon: "🌟", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 20 }) },
+    { key: "questFirst",       title: "Goal Setter",            description: "Complete your first daily quest",                   icon: "📜", category: "mode",    progress: (save) => ({ current: (save.dailyQuests && save.dailyQuests.lifetimeCompleted) || 0, target: 1 }) },
+    { key: "questTriple",      title: "Daily Sweep",            description: "Complete BOTH daily quests in the same day",        icon: "✨", category: "mode",    progress: null },
+    { key: "questStreak7",     title: "Quest Champion",         description: "Complete BOTH daily quests for 7 days in a row",    icon: "🏅", category: "streak",  progress: (save) => ({ current: (save.dailyQuests && Math.max(save.dailyQuests.currentStreak || 0, save.dailyQuests.bestStreak || 0)) || 0, target: 7 }) }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────

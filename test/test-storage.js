@@ -1304,3 +1304,374 @@ test("recordLastSession overwrites the previous session", () => {
   // The new timestamp must be >= the first (Date.now is monotonic-ish).
   assert.ok(data.lastSession.timestamp >= firstTs);
 });
+
+// ── Daily Quests ──────────────────────────────────────────────────────────
+
+test("dailyQuests defaults to the expected shape", () => {
+  const data = Storage.defaults();
+  assert.ok(data.dailyQuests, "dailyQuests should exist");
+  assert.strictEqual(data.dailyQuests.date, null);
+  assert.deepStrictEqual(data.dailyQuests.quests, []);
+  assert.strictEqual(data.dailyQuests.completedAll, false);
+  assert.deepStrictEqual(data.dailyQuests.completedDates, []);
+  assert.strictEqual(data.dailyQuests.currentStreak, 0);
+  assert.strictEqual(data.dailyQuests.bestStreak, 0);
+  assert.strictEqual(data.dailyQuests.lifetimeCompleted, 0);
+});
+
+test("generateDailyQuests is deterministic for the same date", () => {
+  const a = Storage.generateDailyQuests("2026-05-17");
+  const b = Storage.generateDailyQuests("2026-05-17");
+  assert.deepStrictEqual(a, b);
+});
+
+test("generateDailyQuests returns different quests for different dates", () => {
+  // Across a sample of 30 consecutive days, at least 5 unique
+  // (type1,type2) tuples should appear — proves the seed actually varies.
+  const seen = new Set();
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(Date.UTC(2026, 0, 1));
+    d.setUTCDate(d.getUTCDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const quests = Storage.generateDailyQuests(iso);
+    const key = quests.map(function (q) { return q.type; }).sort().join("|");
+    seen.add(key);
+  }
+  assert.ok(seen.size >= 5, "expected at least 5 distinct quest-type pairings across 30 days, got " + seen.size);
+});
+
+test("generateDailyQuests always returns exactly 2 quests with valid types", () => {
+  const validTypes = new Set(["winMatches", "winAsHero", "triviaCorrect", "quickFinish", "tryMode"]);
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(Date.UTC(2026, 0, 1));
+    d.setUTCDate(d.getUTCDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const quests = Storage.generateDailyQuests(iso);
+    assert.strictEqual(quests.length, 2, "day " + iso + " did not produce 2 quests");
+    for (const q of quests) {
+      assert.ok(validTypes.has(q.type), "invalid type " + q.type);
+      assert.ok(Number.isInteger(q.target) && q.target >= 1);
+      assert.strictEqual(q.progress, 0);
+      assert.strictEqual(q.completed, false);
+      assert.ok(typeof q.label === "string" && q.label.length > 0);
+      assert.ok(typeof q.id === "string" && q.id.length > 0);
+    }
+    // No duplicate types per day.
+    assert.notStrictEqual(quests[0].type, quests[1].type, "duplicate quest types on " + iso);
+  }
+});
+
+test("generateDailyQuests rejects malformed date input", () => {
+  assert.deepStrictEqual(Storage.generateDailyQuests("bad"), []);
+  assert.deepStrictEqual(Storage.generateDailyQuests(null), []);
+  assert.deepStrictEqual(Storage.generateDailyQuests(undefined), []);
+});
+
+// Helper: seed the store with a known set of quests so we can exercise
+// recordQuestProgress deterministically (independent of which random quests
+// the date happens to roll).
+function seedQuests(store, dateIso, quests) {
+  const data = Storage.load(store);
+  data.dailyQuests.date = dateIso;
+  data.dailyQuests.quests = quests;
+  data.dailyQuests.completedAll = false;
+  Storage.save(store, data);
+}
+
+test("recordQuestProgress matchEnd increments winMatches quest progress", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winMatches", target: 2, progress: 0, completed: false, label: "Win 2 matches today" }
+  ]);
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 15, mode: "quick" });
+  let data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 1);
+  assert.strictEqual(data.dailyQuests.quests[0].completed, false);
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "david", turnsTaken: 8, mode: "endless" });
+  data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 2);
+  assert.strictEqual(data.dailyQuests.quests[0].completed, true);
+});
+
+test("recordQuestProgress matchEnd does NOT count losses for winMatches", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win 1 match today" }
+  ]);
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: false, heroId: "moses", turnsTaken: 12, mode: "quick" });
+  const data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 0);
+});
+
+test("recordQuestProgress matchEnd with matching hero increments winAsHero", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winAsHero", target: 1, progress: 0, completed: false, heroId: "esther", label: "Win as Esther" }
+  ]);
+  // Wrong hero — no progress.
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 9, mode: "quick" });
+  let data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 0);
+  // Correct hero, win — completes.
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "esther", turnsTaken: 14, mode: "quick" });
+  data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 1);
+  assert.strictEqual(data.dailyQuests.quests[0].completed, true);
+});
+
+test("recordQuestProgress matchEnd with too many turns does NOT count for quickFinish", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "quickFinish", target: 1, progress: 0, completed: false, turnsMax: 10, label: "Win in 10 turns or fewer" }
+  ]);
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 15, mode: "quick" });
+  let data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 0, "15 turns should not count");
+  // Boundary: exactly 10 turns counts.
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 10, mode: "quick" });
+  data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 1);
+  assert.strictEqual(data.dailyQuests.quests[0].completed, true);
+});
+
+test("recordQuestProgress triviaAnswer wasCorrect increments triviaCorrect", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "triviaCorrect", target: 3, progress: 0, completed: false, label: "Answer 3 correctly" }
+  ]);
+  Storage.recordQuestProgress(s, "triviaAnswer", { wasCorrect: true });
+  Storage.recordQuestProgress(s, "triviaAnswer", { wasCorrect: false });  // wrong — no count
+  Storage.recordQuestProgress(s, "triviaAnswer", { wasCorrect: true });
+  let data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].progress, 2);
+  Storage.recordQuestProgress(s, "triviaAnswer", { wasCorrect: true });
+  data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests[0].completed, true);
+});
+
+test("recordQuestProgress modeStart counts tryMode and matchEnd in matching mode also counts", () => {
+  // tryMode quests should accept either a modeStart event or a matchEnd
+  // event whose mode matches.
+  const s1 = fakeStore();
+  seedQuests(s1, "2026-05-17", [
+    { id: "q1", type: "tryMode", target: 1, progress: 0, completed: false, modeId: "endless", label: "Play Endless" }
+  ]);
+  Storage.recordQuestProgress(s1, "modeStart", { mode: "endless" });
+  assert.strictEqual(Storage.load(s1).dailyQuests.quests[0].completed, true);
+
+  const s2 = fakeStore();
+  seedQuests(s2, "2026-05-17", [
+    { id: "q1", type: "tryMode", target: 1, progress: 0, completed: false, modeId: "endless", label: "Play Endless" }
+  ]);
+  Storage.recordQuestProgress(s2, "matchEnd", { playerWon: false, heroId: "moses", turnsTaken: 5, mode: "endless" });
+  assert.strictEqual(Storage.load(s2).dailyQuests.quests[0].completed, true);
+
+  // Wrong mode does NOT count.
+  const s3 = fakeStore();
+  seedQuests(s3, "2026-05-17", [
+    { id: "q1", type: "tryMode", target: 1, progress: 0, completed: false, modeId: "endless", label: "Play Endless" }
+  ]);
+  Storage.recordQuestProgress(s3, "modeStart", { mode: "quick" });
+  assert.strictEqual(Storage.load(s3).dailyQuests.quests[0].completed, false);
+});
+
+test("recordQuestProgress fires allJustCompleted=true when all quests complete in one event", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win 1 match" },
+    { id: "q2", type: "winAsHero", target: 1, progress: 0, completed: false, heroId: "moses", label: "Win as Moses" }
+  ]);
+  // First event: complete only winMatches — allJustCompleted should be false.
+  // We use a non-Moses hero to avoid completing both at once.
+  // Wait — winMatches counts every win, and winAsHero(moses) only counts Moses
+  // wins. So a win-as-david completes winMatches only.
+  let result = Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "david", turnsTaken: 7, mode: "quick" });
+  assert.strictEqual(result.newlyCompleted.length, 1);
+  assert.strictEqual(result.allJustCompleted, false);
+  // Second event: a Moses win completes the winAsHero quest, finishing the set.
+  result = Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 9, mode: "quick" });
+  assert.strictEqual(result.newlyCompleted.length, 1);
+  assert.strictEqual(result.allJustCompleted, true);
+  const data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.completedAll, true);
+  assert.deepStrictEqual(data.dailyQuests.completedDates, ["2026-05-17"]);
+  assert.strictEqual(data.dailyQuests.currentStreak, 1);
+  assert.strictEqual(data.dailyQuests.bestStreak, 1);
+  assert.strictEqual(data.dailyQuests.lifetimeCompleted, 2);
+});
+
+test("recordQuestProgress is a no-op when no quests are seeded", () => {
+  const s = fakeStore();
+  const result = Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 5, mode: "quick" });
+  assert.deepStrictEqual(result, { newlyCompleted: [], allJustCompleted: false });
+});
+
+test("recordQuestProgress does not double-count completed quests", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win 1 match" }
+  ]);
+  Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 5, mode: "quick" });
+  const lifetimeAfterFirst = Storage.load(s).dailyQuests.lifetimeCompleted;
+  // A second win shouldn't bump lifetimeCompleted again — quest is done.
+  const result = Storage.recordQuestProgress(s, "matchEnd", { playerWon: true, heroId: "moses", turnsTaken: 4, mode: "quick" });
+  assert.deepStrictEqual(result.newlyCompleted, []);
+  assert.strictEqual(Storage.load(s).dailyQuests.lifetimeCompleted, lifetimeAfterFirst);
+});
+
+test("refreshDailyQuests generates quests on first call and is idempotent on same day", () => {
+  const s = fakeStore();
+  const dq1 = Storage.refreshDailyQuests(s, "2026-05-17");
+  assert.strictEqual(dq1.date, "2026-05-17");
+  assert.strictEqual(dq1.quests.length, 2);
+  // Touch some progress so we can prove idempotency doesn't clobber.
+  const d = Storage.load(s);
+  d.dailyQuests.quests[0].progress = 1;
+  Storage.save(s, d);
+  const dq2 = Storage.refreshDailyQuests(s, "2026-05-17");
+  assert.strictEqual(dq2.quests[0].progress, 1, "same-day refresh must not reset progress");
+});
+
+test("refreshDailyQuests rolls over from yesterday correctly (preserves streak)", () => {
+  const s = fakeStore();
+  // Simulate yesterday: completed the set.
+  Storage.refreshDailyQuests(s, "2026-05-16");
+  // Force-complete yesterday's set to simulate a real completion.
+  let d = Storage.load(s);
+  d.dailyQuests.completedDates = ["2026-05-16"];
+  d.dailyQuests.completedAll = true;
+  d.dailyQuests.currentStreak = 1;
+  d.dailyQuests.bestStreak = 1;
+  Storage.save(s, d);
+  // Roll over to today.
+  Storage.refreshDailyQuests(s, "2026-05-17");
+  d = Storage.load(s);
+  assert.strictEqual(d.dailyQuests.date, "2026-05-17");
+  assert.strictEqual(d.dailyQuests.completedAll, false, "fresh day should reset completedAll");
+  assert.strictEqual(d.dailyQuests.currentStreak, 1, "streak should persist when yesterday was completed");
+  assert.strictEqual(d.dailyQuests.bestStreak, 1);
+});
+
+test("refreshDailyQuests resets streak when a day was missed", () => {
+  const s = fakeStore();
+  // Day 1: completed.
+  Storage.refreshDailyQuests(s, "2026-05-14");
+  let d = Storage.load(s);
+  d.dailyQuests.completedDates = ["2026-05-14"];
+  d.dailyQuests.completedAll = true;
+  d.dailyQuests.currentStreak = 1;
+  d.dailyQuests.bestStreak = 1;
+  Storage.save(s, d);
+  // Skip a day and open on 2026-05-16 (yesterday = 05-15, which is NOT in the list).
+  Storage.refreshDailyQuests(s, "2026-05-16");
+  d = Storage.load(s);
+  assert.strictEqual(d.dailyQuests.currentStreak, 0, "missing yesterday must break streak");
+  assert.strictEqual(d.dailyQuests.bestStreak, 1, "bestStreak should be preserved");
+});
+
+test("refreshDailyQuests with no store returns defaults without throwing", () => {
+  assert.doesNotThrow(function () { Storage.refreshDailyQuests(null, "2026-05-17"); });
+  const dq = Storage.refreshDailyQuests(null, "2026-05-17");
+  assert.ok(dq);
+  assert.strictEqual(dq.date, null);
+});
+
+test("load handles malformed dailyQuests gracefully (missing fields, wrong types)", () => {
+  const cases = [
+    { dailyQuests: "string" },
+    { dailyQuests: 42 },
+    { dailyQuests: null },
+    { dailyQuests: [] },  // array — not an object map
+    { dailyQuests: { date: "not-iso", quests: "not-array", completedAll: "yes" } }
+  ];
+  for (const seed of cases) {
+    const s = fakeStore();
+    const corrupt = Object.assign(Storage.defaults(), seed);
+    s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+    const data = Storage.load(s);
+    assert.ok(data.dailyQuests, "should always have dailyQuests after load");
+    assert.deepStrictEqual(data.dailyQuests.quests, [], "malformed quests should drop to []");
+    assert.strictEqual(data.dailyQuests.completedAll, false);
+    assert.strictEqual(data.dailyQuests.currentStreak, 0);
+    assert.strictEqual(data.dailyQuests.bestStreak, 0);
+    assert.strictEqual(data.dailyQuests.lifetimeCompleted, 0);
+  }
+});
+
+test("load drops individual malformed quest entries but keeps valid ones", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.dailyQuests = {
+    date: "2026-05-17",
+    quests: [
+      { id: "q1", type: "winMatches", target: 2, progress: 1, completed: false, label: "ok" },  // valid
+      { id: "q2", type: "garbage",    target: 1, progress: 0, completed: false },               // bad type
+      { id: "q3", type: "winAsHero",  target: -1, progress: 0, completed: false },              // bad target
+      { id: "q4", type: "triviaCorrect", target: 5, progress: 1, completed: false, label: "also ok" },  // valid
+      { /* missing id, type, etc. */ }
+    ],
+    completedAll: false,
+    completedDates: ["2026-05-15", "bogus", "2026-05-15"],  // dup + bad
+    currentStreak: 1,
+    bestStreak: 2,
+    lifetimeCompleted: 4
+  };
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.dailyQuests.quests.length, 2);
+  assert.strictEqual(data.dailyQuests.quests[0].id, "q1");
+  assert.strictEqual(data.dailyQuests.quests[1].id, "q4");
+  assert.deepStrictEqual(data.dailyQuests.completedDates, ["2026-05-15"]);
+  assert.strictEqual(data.dailyQuests.currentStreak, 1);
+  assert.strictEqual(data.dailyQuests.bestStreak, 2);
+  assert.strictEqual(data.dailyQuests.lifetimeCompleted, 4);
+});
+
+test("load caps quests at 3 entries", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.dailyQuests = {
+    date: "2026-05-17",
+    quests: [
+      { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false },
+      { id: "q2", type: "winMatches", target: 1, progress: 0, completed: false },
+      { id: "q3", type: "winMatches", target: 1, progress: 0, completed: false },
+      { id: "q4", type: "winMatches", target: 1, progress: 0, completed: false },
+      { id: "q5", type: "winMatches", target: 1, progress: 0, completed: false }
+    ],
+    completedAll: false,
+    completedDates: [],
+    currentStreak: 0,
+    bestStreak: 0,
+    lifetimeCompleted: 0
+  };
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.ok(data.dailyQuests.quests.length <= 3);
+});
+
+test("3 new quest achievement keys default to false and round-trip", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  assert.strictEqual(data.achievements.questFirst, false);
+  assert.strictEqual(data.achievements.questTriple, false);
+  assert.strictEqual(data.achievements.questStreak7, false);
+  // Round-trip via unlockAchievement.
+  Storage.unlockAchievement(s, "questFirst");
+  Storage.unlockAchievement(s, "questTriple");
+  const reloaded = Storage.load(s);
+  assert.ok(reloaded.achievements.questFirst, "questFirst should persist after unlock");
+  assert.ok(reloaded.achievements.questTriple);
+  assert.strictEqual(reloaded.achievements.questStreak7, false);
+});
+
+test("recordQuestProgress with no event handler stays safe (unknown eventType)", () => {
+  const s = fakeStore();
+  seedQuests(s, "2026-05-17", [
+    { id: "q1", type: "winMatches", target: 1, progress: 0, completed: false, label: "Win 1 match" }
+  ]);
+  // Unknown event type — should not crash and should not advance progress.
+  const result = Storage.recordQuestProgress(s, "weirdEvent", { foo: "bar" });
+  assert.deepStrictEqual(result.newlyCompleted, []);
+  assert.strictEqual(Storage.load(s).dailyQuests.quests[0].progress, 0);
+});

@@ -3,6 +3,32 @@ var Storage = (function () {
 
   const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
+  // Modes from which a `tryMode` daily quest is allowed to roll. We keep this
+  // intentionally short — modes the player actually opens from the main menu
+  // — so the quest reads as a small "try this today" nudge rather than a
+  // chore. Tournament/spectator/quiz/daily are excluded so a quest doesn't
+  // collide with the Daily Challenge or require a 3-match bracket.
+  const QUEST_MODES_POOL = ["quick", "arcade", "endless", "study"];
+
+  // Human-readable labels for each tryMode quest.
+  const QUEST_MODE_LABELS = {
+    quick:   "Quick Match",
+    arcade:  "Arcade Ladder",
+    endless: "Endless Survival",
+    study:   "Study Mode"
+  };
+
+  // Display names for the heroes used in winAsHero quest labels.
+  const HERO_DISPLAY_NAMES = {
+    moses:    "Moses",
+    david:    "King David",
+    esther:   "Queen Esther",
+    judah:    "Judah Maccabee",
+    rambam:   "Maimonides",
+    golda:    "Golda Meir",
+    einstein: "Albert Einstein"
+  };
+
   function _defaultPerHero() {
     const obj = {};
     for (const id of HERO_IDS) obj[id] = { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
@@ -56,7 +82,10 @@ var Storage = (function () {
         tournamentLegend: false,
         quizStreak5:      false,
         quizStreak10:     false,
-        quizStreak20:     false
+        quizStreak20:     false,
+        questFirst:       false,
+        questTriple:      false,
+        questStreak7:     false
       },
       tournamentsWon: 0,
       quizBestStreak: 0,
@@ -69,7 +98,16 @@ var Storage = (function () {
         lifetimeCompletions: 0  // total challenges ever completed
       },
       matchups: {},  // empty object; lazily populated
-      lastSession: null  // { mode, playerHeroId, timestamp } | null — drives the "Continue: <mode>" title button
+      lastSession: null,  // { mode, playerHeroId, timestamp } | null — drives the "Continue: <mode>" title button
+      dailyQuests: {
+        date: null,                   // ISO date string of currently-active set ("2026-05-17") or null
+        quests: [],                   // [{id, type, target, progress, completed, completedAt?, ...typeFields}]
+        completedAll: false,          // true once all of today's quests are done
+        completedDates: [],           // array of ISO date strings on which all quests completed
+        currentStreak: 0,             // consecutive days completing all quests
+        bestStreak: 0,
+        lifetimeCompleted: 0          // total quests completed all-time (across all days)
+      }
     };
   }
 
@@ -199,6 +237,67 @@ var Storage = (function () {
             Number.isInteger(ls.timestamp) && ls.timestamp > 0
           ) {
             out.lastSession = { mode: ls.mode, playerHeroId: ls.playerHeroId, timestamp: ls.timestamp };
+          }
+        }
+        // daily quests — validate shape, drop malformed entries
+        if (parsed.dailyQuests && typeof parsed.dailyQuests === "object" && !Array.isArray(parsed.dailyQuests)) {
+          const dq = parsed.dailyQuests;
+          if (dq.date === null || (typeof dq.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dq.date))) {
+            out.dailyQuests.date = dq.date;
+          }
+          if (Array.isArray(dq.quests)) {
+            const validTypes = ["winMatches", "winAsHero", "triviaCorrect", "quickFinish", "tryMode"];
+            const cleaned = [];
+            for (const q of dq.quests) {
+              if (!q || typeof q !== "object") continue;
+              if (typeof q.id !== "string" || q.id.length === 0) continue;
+              if (typeof q.type !== "string" || !validTypes.includes(q.type)) continue;
+              if (!Number.isInteger(q.target) || q.target < 1) continue;
+              if (!Number.isInteger(q.progress) || q.progress < 0) continue;
+              if (typeof q.completed !== "boolean") continue;
+              const cleanedQuest = {
+                id: q.id,
+                type: q.type,
+                target: q.target,
+                progress: q.progress,
+                completed: q.completed
+              };
+              if (Number.isInteger(q.completedAt) && q.completedAt > 0) {
+                cleanedQuest.completedAt = q.completedAt;
+              }
+              if (typeof q.label === "string") cleanedQuest.label = q.label;
+              if (typeof q.heroId === "string" && HERO_IDS.includes(q.heroId)) {
+                cleanedQuest.heroId = q.heroId;
+              }
+              if (typeof q.modeId === "string") cleanedQuest.modeId = q.modeId;
+              if (Number.isInteger(q.turnsMax) && q.turnsMax >= 1) {
+                cleanedQuest.turnsMax = q.turnsMax;
+              }
+              cleaned.push(cleanedQuest);
+              if (cleaned.length >= 3) break;  // cap at 3 per spec
+            }
+            out.dailyQuests.quests = cleaned;
+          }
+          if (typeof dq.completedAll === "boolean") out.dailyQuests.completedAll = dq.completedAll;
+          if (Array.isArray(dq.completedDates)) {
+            const seen = new Set();
+            const filtered = dq.completedDates.filter(function (d) {
+              if (typeof d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+              if (seen.has(d)) return false;
+              seen.add(d);
+              return true;
+            });
+            filtered.sort();
+            out.dailyQuests.completedDates = filtered;
+          }
+          if (Number.isInteger(dq.currentStreak) && dq.currentStreak >= 0) {
+            out.dailyQuests.currentStreak = dq.currentStreak;
+          }
+          if (Number.isInteger(dq.bestStreak) && dq.bestStreak >= 0) {
+            out.dailyQuests.bestStreak = dq.bestStreak;
+          }
+          if (Number.isInteger(dq.lifetimeCompleted) && dq.lifetimeCompleted >= 0) {
+            out.dailyQuests.lifetimeCompleted = dq.lifetimeCompleted;
           }
         }
         // daily challenge data
@@ -493,10 +592,277 @@ var Storage = (function () {
     return data;
   }
 
+  // ── Daily Quests helpers ─────────────────────────────────────────────────
+
+  // Mulberry32 — a small, fast 32-bit PRNG. Seeded by a single int. Deterministic
+  // and good enough for picking 2 quests per day from a 5-type pool.
+  function _mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function _hashDateIso(isoDate) {
+    let h = 0;
+    for (let i = 0; i < isoDate.length; i++) {
+      h = ((h << 5) - h + isoDate.charCodeAt(i)) | 0;
+    }
+    return h >>> 0;
+  }
+
+  // Generate exactly 2 quests deterministically seeded by dateIso. Same date
+  // -> same 2 quests for every player on the planet.
+  //
+  // Quest types (5):
+  //   - winMatches:    {target: 1|2|3, label: "Win N match(es) today"}
+  //   - winAsHero:     {target: 1, heroId, label: "Win a match as <name>"}
+  //   - triviaCorrect: {target: 5|10, label: "Answer N trivia questions correctly today"}
+  //   - quickFinish:   {target: 1, turnsMax: 10, label: "Win a match in 10 turns or fewer"}
+  //   - tryMode:       {target: 1, modeId, label: "Play a <mode> match today"}
+  function generateDailyQuests(dateIso) {
+    if (typeof dateIso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
+      return [];
+    }
+    const rng = _mulberry32(_hashDateIso(dateIso));
+
+    const typePool = ["winMatches", "winAsHero", "triviaCorrect", "quickFinish", "tryMode"];
+
+    // Shuffle pool via Fisher-Yates using our seeded rng so the picked types
+    // are deterministic per day (no duplicates).
+    const order = typePool.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+    const picked = order.slice(0, 2);
+
+    const quests = picked.map(function (type, idx) {
+      const id = dateIso + ":" + type + ":" + idx;
+      if (type === "winMatches") {
+        const targets = [1, 2, 3];
+        const target = targets[Math.floor(rng() * targets.length)];
+        const noun = target === 1 ? "match" : "matches";
+        return {
+          id, type, target, progress: 0, completed: false,
+          label: "Win " + target + " " + noun + " today"
+        };
+      }
+      if (type === "winAsHero") {
+        const heroId = HERO_IDS[Math.floor(rng() * HERO_IDS.length)];
+        return {
+          id, type, target: 1, progress: 0, completed: false,
+          heroId,
+          label: "Win a match as " + (HERO_DISPLAY_NAMES[heroId] || heroId)
+        };
+      }
+      if (type === "triviaCorrect") {
+        const targets = [5, 10];
+        const target = targets[Math.floor(rng() * targets.length)];
+        return {
+          id, type, target, progress: 0, completed: false,
+          label: "Answer " + target + " trivia questions correctly today"
+        };
+      }
+      if (type === "quickFinish") {
+        return {
+          id, type, target: 1, progress: 0, completed: false,
+          turnsMax: 10,
+          label: "Win a match in 10 turns or fewer"
+        };
+      }
+      if (type === "tryMode") {
+        const modeId = QUEST_MODES_POOL[Math.floor(rng() * QUEST_MODES_POOL.length)];
+        return {
+          id, type, target: 1, progress: 0, completed: false,
+          modeId,
+          label: "Play a " + (QUEST_MODE_LABELS[modeId] || modeId) + " match today"
+        };
+      }
+      // unreachable
+      return { id, type: "winMatches", target: 1, progress: 0, completed: false, label: "Win a match today" };
+    });
+
+    return quests;
+  }
+
+  // ISO date helpers that don't drift across DST boundaries. We use noon for
+  // arithmetic, which is the same trick used by the Daily Challenge code.
+  function _isoDaysBefore(isoDate, days) {
+    const d = new Date(isoDate + "T12:00:00");
+    d.setDate(d.getDate() - days);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function _dayDiff(aIso, bIso) {
+    // Returns (aIso - bIso) in whole days. Positive = a is later than b.
+    const a = new Date(aIso + "T12:00:00").getTime();
+    const b = new Date(bIso + "T12:00:00").getTime();
+    return Math.round((a - b) / 86400000);
+  }
+
+  // Roll the dailyQuests bucket forward to `dateIso`. If today's set is
+  // already current, this is a no-op. Otherwise it regenerates quests,
+  // resets progress, and reconciles the streak based on whether yesterday
+  // was completed.
+  //
+  // Streak rules:
+  //   - If save.dailyQuests.date === dateIso, no rollover (idempotent).
+  //   - Otherwise: if yesterday is in completedDates, currentStreak stays.
+  //                If yesterday is NOT in completedDates, currentStreak resets to 0.
+  //                (i.e. any missed day breaks the streak)
+  function refreshDailyQuests(store, dateIso) {
+    if (!store || typeof dateIso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
+      // Best-effort: load + return whatever exists so the caller can still read it.
+      return store ? load(store).dailyQuests : defaults().dailyQuests;
+    }
+    const data = load(store);
+    if (data.dailyQuests.date === dateIso && Array.isArray(data.dailyQuests.quests) && data.dailyQuests.quests.length > 0) {
+      // Today already loaded — nothing to do, but refresh streak in case the
+      // user opened the app the next day without yesterday having recorded.
+      return data.dailyQuests;
+    }
+    // Rolling over to a new day.
+    const yesterdayIso = _isoDaysBefore(dateIso, 1);
+    const completedSet = new Set(data.dailyQuests.completedDates);
+    const completedYesterday = completedSet.has(yesterdayIso);
+
+    if (data.dailyQuests.date !== null) {
+      // We're moving off a previous active day. If they didn't complete
+      // yesterday's set, streak breaks.
+      if (!completedYesterday) {
+        data.dailyQuests.currentStreak = 0;
+      }
+    } else {
+      // First time we've ever generated quests for this user — no streak yet.
+      if (!completedYesterday) {
+        data.dailyQuests.currentStreak = 0;
+      }
+    }
+
+    data.dailyQuests.date = dateIso;
+    data.dailyQuests.quests = generateDailyQuests(dateIso);
+    data.dailyQuests.completedAll = false;  // fresh day, fresh slate
+    save(store, data);
+    return data.dailyQuests;
+  }
+
+  // Internal: increment progress on a single quest, marking completed when
+  // target is reached. Returns true if the quest transitioned from incomplete
+  // to complete on this call.
+  function _bumpQuest(quest, amount, nowMs) {
+    if (quest.completed) return false;
+    quest.progress = Math.min(quest.target, quest.progress + amount);
+    if (quest.progress >= quest.target) {
+      quest.completed = true;
+      quest.completedAt = nowMs;
+      return true;
+    }
+    return false;
+  }
+
+  // Record progress against today's quests based on an event. Called from
+  // main.js after match end, after trivia answers, and after mode starts.
+  //
+  // eventType:
+  //   "matchEnd"     => eventData = { playerWon, heroId, turnsTaken, mode }
+  //   "triviaAnswer" => eventData = { wasCorrect }
+  //   "modeStart"    => eventData = { mode }
+  //
+  // Returns { newlyCompleted: [...quest objects], allJustCompleted: bool }.
+  function recordQuestProgress(store, eventType, eventData) {
+    const result = { newlyCompleted: [], allJustCompleted: false };
+    if (!store) return result;
+    const data = load(store);
+    if (!data.dailyQuests || !Array.isArray(data.dailyQuests.quests) || data.dailyQuests.quests.length === 0) {
+      return result;
+    }
+    const now = Date.now();
+    const ev = eventData || {};
+
+    for (const quest of data.dailyQuests.quests) {
+      if (quest.completed) continue;
+      let bumped = false;
+
+      if (eventType === "matchEnd") {
+        const playerWon = !!ev.playerWon;
+        const heroId = (typeof ev.heroId === "string") ? ev.heroId : null;
+        const turnsTaken = Number.isInteger(ev.turnsTaken) ? ev.turnsTaken : null;
+        const mode = (typeof ev.mode === "string") ? ev.mode : null;
+
+        if (quest.type === "winMatches" && playerWon) {
+          bumped = _bumpQuest(quest, 1, now);
+        } else if (quest.type === "winAsHero" && playerWon && heroId && quest.heroId === heroId) {
+          bumped = _bumpQuest(quest, 1, now);
+        } else if (quest.type === "quickFinish"
+                   && playerWon
+                   && turnsTaken !== null
+                   && Number.isInteger(quest.turnsMax)
+                   && turnsTaken <= quest.turnsMax) {
+          bumped = _bumpQuest(quest, 1, now);
+        } else if (quest.type === "tryMode" && mode && quest.modeId === mode) {
+          // Playing the mode (a completed match counts as having played it)
+          bumped = _bumpQuest(quest, 1, now);
+        }
+      } else if (eventType === "triviaAnswer") {
+        if (quest.type === "triviaCorrect" && !!ev.wasCorrect) {
+          bumped = _bumpQuest(quest, 1, now);
+        }
+      } else if (eventType === "modeStart") {
+        const mode = (typeof ev.mode === "string") ? ev.mode : null;
+        if (quest.type === "tryMode" && mode && quest.modeId === mode) {
+          bumped = _bumpQuest(quest, 1, now);
+        }
+      }
+
+      if (bumped) {
+        result.newlyCompleted.push(quest);
+        data.dailyQuests.lifetimeCompleted = (data.dailyQuests.lifetimeCompleted || 0) + 1;
+      }
+    }
+
+    // After applying all bumps, check whether the whole day's set is complete.
+    if (!data.dailyQuests.completedAll && data.dailyQuests.quests.every(function (q) { return q.completed; })) {
+      data.dailyQuests.completedAll = true;
+      result.allJustCompleted = true;
+
+      const todayIso = data.dailyQuests.date;
+      if (typeof todayIso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(todayIso)) {
+        if (!data.dailyQuests.completedDates.includes(todayIso)) {
+          data.dailyQuests.completedDates.push(todayIso);
+          data.dailyQuests.completedDates.sort();
+        }
+        // Recompute streak from completedDates.
+        const completedSet = new Set(data.dailyQuests.completedDates);
+        let streak = 0;
+        let cursor = todayIso;
+        while (completedSet.has(cursor)) {
+          streak += 1;
+          cursor = _isoDaysBefore(cursor, 1);
+        }
+        data.dailyQuests.currentStreak = streak;
+        if (streak > (data.dailyQuests.bestStreak || 0)) {
+          data.dailyQuests.bestStreak = streak;
+        }
+      }
+    }
+
+    save(store, data);
+    return result;
+  }
+
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, recordQuizRun, resetAll,
            recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
-           recordTournamentWin, recordMatchup, setLastSeenVersion, recordLastSession };
+           recordTournamentWin, recordMatchup, setLastSeenVersion, recordLastSession,
+           generateDailyQuests, refreshDailyQuests, recordQuestProgress };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;
