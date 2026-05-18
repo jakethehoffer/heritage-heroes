@@ -8,6 +8,7 @@ const Screens = require("../src/screens.js");
 const Storage = require("../src/storage.js");
 const Combat = require("../src/combat.js");
 const Heroes = require("../src/heroes.js");
+const Calendar = require("../src/calendar.js");
 
 function freshSave() {
   return Storage.defaults();
@@ -912,6 +913,148 @@ test("renderTitle: title-funfact sits between achievement-progress widget and th
     assert.ok(factIdx < statIdx, "fact card should appear before stat banners");
   } finally {
     Heroes.pickRandomFact = original;
+  }
+});
+
+// ── "On This Day" Heritage Calendar panel on title screen ──────────────────
+//
+// Same stubbing pattern as the Did You Know? tests above: mutate
+// Calendar.todaysEvents inside a try/finally so other tests still see the
+// real implementation. screens.js holds a module-scoped reference to the
+// same require'd object, so mutating the export here stubs the renderer.
+
+test("renderTitle: includes On This Day panel when Calendar.todaysEvents returns events", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [
+    { month: 5, day: 14, year: 1948, event: "Israel was founded.", heroId: "golda" }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.match(html, /class="otd-panel"/);
+    assert.match(html, /On This Day/);
+    assert.match(html, /May 14/);
+    assert.match(html, /Israel was founded\./);
+    assert.match(html, />1948</);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: omits On This Day panel when Calendar.todaysEvents returns empty array", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.doesNotMatch(html, /class="otd-panel"/);
+    assert.doesNotMatch(html, /On This Day/);
+    // And the rest of the screen still renders.
+    assert.match(html, /<h1>Heritage Heroes<\/h1>/);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: On This Day panel renders all events when multiple match the date", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [
+    { month: 3, day: 14, year: 1879, event: "Einstein was born.", heroId: "einstein" },
+    { month: 3, day: 14, year: 1951, event: "Einstein stuck out his tongue.", heroId: "einstein" }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    // Both events present.
+    assert.match(html, /Einstein was born\./);
+    assert.match(html, /Einstein stuck out his tongue\./);
+    assert.match(html, />1879</);
+    assert.match(html, />1951</);
+    // And the header uses the shared month/day label.
+    assert.match(html, /March 14/);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: On This Day panel renders the hero-link button when heroId is present", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [
+    { month: 3, day: 14, year: 1879, event: "Einstein was born.", heroId: "einstein" }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.match(html, /class="otd-hero-link"[^>]*data-action="view-profile"[^>]*data-hero="einstein"/);
+    assert.match(html, /More about Albert Einstein/);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: On This Day panel omits the hero-link button when heroId is null", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [
+    { month: 11, day: 2, year: 1917, event: "The Balfour Declaration was issued.", heroId: null }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    // Panel still renders…
+    assert.match(html, /class="otd-panel"/);
+    assert.match(html, /Balfour Declaration/);
+    // …but no hero-link button.
+    assert.doesNotMatch(html, /class="otd-hero-link"/);
+    assert.doesNotMatch(html, /More about/);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: On This Day panel escapes event text to prevent HTML injection", () => {
+  const save = freshSave();
+  const original = Calendar.todaysEvents;
+  Calendar.todaysEvents = () => [
+    { month: 5, day: 14, year: 1948, event: "<script>alert(1)</script>", heroId: null }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+    assert.match(html, /&lt;script&gt;/);
+  } finally {
+    Calendar.todaysEvents = original;
+  }
+});
+
+test("renderTitle: On This Day panel sits between Did You Know card and Daily Quests panel", () => {
+  const save = freshSave();
+  // Seed the daily quests so the daily-quests-panel renders.
+  save.dailyQuests = {
+    quests: [{ key: "win-any", label: "Win a match", target: 1, progress: 0, completed: false }],
+    completedAll: false,
+    currentStreak: 0
+  };
+  const factOriginal = Heroes.pickRandomFact;
+  const calOriginal = Calendar.todaysEvents;
+  Heroes.pickRandomFact = () => ({
+    heroId: "moses", heroName: "Moses", explanation: "A fact about Moses."
+  });
+  Calendar.todaysEvents = () => [
+    { month: 5, day: 14, year: 1948, event: "Israel was founded.", heroId: "golda" }
+  ];
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    const factIdx = html.indexOf('class="title-funfact"');
+    const otdIdx  = html.indexOf('class="otd-panel"');
+    const dqIdx   = html.indexOf('daily-quests-panel');
+    assert.ok(factIdx >= 0, "expected Did You Know card");
+    assert.ok(otdIdx >= 0, "expected On This Day panel");
+    assert.ok(dqIdx >= 0, "expected Daily Quests panel");
+    assert.ok(factIdx < otdIdx, "On This Day should appear after Did You Know");
+    assert.ok(otdIdx < dqIdx, "On This Day should appear before Daily Quests");
+  } finally {
+    Heroes.pickRandomFact = factOriginal;
+    Calendar.todaysEvents = calOriginal;
   }
 });
 

@@ -282,6 +282,92 @@ button.secondary { background: var(--cream); color: var(--ink); }
   .title-funfact-attribution { font-size: 11px; }
 }
 
+/* "On This Day" Heritage Calendar panel — rare, date-matched bonus card.
+   Sits between Did You Know? and Daily Quests on the title screen and
+   only renders when src/calendar.js has at least one event for today.
+   Treated visually as a small parchment fragment (gold + cream gradient)
+   to distinguish it from the every-visit Did You Know card. */
+.otd-panel {
+  max-width: 480px;
+  margin: 14px auto 0;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, var(--cream), rgba(212, 165, 116, 0.15));
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(26, 42, 79, 0.1);
+}
+.otd-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--navy);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(212, 165, 116, 0.4);
+}
+.otd-icon { font-size: 16px; }
+.otd-event {
+  padding: 8px 0;
+}
+.otd-event:not(:first-child) {
+  border-top: 1px dashed rgba(26, 42, 79, 0.15);
+  margin-top: 8px;
+}
+.otd-year {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--terracotta);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.otd-event-text {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.otd-hero-link {
+  background: none;
+  border: 1px solid var(--navy);
+  color: var(--navy);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 120ms ease, color 120ms ease;
+}
+.otd-hero-link:hover {
+  background: var(--navy);
+  color: var(--cream);
+}
+
+@media (max-width: 600px) {
+  .otd-panel { max-width: 95%; padding: 10px 14px; }
+  .otd-header { font-size: 12px; }
+  .otd-year { font-size: 16px; }
+  .otd-event-text { font-size: 13px; }
+}
+
+/* High-contrast theme override — keep the gold border but darken the
+   parchment so the panel still feels like its own surface. */
+body.theme-high-contrast .otd-panel {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--gold);
+}
+body.theme-high-contrast .otd-event:not(:first-child) {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+body.theme-high-contrast .otd-header {
+  border-bottom-color: rgba(255, 213, 79, 0.3);
+}
+
 /* Daily Quests panel — today's flexible goals tile, sits below the Did You
    Know card and above the Arcade/stat banners. Uses a faded terracotta
    border by default and shifts to a soft olive wash when both quests for

@@ -4,6 +4,19 @@ var Screens = (function () {
   const Stages = (typeof require !== "undefined") ? require("./stages.js") : window.Stages;
   const Combat = (typeof require !== "undefined") ? require("./combat.js") : window.Combat;
   const Storage = (typeof require !== "undefined") ? require("./storage.js") : window.Storage;
+  // Calendar is optional: title screen guards every access so older tests
+  // and headless paths that don't load src/calendar.js stay green.
+  const Calendar = (typeof require !== "undefined")
+    ? require("./calendar.js")
+    : (typeof window !== "undefined" ? window.Calendar : undefined);
+
+  // Gregorian month labels used by the "On This Day" calendar panel on the
+  // title screen. Indexed 0-11 (Date#getMonth conventions); panel reads
+  // MONTH_NAMES[event.month - 1] since calendar entries store 1-based months.
+  const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
 
   // ── Confetti celebration helper ───────────────────────────────────────────
   // Returns a self-contained absolutely-positioned wrapper full of confetti
@@ -220,6 +233,41 @@ var Screens = (function () {
   </button>`;
     }
 
+    // "On This Day in Jewish History" — sits between the always-on Did You
+    // Know card and the Daily Quests panel. Only renders on dates where the
+    // curated Calendar.EVENTS list has at least one match, so most visits
+    // see no panel and the appearance feels special. Multiple events on the
+    // same date all render (Calendar.todaysEvents sorts oldest first).
+    let calendarPanel = "";
+    const calendarEvents = (Calendar && typeof Calendar.todaysEvents === "function")
+      ? Calendar.todaysEvents()
+      : [];
+    if (calendarEvents.length > 0) {
+      const items = calendarEvents.map(function (e) {
+        const hero = e.heroId ? Heroes.byId(e.heroId) : null;
+        const heroLink = hero
+          ? `<button class="otd-hero-link" data-action="view-profile" data-hero="${e.heroId}">More about ${Render.escapeHtml(hero.name)} &rarr;</button>`
+          : "";
+        return `
+    <div class="otd-event">
+      <div class="otd-year">${e.year}</div>
+      <div class="otd-event-text">${Render.escapeHtml(e.event)}</div>
+      ${heroLink}
+    </div>`;
+      }).join("");
+
+      const first = calendarEvents[0];
+      const dateLabel = `${MONTH_NAMES[first.month - 1]} ${first.day}`;
+      calendarPanel = `
+<div class="otd-panel">
+  <div class="otd-header">
+    <span class="otd-icon" aria-hidden="true">&#x1F4C5;</span>
+    <span class="otd-label">On This Day &mdash; ${Render.escapeHtml(dateLabel)}</span>
+  </div>
+  <div class="otd-events">${items}</div>
+</div>`;
+    }
+
     return `
 <section class="screen screen-title">
   ${sparkles}
@@ -244,6 +292,7 @@ var Screens = (function () {
   </div>
   ${achievementProgress}
   ${factCard}
+  ${calendarPanel}
   ${dailyQuestsPanel}
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
