@@ -2390,3 +2390,162 @@ test("renderCompare does NOT include the rivalry line for non-canonical pairings
   const html = Screens.renderCompare(state);
   assert.doesNotMatch(html, /compare-rivalry/);
 });
+
+// ── HP Timeline chart (renderHpChart) ────────────────────────────────────
+
+test("renderHpChart returns empty string when snapshots is empty", () => {
+  assert.strictEqual(Screens.renderHpChart([], { name0: "A", name1: "B" }, {}), "");
+});
+
+test("renderHpChart returns empty string when snapshots is undefined", () => {
+  assert.strictEqual(Screens.renderHpChart(undefined, { name0: "A", name1: "B" }, {}), "");
+});
+
+test("renderHpChart returns an SVG string with the expected viewBox", () => {
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 90 },
+    { turn: 1, hp0: 90,  hp1: 80 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "Moses", name1: "David" }, {});
+  assert.match(html, /<svg /);
+  assert.match(html, /class="hp-chart"/);
+  assert.match(html, /viewBox="0 0 320 140"/);
+});
+
+test("renderHpChart includes both player names in the legend", () => {
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 90 },
+    { turn: 2, hp0: 80,  hp1: 60 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "Moses", name1: "David" }, {});
+  assert.match(html, /Moses/);
+  assert.match(html, /David/);
+});
+
+test("renderHpChart includes path data for both HP lines", () => {
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 90 },
+    { turn: 1, hp0: 90,  hp1: 70 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "P1", name1: "P2" }, {});
+  // Two <path d="M..."> entries — one per hero line.
+  const pathMatches = html.match(/<path d="M[^"]+"/g) || [];
+  assert.strictEqual(pathMatches.length, 2, "expected two <path d='M...'> entries");
+});
+
+test("renderHpChart computes correct x-coordinates: first point at left padding, last at right edge", () => {
+  // Turn 0 → padL (24), turn 4 → padL + (4/4)*(W - padL - padR) = 24 + 282 = 306.
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 100 },
+    { turn: 2, hp0: 70,  hp1: 80 },
+    { turn: 4, hp0: 40,  hp1: 60 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "A", name1: "B" }, {});
+  // First path command starts at x=24.0; last L command lands at x=306.0.
+  assert.match(html, /M24\.0,/);
+  assert.match(html, /L306\.0,/);
+});
+
+test("renderHpChart honors custom colors", () => {
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 100 },
+    { turn: 1, hp0: 90,  hp1: 95 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "P1", name1: "P2" }, { color0: "#aabbcc", color1: "#ddeeff" });
+  assert.match(html, /stroke="#aabbcc"/);
+  assert.match(html, /stroke="#ddeeff"/);
+});
+
+test("renderHpChart escapes hero names in the legend", () => {
+  const snaps = [
+    { turn: 0, hp0: 100, hp1: 100 },
+    { turn: 1, hp0: 90,  hp1: 80 }
+  ];
+  const html = Screens.renderHpChart(snaps, { name0: "<script>", name1: "P2" }, {});
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;/);
+});
+
+test("_renderRecapSections includes the chart when matchStats has hpSnapshots length > 1", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.turnNumber = 3;
+  const stats = {
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    damageDealtBy: [10, 0],
+    damageTakenBy: [0, 10],
+    hpSnapshots: [
+      { turn: 0, hp0: 100, hp1: 100 },
+      { turn: 1, hp0: 100, hp1: 90 },
+      { turn: 2, hp0: 90,  hp1: 90 }
+    ],
+    startedAt: 0,
+    endedAt: 1000
+  };
+  const h0 = Heroes.byId("moses");
+  const h1 = Heroes.byId("david");
+  const html = Screens._renderRecapSections(match, stats, h0, h1, "");
+  assert.match(html, /recap-chart-wrap/);
+  assert.match(html, /HP over time/);
+  assert.match(html, /<svg /);
+});
+
+test("_renderRecapSections omits the chart when hpSnapshots is empty", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.turnNumber = 1;
+  const stats = {
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    damageDealtBy: [0, 0],
+    damageTakenBy: [0, 0],
+    hpSnapshots: [],
+    startedAt: 0,
+    endedAt: 0
+  };
+  const html = Screens._renderRecapSections(match, stats, Heroes.byId("moses"), Heroes.byId("david"), "");
+  assert.doesNotMatch(html, /recap-chart-wrap/);
+  assert.doesNotMatch(html, /HP over time/);
+});
+
+test("_renderRecapSections omits the chart when hpSnapshots has length 1", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.turnNumber = 1;
+  const stats = {
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    damageDealtBy: [0, 0],
+    damageTakenBy: [0, 0],
+    hpSnapshots: [{ turn: 0, hp0: 100, hp1: 100 }],
+    startedAt: 0,
+    endedAt: 0
+  };
+  const html = Screens._renderRecapSections(match, stats, Heroes.byId("moses"), Heroes.byId("david"), "");
+  assert.doesNotMatch(html, /recap-chart-wrap/);
+});
+
+test("_renderRecapSections still renders the chart for legacy stats without the hpSnapshots field (no throw, no chart)", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.turnNumber = 1;
+  // Simulate a stats blob from before v3 — no hpSnapshots key.
+  const stats = {
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    damageDealtBy: [0, 0],
+    damageTakenBy: [0, 0],
+    startedAt: 0,
+    endedAt: 0
+  };
+  let html;
+  assert.doesNotThrow(() => {
+    html = Screens._renderRecapSections(match, stats, Heroes.byId("moses"), Heroes.byId("david"), "");
+  });
+  assert.doesNotMatch(html, /recap-chart-wrap/);
+});

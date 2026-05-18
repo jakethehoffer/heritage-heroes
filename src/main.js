@@ -110,12 +110,30 @@ var Main = (function () {
       // the inline comment near the damage application site).
       damageDealtBy: [0, 0],
       damageTakenBy: [0, 0],
+      // Per-turn HP snapshots powering the result-screen HP Timeline chart.
+      // Shape: [{ turn, hp0, hp1 }, ...]. Initial snapshot (turn 0) pushed by
+      // _pushHpSnapshot right after each Combat.createMatch call. Subsequent
+      // snapshots pushed at the end of resolveMove once damage has settled.
+      hpSnapshots: [],
       // Match elapsed-time bookkeeping (ms). Set at match construction; sealed
       // by onMatchEnd. The recap reads (endedAt - startedAt) for total time;
       // the battle HUD reads (Date.now() - startedAt) for the live counter.
       startedAt: (typeof Date !== "undefined") ? Date.now() : 0,
       endedAt: null
     };
+  }
+
+  // Push an HP snapshot for both player slots into matchStats.hpSnapshots.
+  // Used right after match creation (turn 0) and at the end of resolveMove
+  // (after damage finalises). Silently no-ops when matchStats or match is
+  // missing — safe to call from any combat-adjacent codepath.
+  function _pushHpSnapshot() {
+    if (!state.matchStats || !state.match || !state.matchStats.hpSnapshots) return;
+    state.matchStats.hpSnapshots.push({
+      turn: state.match.turnNumber,
+      hp0: state.match.players[0].hp,
+      hp1: state.match.players[1].hp
+    });
   }
 
   // Stable ordering for AI's random hero pick in Quick vs AI mode
@@ -234,6 +252,7 @@ var Main = (function () {
         hardMode: c.hard,
         hardOpponentSlot: 1
       });
+      _pushHpSnapshot();
       goToBattle({ aiFirstStep: false });
       return;
     }
@@ -355,6 +374,7 @@ var Main = (function () {
       challenge.opponentHeroId,
       { hardMode: challenge.difficulty === "hard", hardOpponentSlot: 1 }
     );
+    _pushHpSnapshot();
     goToBattle({ aiFirstStep: false });
   }
 
@@ -1314,6 +1334,7 @@ var Main = (function () {
     state.bossIntroShown = true; // not a boss fight
     state.difficulty = "normal";
     state.match = Combat.createMatch(playerHeroId, aiHeroId, { stageId });
+    _pushHpSnapshot();
     if (typeof Sfx !== "undefined" && Sfx.playMusic) {
       Sfx.playMusic(stageId);
     }
@@ -1348,6 +1369,7 @@ var Main = (function () {
       state.bossIntroShown = true;
       state.difficulty = "normal";
       state.match = Combat.createMatch(ls.playerHeroId, aiHeroId, { stageId });
+      _pushHpSnapshot();
       if (typeof Sfx !== "undefined" && Sfx.playMusic) Sfx.playMusic(stageId);
       goToBattle({ aiFirstStep: false });
       return;
@@ -1639,6 +1661,7 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.controllers = [t.slotControllers[slotA], t.slotControllers[slotB]];
     state.match = Combat.createMatch(t.slots[slotA], t.slots[slotB]);
+    _pushHpSnapshot();
     state._currentTournamentSlots = [slotA, slotB];
     // Tournament matches always SHOW intro; schedule first AI move after intro
     // if player 0's controller is AI.
@@ -1734,6 +1757,7 @@ var Main = (function () {
       state.matchStats = _freshMatchStats();
       state.bossIntroShown = true;
       state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+      _pushHpSnapshot();
       // Spectator: skip the VS intro (user just wants to watch). Schedule the
       // first AI move (both controllers are AI).
       goToBattle({ aiFirstStep: state.controllers[0] === "ai", skipIntro: true });
@@ -1771,6 +1795,7 @@ var Main = (function () {
         state.currentMatchLowHp = { 0: false, 1: false };
         state.matchStats = _freshMatchStats();
         state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+        _pushHpSnapshot();
         goToBattle({ aiFirstStep: false });
         return;
       }
@@ -1782,6 +1807,7 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+    _pushHpSnapshot();
     goToBattle({ aiFirstStep: false });
   }
 
@@ -1795,6 +1821,7 @@ var Main = (function () {
       state.picks[2],
       { stageId: state.selectedStageId }
     );
+    _pushHpSnapshot();
     // Switch music to player's chosen stage
     if (typeof Sfx !== "undefined" && Sfx.playMusic) {
       Sfx.playMusic(state.selectedStageId);
@@ -1827,6 +1854,7 @@ var Main = (function () {
       opponent,
       opts
     );
+    _pushHpSnapshot();
     // Skip VS intro if launched immediately after the dramatic boss-intro
     // screen (chaining the two pre-battle screens would feel redundant).
     const skipIntro = !!(launchOpts && launchOpts.skipIntro);
@@ -1862,6 +1890,9 @@ var Main = (function () {
     if (state.endless.streak > 0 && typeof state.endless.carriedHp === "number") {
       state.match.players[0].hp = state.endless.carriedHp;
     }
+    // Snapshot AFTER the carried-HP override so the chart starts at the
+    // round's true initial HP (e.g. 70 carried, not the hero's max).
+    _pushHpSnapshot();
     // Show VS intro only on the FIRST match of the run; subsequent rounds
     // skip it (the player is "on a roll" and we don't want to interrupt).
     const skipIntro = state.endless.streak > 0;
@@ -2112,6 +2143,11 @@ var Main = (function () {
         Screens.showDamageNumber(pIdx, Math.abs(delta), "heal");
       }
     });
+
+    // HP snapshot for the result-screen HP Timeline chart. Pushed here, after
+    // all damage/heal deltas have been applied but BEFORE winner-check, so
+    // the final-frame HP state (including any KO-to-zero) is captured.
+    _pushHpSnapshot();
 
     if (move === "defend") {
       Screens.playDefendFx(idx, activeHeroId);
@@ -2519,6 +2555,7 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
+    _pushHpSnapshot();
     goToBattle({ aiFirstStep: false });
   }
 

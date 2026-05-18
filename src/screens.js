@@ -877,6 +877,75 @@ var Screens = (function () {
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
+  // ── Helper: SVG line chart of both heroes' HP across the match's turns ──
+  // Drives the "HP over time" panel on the result screen. Pure visualization
+  // layer: takes pre-recorded snapshots and renders a self-contained inline
+  // SVG (no scripts, no interactivity). Returns "" when no data to plot.
+  //
+  //   snapshots: [{ turn, hp0, hp1 }, ...]  — pushed from main.js
+  //   names:     { name0, name1 }            — for the legend
+  //   colors:    { color0, color1 }          — line colors (defaults: navy / terracotta)
+  //   opts:      { width, height }           — defaults to 320 x 140
+  //
+  // Layout: legend lives at the top inside the SVG (above the plot area),
+  // so padT is generous (26px) to leave room for it.
+  function renderHpChart(snapshots, names, colors, opts) {
+    if (!snapshots || snapshots.length === 0) return "";
+    const W = (opts && opts.width)  || 320;
+    const H = (opts && opts.height) || 140;
+    const padL = 24, padR = 14, padT = 26, padB = 22;
+
+    const maxHp = Math.max.apply(null, snapshots.reduce(
+      (acc, s) => { acc.push(s.hp0, s.hp1); return acc; }, [1]
+    ));
+    const maxTurn = Math.max.apply(null, snapshots.map(s => s.turn).concat([1]));
+
+    const xFor = (turn) => padL + (turn / maxTurn) * (W - padL - padR);
+    const yFor = (hp)   => padT + ((maxHp - hp) / maxHp) * (H - padT - padB);
+
+    const buildPath = (key) => snapshots.map((s, i) => {
+      const cmd = i === 0 ? "M" : "L";
+      return cmd + xFor(s.turn).toFixed(1) + "," + yFor(s[key]).toFixed(1);
+    }).join(" ");
+
+    const path0 = buildPath("hp0");
+    const path1 = buildPath("hp1");
+    const color0 = (colors && colors.color0) || "#1a2a4f";   // navy
+    const color1 = (colors && colors.color1) || "#c1462d";   // terracotta
+    const name0 = Render.escapeHtml((names && names.name0) || "P1");
+    const name1 = Render.escapeHtml((names && names.name1) || "P2");
+
+    const xAxisY = H - padB + 0.5;
+    const midY = (padT + (H - padB)) / 2;
+    // Dedup tick labels — if maxTurn is small, ceil(maxTurn/2) can collide.
+    const xLabelTicks = [];
+    [0, Math.ceil(maxTurn / 2), maxTurn].forEach(t => {
+      if (xLabelTicks.indexOf(t) === -1) xLabelTicks.push(t);
+    });
+
+    const last = snapshots[snapshots.length - 1];
+
+    return `<svg class="hp-chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HP timeline chart">
+    <line x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}" stroke="rgba(0,0,0,0.08)" stroke-dasharray="3,3"/>
+    <line x1="${padL}" y1="${midY}" x2="${W - padR}" y2="${midY}" stroke="rgba(0,0,0,0.08)" stroke-dasharray="3,3"/>
+    <line x1="${padL}" y1="${xAxisY}" x2="${W - padR}" y2="${xAxisY}" stroke="rgba(0,0,0,0.3)"/>
+    <text x="${padL - 4}" y="${padT + 4}" text-anchor="end" font-size="9" fill="rgba(0,0,0,0.55)" font-family="monospace">${maxHp}</text>
+    <text x="${padL - 4}" y="${xAxisY - 2}" text-anchor="end" font-size="9" fill="rgba(0,0,0,0.55)" font-family="monospace">0</text>
+    ${xLabelTicks.map(t => `<text x="${xFor(t).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="9" fill="rgba(0,0,0,0.55)" font-family="monospace">${t}</text>`).join("")}
+    <text x="${((padL + W - padR) / 2).toFixed(1)}" y="${H - 2 + 0.5}" text-anchor="middle" font-size="8" fill="rgba(0,0,0,0.45)" font-family="monospace">TURN</text>
+    <path d="${path0}" fill="none" stroke="${color0}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${path1}" fill="none" stroke="${color1}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4,3"/>
+    <circle cx="${xFor(last.turn).toFixed(1)}" cy="${yFor(last.hp0).toFixed(1)}" r="4" fill="${color0}"/>
+    <circle cx="${xFor(last.turn).toFixed(1)}" cy="${yFor(last.hp1).toFixed(1)}" r="4" fill="${color1}"/>
+    <g font-family="Georgia, serif" font-size="10">
+      <line x1="${padL}" y1="${padT - 12}" x2="${padL + 14}" y2="${padT - 12}" stroke="${color0}" stroke-width="2.5"/>
+      <text x="${padL + 18}" y="${padT - 9}" fill="${color0}">${name0}</text>
+      <line x1="${padL + 110}" y1="${padT - 12}" x2="${padL + 124}" y2="${padT - 12}" stroke="${color1}" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <text x="${padL + 128}" y="${padT - 9}" fill="${color1}">${name1}</text>
+    </g>
+  </svg>`;
+  }
+
   // ── Helper: render Match Summary + Did You Know? sections ───────────────
   // recordsHtml: optional pre-rendered HTML for the Personal Records block (pass "" to omit)
   function _renderRecapSections(match, stats, h0, h1, recordsHtml) {
@@ -903,7 +972,16 @@ var Screens = (function () {
     const fact = _pickDidYouKnow(h0, h1, stats);
     const portrait = Render.renderHero({ heroId: fact.hero.id, pose: "idle", facing: "right" });
 
+    // HP Timeline chart — only when we have >1 snapshot (need at least two
+    // points to draw a line). Pre-v3 history entries don't carry snapshots,
+    // so the chart is skipped silently and the recap still renders cleanly.
+    const snapshots = (stats && stats.hpSnapshots) || [];
+    const chartHtml = snapshots.length > 1
+      ? `<div class="recap-chart-wrap"><h4 class="recap-chart-title">HP over time</h4>${renderHpChart(snapshots, { name0: h0.name, name1: h1.name }, { color0: "#1a2a4f", color1: "#c1462d" })}</div>`
+      : "";
+
     return `
+${chartHtml}
 <div class="match-summary">
   <h3>Match Summary</h3>
   <div class="summary-grid">
@@ -5063,6 +5141,8 @@ ${recordsHtml || ""}
     renderTrophyRoom,
     renderStageSelect,
     renderVictoryCardSvg,
+    renderHpChart,
+    _renderRecapSections,  // exported for tests
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,

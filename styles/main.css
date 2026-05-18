@@ -897,6 +897,48 @@ body.theme-high-contrast .battle-hint-banner {
   margin: 0;
 }
 
+/* ── Match Recap: HP Timeline chart ─────────────────────────────────────── */
+.recap-chart-wrap {
+  background: var(--cream);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  padding: 14px 12px;
+  margin: 0 auto 12px;
+  width: 100%;
+  max-width: 540px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.recap-chart-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--navy);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.hp-chart {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+body.theme-high-contrast .recap-chart-wrap {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--gold);
+}
+/* Attribute-selector overrides for the inline-styled SVG axis/grid colors.
+ * SVG presentation attributes have low specificity, so these can re-tint
+ * grid lines + tick labels on the dark high-contrast background. Hero HP
+ * lines themselves use the --navy/--terracotta tokens via the helper's
+ * color parameters and are already theme-aware. */
+body.theme-high-contrast .hp-chart line[stroke^="rgba(0,0,0"] {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+body.theme-high-contrast .hp-chart text[fill^="rgba(0,0,0"] {
+  fill: rgba(255, 255, 255, 0.65);
+}
+
 /* ── Match Recap: Personal Records ─────────────────────────────────────── */
 .match-records {
   background: var(--cream);
