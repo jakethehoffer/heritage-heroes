@@ -384,6 +384,115 @@ var Screens = (function () {
     einstein: "Einstein bows from the lectern. The equations balance once more."
   };
 
+  // ── Helper: compute personal-records insights for match recap ─────────────
+  function _computeMatchInsights(state, currentEntry) {
+    if (!currentEntry) return [];
+    const insights = [];
+    const matches  = state.save.recentMatches || [];
+    const matchups = state.save.matchups || {};
+    const perHero  = (state.save.stats && state.save.stats.perHero) || {};
+
+    const playerHeroId   = currentEntry.hero0Id;
+    const opponentHeroId = currentEntry.hero1Id;
+    const playerWon      = currentEntry.winnerSlot === 0;
+
+    const playerHero   = Heroes.byId(playerHeroId);
+    const opponentHero = Heroes.byId(opponentHeroId);
+    if (!playerHero || !opponentHero) return [];
+
+    const playerName   = playerHero.name;
+    const opponentName = opponentHero.name;
+
+    // ── 1. Win streak as this hero ───────────────────────────────────────────
+    // Walk recent matches newest → oldest. For matches where you played as this hero,
+    // count consecutive wins. Other-hero matches don't break the streak; same-hero loss does.
+    if (playerWon) {
+      let streak = 0;
+      for (const m of matches) {
+        if (m.hero0Id === playerHeroId) {
+          if (m.winnerSlot === 0) streak += 1;
+          else break;
+        }
+        // else: ignore (other-hero match)
+      }
+      if (streak >= 2) {
+        insights.push({ priority: 10 + streak, text: `🔥 Win streak as ${Render.escapeHtml(playerName)}: <strong>${streak}</strong>` });
+      }
+    }
+
+    // ── 2. Matchup record ────────────────────────────────────────────────────
+    const matchupKey = `${playerHeroId}|${opponentHeroId}`;
+    const record = matchups[matchupKey];
+    if (record && (record.wins + record.losses) >= 2) {
+      const total = record.wins + record.losses;
+      insights.push({
+        priority: 5 + Math.min(total, 10),
+        text: `⚔️ vs ${Render.escapeHtml(opponentName)}: <strong>${record.wins}-${record.losses}</strong>`
+      });
+    }
+
+    // ── 3. Fastest win as this hero ──────────────────────────────────────────
+    if (playerWon) {
+      let prevFastest = Infinity;
+      for (const m of matches) {
+        if (m.id === currentEntry.id) continue;  // skip this match
+        if (m.hero0Id === playerHeroId && m.winnerSlot === 0) {
+          if (m.turns < prevFastest) prevFastest = m.turns;
+        }
+      }
+      if (prevFastest !== Infinity) {
+        if (currentEntry.turns < prevFastest) {
+          // NEW RECORD!
+          insights.push({
+            priority: 20,
+            text: `⚡ Fastest win as ${Render.escapeHtml(playerName)}: <strong>${currentEntry.turns} turns</strong> (NEW RECORD!)`
+          });
+        } else if (currentEntry.turns === prevFastest) {
+          insights.push({
+            priority: 8,
+            text: `⚡ Tied your fastest win as ${Render.escapeHtml(playerName)} (<strong>${currentEntry.turns} turns</strong>)`
+          });
+        } else {
+          insights.push({
+            priority: 3,
+            text: `⚡ Your fastest as ${Render.escapeHtml(playerName)}: <strong>${prevFastest} turns</strong>`
+          });
+        }
+      }
+    }
+
+    // ── 4. Trivia accuracy as this hero ─────────────────────────────────────
+    const ph = perHero[playerHeroId];
+    if (ph && ph.triviaTotal >= 5) {
+      const pct = Math.round((ph.triviaCorrect / ph.triviaTotal) * 100);
+      insights.push({
+        priority: 4,
+        text: `📚 Trivia accuracy as ${Render.escapeHtml(playerName)}: <strong>${pct}%</strong> (${ph.triviaCorrect}/${ph.triviaTotal})`
+      });
+    }
+
+    // Sort by priority desc, take top 3
+    insights.sort((a, b) => b.priority - a.priority);
+    return insights.slice(0, 3).map(i => i.text);
+  }
+
+  // ── Helper: build the Personal Records HTML block for a given state ────────
+  // Uses state.save.recentMatches[0] as the current match entry.
+  // Returns HTML string (may be empty string if no insights or no entry).
+  function _buildRecordsHtml(state) {
+    const recentMatchEntry = state.save && state.save.recentMatches && state.save.recentMatches[0];
+    if (!recentMatchEntry) return "";
+    const insightLines = _computeMatchInsights(state, recentMatchEntry);
+    if (insightLines.length === 0) return "";
+    return `
+<div class="match-records">
+  <h3>Your Records</h3>
+  <ul class="records-list">
+    ${insightLines.map(line => `<li>${line}</li>`).join("")}
+  </ul>
+</div>`;
+  }
+
   // ── Helper: pick a "Did You Know?" fact from heroes not seen this match ──
   function _pickDidYouKnow(h0, h1, stats) {
     const seen0 = (stats && stats.triviaSeen && stats.triviaSeen[h0.id]) || [];
@@ -401,7 +510,8 @@ var Screens = (function () {
   }
 
   // ── Helper: render Match Summary + Did You Know? sections ───────────────
-  function _renderRecapSections(match, stats, h0, h1) {
+  // recordsHtml: optional pre-rendered HTML for the Personal Records block (pass "" to omit)
+  function _renderRecapSections(match, stats, h0, h1, recordsHtml) {
     if (!stats) return "";
     const turns = (match.turnNumber || 1) - 1;
     const bh = stats.biggestHit;
@@ -427,6 +537,7 @@ var Screens = (function () {
     ${triviaStat}
   </div>
 </div>
+${recordsHtml || ""}
 <div class="did-you-know">
   <h3>Did You Know?</h3>
   <div class="dyk-card">
@@ -469,7 +580,8 @@ var Screens = (function () {
         return renderArcadeEnding(playerHeroId, state.arcade.firstClear);
       }
       const roadmap = renderArcadeRoadmap(state, "full");
-      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+      const arcadeRecordsHtml = _buildRecordsHtml(state);
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1, arcadeRecordsHtml);
       return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}!</h2>
@@ -486,7 +598,8 @@ var Screens = (function () {
 
     if (state.mode === "daily") {
       const playerWon = winnerIdx === 0;
-      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+      const dailyRecordsHtml = playerWon ? _buildRecordsHtml(state) : "";
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1, dailyRecordsHtml);
       let dailyResultInfo = "";
       if (playerWon) {
         const ds = state.save && state.save.daily
@@ -518,7 +631,7 @@ var Screens = (function () {
     }
 
     if (state.mode === "spectator") {
-      const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+      const recap = _renderRecapSections(match, state.matchStats, h0, h1, "");
       return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
@@ -531,7 +644,8 @@ var Screens = (function () {
 </section>`;
     }
 
-    const recap = _renderRecapSections(match, state.matchStats, h0, h1);
+    const quickRecordsHtml = _buildRecordsHtml(state);
+    const recap = _renderRecapSections(match, state.matchStats, h0, h1, quickRecordsHtml);
     return `
 <section class="screen screen-result">
   <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>

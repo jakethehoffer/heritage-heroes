@@ -375,6 +375,48 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   margin: 0;
 }
 
+/* ── Match Recap: Personal Records ─────────────────────────────────────── */
+.match-records {
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 16px auto;
+  max-width: 600px;
+  text-align: left;
+}
+
+.match-records h3 {
+  font-family: var(--font-heading);
+  color: var(--terracotta);
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.records-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.records-list li {
+  padding: 8px 0;
+  font-size: 15px;
+  color: var(--ink);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.records-list li:last-child {
+  border-bottom: none;
+}
+
+.records-list strong {
+  color: var(--navy);
+  font-weight: 700;
+}
+
 .overlay {
   position: fixed; inset: 0;
   background: rgba(26, 26, 26, 0.55);
@@ -2087,6 +2129,14 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   .did-you-know {
     max-width: 100%;
     padding: 16px;
+  }
+
+  /* Personal Records: full width on phone */
+  .match-records {
+    padding: 12px 14px;
+  }
+  .records-list li {
+    font-size: 13px;
   }
 
   /* Did You Know? portrait stacks above text on phone */
