@@ -744,6 +744,65 @@ test("music and sfx round-trip independently via save/load", () => {
   assert.strictEqual(reloaded2.sfx,   false, "sfx=false should round-trip");
 });
 
+// ── Volume sliders (master / music / sfx) ─────────────────────────────────
+
+test("masterVolume / musicVolume / sfxVolume default to 100", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.masterVolume, 100, "masterVolume should default to 100");
+  assert.strictEqual(data.musicVolume,  100, "musicVolume should default to 100");
+  assert.strictEqual(data.sfxVolume,    100, "sfxVolume should default to 100");
+});
+
+test("load accepts integer 0-100 for each volume", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({
+    masterVolume: 0,
+    musicVolume: 50,
+    sfxVolume: 100
+  }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.masterVolume, 0,   "0 should be accepted as a min boundary");
+  assert.strictEqual(data.musicVolume,  50,  "50 should be accepted mid-range");
+  assert.strictEqual(data.sfxVolume,    100, "100 should be accepted as a max boundary");
+});
+
+test("load rejects out-of-range or non-integer volumes -> defaults to 100", () => {
+  const badValues = [-1, 101, 50.5, "100", null, undefined, NaN, Infinity, true, [], {}];
+  for (const v of badValues) {
+    const s = fakeStore();
+    s.setItem("heritageHeroes.save", JSON.stringify({
+      masterVolume: v, musicVolume: v, sfxVolume: v
+    }));
+    const data = Storage.load(s);
+    assert.strictEqual(data.masterVolume, 100, `masterVolume should default to 100 when input is ${JSON.stringify(v)}`);
+    assert.strictEqual(data.musicVolume,  100, `musicVolume should default to 100 when input is ${JSON.stringify(v)}`);
+    assert.strictEqual(data.sfxVolume,    100, `sfxVolume should default to 100 when input is ${JSON.stringify(v)}`);
+  }
+});
+
+test("volumes round-trip independently via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.masterVolume = 75;
+  data.musicVolume  = 20;
+  data.sfxVolume    = 0;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.masterVolume, 75);
+  assert.strictEqual(reloaded.musicVolume,  20);
+  assert.strictEqual(reloaded.sfxVolume,    0);
+
+  // change again
+  reloaded.masterVolume = 100;
+  reloaded.musicVolume  = 100;
+  reloaded.sfxVolume    = 60;
+  Storage.save(s, reloaded);
+  const reloaded2 = Storage.load(s);
+  assert.strictEqual(reloaded2.masterVolume, 100);
+  assert.strictEqual(reloaded2.musicVolume,  100);
+  assert.strictEqual(reloaded2.sfxVolume,    60);
+});
+
 // ── Hero Matchup Tracking ─────────────────────────────────────────────────
 
 test("matchups defaults to empty object", () => {

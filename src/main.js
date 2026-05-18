@@ -464,6 +464,11 @@ var Main = (function () {
     state.save = Storage.load(store);
     Sfx.setMusicMuted(!state.save.music);
     Sfx.setSfxMuted(!state.save.sfx);
+    if (typeof Sfx !== "undefined") {
+      if (Sfx.setMasterVolume) Sfx.setMasterVolume(state.save.masterVolume);
+      if (Sfx.setMusicVolume)  Sfx.setMusicVolume(state.save.musicVolume);
+      if (Sfx.setSfxVolume)    Sfx.setSfxVolume(state.save.sfxVolume);
+    }
     Sfx.preload();
     applyTextSize(state.save.textSize);
     applyTheme(state.save.theme);
@@ -493,6 +498,13 @@ var Main = (function () {
     }
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
+    // Sliders fire `input` while dragging; click doesn't reach handleAction during a drag.
+    document.addEventListener("input", function (ev) {
+      const t = ev.target;
+      if (t && t.dataset && t.dataset.action === "set-volume") {
+        handleAction("set-volume", t, ev);
+      }
+    });
     render();
     registerServiceWorker();
   }
@@ -877,6 +889,28 @@ var Main = (function () {
         Storage.save(getStore(), state.save);
         render();
         return;
+
+      case "set-volume": {
+        const type = target.dataset.type;  // "master" | "music" | "sfx"
+        const pct = parseInt(target.value, 10);
+        if (!Number.isInteger(pct) || pct < 0 || pct > 100) return;
+        if (type !== "master" && type !== "music" && type !== "sfx") return;
+        const store = getStore();
+        const fieldName = type + "Volume";
+        if (store) {
+          const data = Storage.load(store);
+          data[fieldName] = pct;
+          Storage.save(store, data);
+          state.save = Storage.load(store);
+        } else {
+          state.save[fieldName] = pct;
+        }
+        if (type === "master" && Sfx.setMasterVolume) Sfx.setMasterVolume(pct);
+        if (type === "music"  && Sfx.setMusicVolume)  Sfx.setMusicVolume(pct);
+        if (type === "sfx"    && Sfx.setSfxVolume)    Sfx.setSfxVolume(pct);
+        render();
+        return;
+      }
 
       case "pause-battle":
         if (state.pendingAiTimeout) { clearTimeout(state.pendingAiTimeout); state.pendingAiTimeout = null; }

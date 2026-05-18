@@ -4177,6 +4177,9 @@ ${recordsHtml || ""}
     const textSize  = (state.save && state.save.textSize)  || "normal";
     const theme     = (state.save && state.save.theme)     || "default";
     const strategyHints = (state.save && state.save.strategyHints) || "on";
+    const masterVol = (state.save && Number.isInteger(state.save.masterVolume)) ? state.save.masterVolume : 100;
+    const musicVol  = (state.save && Number.isInteger(state.save.musicVolume))  ? state.save.musicVolume  : 100;
+    const sfxVol    = (state.save && Number.isInteger(state.save.sfxVolume))    ? state.save.sfxVolume    : 100;
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
@@ -4195,6 +4198,35 @@ ${recordsHtml || ""}
       ${sfxOn ? "ON" : "OFF"}
     </button>
     <p class="settings-help">Move sounds, hit thuds, trivia chimes, achievement fanfares, and victory.</p>
+  </div>
+
+  <div class="settings-group">
+    <h3>Volume</h3>
+    <p class="settings-help">Fine-tune the audio levels. 0 acts as mute.</p>
+    <div class="settings-volume-row">
+      <label class="settings-volume-label" for="vol-master">Master</label>
+      <input type="range" id="vol-master" min="0" max="100" value="${masterVol}"
+             data-action="set-volume" data-type="master"
+             class="settings-volume-slider"
+             aria-label="Master volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${masterVol}" />
+      <span class="settings-volume-value">${masterVol}%</span>
+    </div>
+    <div class="settings-volume-row">
+      <label class="settings-volume-label" for="vol-music">Music</label>
+      <input type="range" id="vol-music" min="0" max="100" value="${musicVol}"
+             data-action="set-volume" data-type="music"
+             class="settings-volume-slider"
+             aria-label="Music volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${musicVol}" />
+      <span class="settings-volume-value">${musicVol}%</span>
+    </div>
+    <div class="settings-volume-row">
+      <label class="settings-volume-label" for="vol-sfx">SFX</label>
+      <input type="range" id="vol-sfx" min="0" max="100" value="${sfxVol}"
+             data-action="set-volume" data-type="sfx"
+             class="settings-volume-slider"
+             aria-label="Sound effects volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${sfxVol}" />
+      <span class="settings-volume-value">${sfxVol}%</span>
+    </div>
   </div>
 
   <div class="settings-group">

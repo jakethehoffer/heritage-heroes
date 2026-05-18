@@ -42,6 +42,9 @@ var Storage = (function () {
       sound: false,
       music: true,
       sfx: true,
+      masterVolume: 100,  // 0-100
+      musicVolume: 100,
+      sfxVolume: 100,
       animSpeed: "normal",
       textSize: "normal",  // "normal" | "large" | "xlarge"
       theme: "default",  // "default" | "high-contrast"
@@ -140,6 +143,15 @@ var Storage = (function () {
           out.sfx = parsed.sfx;
         } else if (typeof parsed.sound === "boolean") {
           out.sfx = parsed.sound;
+        }
+        if (Number.isInteger(parsed.masterVolume) && parsed.masterVolume >= 0 && parsed.masterVolume <= 100) {
+          out.masterVolume = parsed.masterVolume;
+        }
+        if (Number.isInteger(parsed.musicVolume) && parsed.musicVolume >= 0 && parsed.musicVolume <= 100) {
+          out.musicVolume = parsed.musicVolume;
+        }
+        if (Number.isInteger(parsed.sfxVolume) && parsed.sfxVolume >= 0 && parsed.sfxVolume <= 100) {
+          out.sfxVolume = parsed.sfxVolume;
         }
         if (parsed.animSpeed === "slow" || parsed.animSpeed === "normal" || parsed.animSpeed === "fast") {
           out.animSpeed = parsed.animSpeed;

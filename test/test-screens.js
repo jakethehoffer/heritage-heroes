@@ -1855,3 +1855,76 @@ test("_heroEraPosition returns null for invalid hero id", () => {
   assert.strictEqual(Screens._heroEraPosition(""), null);
   assert.strictEqual(Screens._heroEraPosition(undefined), null);
 });
+
+// ── renderSettings: volume sliders (master / music / sfx) ────────────────────
+
+test("renderSettings: includes 3 volume sliders with data-type master/music/sfx", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /<h3>Volume<\/h3>/, "Volume section heading present");
+  assert.match(html, /type="range"[^>]*data-action="set-volume"[^>]*data-type="master"/);
+  assert.match(html, /type="range"[^>]*data-action="set-volume"[^>]*data-type="music"/);
+  assert.match(html, /type="range"[^>]*data-action="set-volume"[^>]*data-type="sfx"/);
+  // Visible labels
+  assert.match(html, />Master</);
+  assert.match(html, />Music</);
+  assert.match(html, />SFX</);
+});
+
+test("renderSettings: volume sliders use current save values as their default value", () => {
+  const save = freshSave();
+  save.masterVolume = 75;
+  save.musicVolume  = 20;
+  save.sfxVolume    = 0;
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /data-type="master"[^>]*value="75"|value="75"[^>]*data-type="master"/);
+  assert.match(html, /data-type="music"[^>]*value="20"|value="20"[^>]*data-type="music"/);
+  assert.match(html, /data-type="sfx"[^>]*value="0"|value="0"[^>]*data-type="sfx"/);
+});
+
+test("renderSettings: volume value labels show the current percentage", () => {
+  const save = freshSave();
+  save.masterVolume = 75;
+  save.musicVolume  = 20;
+  save.sfxVolume    = 0;
+  const html = Screens.renderSettings({ save });
+  // Each row has a <span class="settings-volume-value">N%</span>
+  const rows = html.match(/<div class="settings-volume-row">[\s\S]*?<\/div>/g) || [];
+  assert.strictEqual(rows.length, 3, "expected exactly 3 volume rows");
+  // Pull master row (first), music (second), sfx (third)
+  assert.match(rows[0], /<span class="settings-volume-value">75%<\/span>/);
+  assert.match(rows[1], /<span class="settings-volume-value">20%<\/span>/);
+  assert.match(rows[2], /<span class="settings-volume-value">0%<\/span>/);
+});
+
+test("renderSettings: volume sliders default to 100% when save fields are missing", () => {
+  const save = freshSave();
+  delete save.masterVolume;
+  delete save.musicVolume;
+  delete save.sfxVolume;
+  const html = Screens.renderSettings({ save });
+  const rows = html.match(/<div class="settings-volume-row">[\s\S]*?<\/div>/g) || [];
+  assert.strictEqual(rows.length, 3);
+  for (const r of rows) {
+    assert.match(r, /<span class="settings-volume-value">100%<\/span>/);
+  }
+});
+
+// ── Sfx volume setters: headless-safe (no AudioContext) ──────────────────────
+
+test("Sfx.setMasterVolume / setMusicVolume / setSfxVolume do not throw in headless Node", () => {
+  const Sfx = require("../src/audio.js");
+  assert.doesNotThrow(() => Sfx.setMasterVolume(50));
+  assert.doesNotThrow(() => Sfx.setMusicVolume(0));
+  assert.doesNotThrow(() => Sfx.setSfxVolume(100));
+  // Bad inputs clamp/default rather than throw
+  assert.doesNotThrow(() => Sfx.setMasterVolume(-50));
+  assert.doesNotThrow(() => Sfx.setMasterVolume(9999));
+  assert.doesNotThrow(() => Sfx.setMasterVolume(null));
+  assert.doesNotThrow(() => Sfx.setMasterVolume(undefined));
+  // Internal levels reflect what we set
+  const levels = Sfx._getLevels();
+  assert.ok(levels.master >= 0 && levels.master <= 1, "master in 0..1");
+  assert.ok(levels.music  >= 0 && levels.music  <= 1, "music in 0..1");
+  assert.ok(levels.sfx    >= 0 && levels.sfx    <= 1, "sfx in 0..1");
+});

@@ -10,6 +10,13 @@ var Sfx = (function () {
   let musicMuted = false; // controls music (musicGain)
   let unlocked = false;  // whether AudioContext has been resumed after user gesture
 
+  // Volume levels (0..1 multipliers, computed from 0-100 save values).
+  // Effective music gain = masterLevel * musicLevel * MUSIC_MASTER_VOLUME
+  // Effective SFX   gain = masterLevel * sfxLevel   * 0.5
+  let masterLevel = 1;
+  let musicLevel  = 1;
+  let sfxLevel    = 1;
+
   // ── Music state ────────────────────────────────────────────────────────────
   let activeMusicNodes = [];   // oscillators/sources currently playing
   let activeMusicStage = null; // current stage id, prevents restarts when unchanged
@@ -26,7 +33,7 @@ var Sfx = (function () {
     try {
       ctx = new AC();
       masterGain = ctx.createGain();
-      masterGain.gain.value = muted ? 0 : 0.5;
+      masterGain.gain.value = sfxMuted ? 0 : (masterLevel * sfxLevel * 0.5);
       masterGain.connect(ctx.destination);
 
       musicGain = ctx.createGain();
@@ -36,6 +43,48 @@ var Sfx = (function () {
       ctx = null;
     }
     return ctx;
+  }
+
+  // ── Volume helpers ─────────────────────────────────────────────────────────
+
+  function clamp01(x) {
+    if (typeof x !== "number" || !isFinite(x)) return 1;
+    return Math.max(0, Math.min(1, x));
+  }
+
+  // Effective music-gain target when not muted and music is currently playing.
+  function _targetMusicGain() {
+    return masterLevel * musicLevel * MUSIC_MASTER_VOLUME;
+  }
+
+  // Recompute and apply gain.value on both nodes. Safe before ctx exists (no-op).
+  function _applyGains() {
+    if (!ctx) return;
+    if (masterGain) {
+      masterGain.gain.value = sfxMuted ? 0 : (masterLevel * sfxLevel * 0.5);
+    }
+    if (musicGain) {
+      // Music gain is only "live" when a track is playing — leave it at 0 otherwise
+      // so we don't get a click on the next playMusic fade-in.
+      musicGain.gain.value = musicMuted
+        ? 0
+        : (activeMusicStage ? _targetMusicGain() : 0);
+    }
+  }
+
+  function setMasterVolume(pct) {
+    masterLevel = clamp01((typeof pct === "number" ? pct : 100) / 100);
+    _applyGains();
+  }
+
+  function setMusicVolume(pct) {
+    musicLevel = clamp01((typeof pct === "number" ? pct : 100) / 100);
+    _applyGains();
+  }
+
+  function setSfxVolume(pct) {
+    sfxLevel = clamp01((typeof pct === "number" ? pct : 100) / 100);
+    _applyGains();
   }
 
   function ensureUnlocked() {
@@ -777,7 +826,7 @@ var Sfx = (function () {
 
     // Fade in
     const now = c.currentTime;
-    const targetVol = musicMuted ? 0 : MUSIC_MASTER_VOLUME;
+    const targetVol = musicMuted ? 0 : _targetMusicGain();
     musicGain.gain.cancelScheduledValues(now);
     musicGain.gain.setValueAtTime(0, now);
     if (!musicMuted) {
@@ -831,8 +880,12 @@ var Sfx = (function () {
   function setSfxMuted(value) {
     sfxMuted = !!value;
     muted = sfxMuted; // keep legacy flag in sync
-    if (masterGain) {
-      masterGain.gain.setValueAtTime(sfxMuted ? 0 : 0.5, ctx ? ctx.currentTime : 0);
+    // Use setValueAtTime so any scheduled ramps don't overwrite the mute.
+    if (masterGain && ctx) {
+      masterGain.gain.cancelScheduledValues(ctx.currentTime);
+      masterGain.gain.setValueAtTime(sfxMuted ? 0 : (masterLevel * sfxLevel * 0.5), ctx.currentTime);
+    } else {
+      _applyGains();
     }
   }
 
@@ -841,7 +894,12 @@ var Sfx = (function () {
     if (musicGain && ctx) {
       const now = ctx.currentTime;
       musicGain.gain.cancelScheduledValues(now);
-      musicGain.gain.setValueAtTime(musicMuted ? 0 : MUSIC_MASTER_VOLUME, now);
+      const target = musicMuted
+        ? 0
+        : (activeMusicStage ? _targetMusicGain() : 0);
+      musicGain.gain.setValueAtTime(target, now);
+    } else {
+      _applyGains();
     }
   }
 
@@ -852,7 +910,13 @@ var Sfx = (function () {
 
   function isMuted() { return sfxMuted && musicMuted; }
 
-  return { preload, play, setMuted, setSfxMuted, setMusicMuted, isMuted, playMusic, stopMusic, getActiveMusicStage };
+  return {
+    preload, play, setMuted, setSfxMuted, setMusicMuted, isMuted,
+    playMusic, stopMusic, getActiveMusicStage,
+    setMasterVolume, setMusicVolume, setSfxVolume,
+    // expose levels for tests (underscore-prefixed)
+    _getLevels: function () { return { master: masterLevel, music: musicLevel, sfx: sfxLevel }; }
+  };
 })();
 
 if (typeof module !== "undefined") module.exports = Sfx;
