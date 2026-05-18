@@ -4512,6 +4512,11 @@ ${recordsHtml || ""}
            maxlength="24"
            value="${Render.escapeHtml(playerName)}"
            placeholder="e.g. Grandpa, Sarah, etc."
+           autocomplete="nickname"
+           autocapitalize="words"
+           autocorrect="off"
+           spellcheck="false"
+           enterkeyhint="done"
            aria-label="Your display name" />
   </div>
 

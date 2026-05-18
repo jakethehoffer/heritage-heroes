@@ -63,6 +63,19 @@ body {
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* iPhone safe-area-inset (notch + home indicator). The max() pattern keeps
+     a minimum padding on devices without insets, then expands on devices
+     that report them. Applied at the body level so every screen + overlay
+     sits inside the safe area without each component needing its own rule. */
+  padding:
+    max(0px, env(safe-area-inset-top))
+    max(0px, env(safe-area-inset-right))
+    max(0px, env(safe-area-inset-bottom))
+    max(0px, env(safe-area-inset-left));
+  /* Stop iOS rubber-band overscroll on the document — keeps game UI feeling
+     anchored when players reach the edge of a list/log. Per-element scrollers
+     (.battle-log-full, .detail-log, etc.) still scroll normally. */
+  overscroll-behavior-y: none;
 }
 
 #root {
@@ -88,6 +101,16 @@ button {
   cursor: pointer;
   box-shadow: 4px 4px 0 var(--shadow);
   transition: transform 80ms;
+  /* Eliminate iOS 300ms click delay + prevent accidental double-tap-to-zoom
+     on rapid button presses during combat. `manipulation` keeps pinch-zoom
+     working at the document level but disables the double-tap gesture on
+     buttons specifically. Applied globally so every <button> in the game
+     gets it without per-component rules. */
+  touch-action: manipulation;
+  /* Tame Mobile Safari's blue tap highlight — the existing :active transform
+     already provides press feedback, and the highlight clashes with the
+     terracotta button color. */
+  -webkit-tap-highlight-color: transparent;
 }
 button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--shadow); }
 button:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
@@ -154,6 +177,14 @@ button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 v
   40%  {             transform: translate(-50%, -50%) scale(1.1); }
   85%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
   100% { opacity: 0; transform: translate(-50%, -55%) scale(1.0); }
+}
+
+/* Callouts shrink on small phones so the "BIG HIT!" / "COMBO!" text doesn't
+   overflow the 320px arena and collide with the HP bars or status badges. */
+@media (max-width: 600px) {
+  .callout         { font-size: 22px; padding: 12px 20px; }
+  .callout.combo   { font-size: 24px; padding: 12px 20px; }
+  .callout.bighit  { font-size: 28px; padding: 12px 20px; letter-spacing: 1px; }
 }
 
 .screen {
@@ -352,11 +383,15 @@ button.secondary { background: var(--cream); color: var(--ink); }
   border: 1px solid var(--navy);
   color: var(--navy);
   font-size: 12px;
-  padding: 3px 10px;
+  padding: 6px 12px;
   border-radius: 12px;
   cursor: pointer;
   font-family: var(--font-body);
   transition: background 120ms ease, color 120ms ease;
+  /* Touch target ≥44px on mobile (Apple HIG). */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 .otd-hero-link:hover {
   background: var(--navy);
@@ -691,7 +726,7 @@ body.theme-high-contrast .battle-hint-banner {
 .moves-row button strong { font-size: 18px; }
 .moves-row button .sub { font-size: 13px; opacity: 0.85; font-weight: normal; }
 
-.move-log { width: 100%; max-width: 900px; min-height: 80px; padding: 10px 14px; background: var(--cream); border: 2px solid var(--ink); border-radius: 6px; font-size: 14px; line-height: 1.6; }
+.move-log { width: 100%; max-width: 900px; min-height: 80px; padding: 10px 14px; background: var(--cream); border: 2px solid var(--ink); border-radius: 6px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .move-log div + div { border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px; }
 
 /* ── Fighter action keyframes ──────────────────────────────────── */
@@ -854,6 +889,10 @@ body.theme-high-contrast .battle-hint-banner {
   font-size: 15px;
   border-bottom: 1px solid rgba(26, 26, 26, 0.1);
   padding-bottom: 5px;
+  /* Allow long label+value pairs to wrap to two lines on narrow phones
+     (e.g. "Animation Speed     Slow"). Without this, the value can squeeze
+     out of view. */
+  flex-wrap: wrap;
 }
 .summary-row:last-child { border-bottom: none; padding-bottom: 0; }
 
@@ -938,6 +977,10 @@ body.theme-high-contrast .battle-hint-banner {
   max-width: 100%;
   height: auto;
 }
+@media (max-width: 600px) {
+  .recap-chart-wrap { padding: 10px 8px; max-width: 100%; }
+  .recap-chart-title { font-size: 13px; }
+}
 body.theme-high-contrast .recap-chart-wrap {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--gold);
@@ -1001,6 +1044,15 @@ body.theme-high-contrast .hp-chart text[fill^="rgba(0,0,0"] {
   background: rgba(26, 26, 26, 0.55);
   display: flex; align-items: center; justify-content: center;
   z-index: 100;
+  /* Respect iPhone safe-area-inset inside fixed overlays so close buttons
+     and content don't slip under the notch / home indicator. The body-level
+     safe-area padding doesn't apply here because fixed-positioning uses the
+     viewport as the containing block. */
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
 }
 .overlay-card {
   background: var(--cream);
@@ -1046,7 +1098,10 @@ body.theme-high-contrast .hp-chart text[fill^="rgba(0,0,0"] {
 
 .help-button {
   position: fixed;
-  top: 16px; right: 16px;
+  /* Push below the iPhone notch — falls back to 16px on devices without
+     safe-area-inset reporting. */
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
   width: 44px; height: 44px;
   padding: 0;
   font-size: 24px;
@@ -2281,7 +2336,8 @@ body.theme-high-contrast .hp-chart text[fill^="rgba(0,0,0"] {
 
 .achievement-toast {
   position: fixed;
-  bottom: 32px;
+  /* Sit above the iPhone home-indicator on devices that report it. */
+  bottom: max(32px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(120px);
   width: 320px;
@@ -2759,6 +2815,17 @@ body.theme-high-contrast .hp-chart text[fill^="rgba(0,0,0"] {
   }
 }
 
+/* Tightest phones (iPhone SE 320px). Shrink portrait + VS so the 2-fighter
+   row doesn't blow past the viewport edge — important because the layout is
+   `[fighter] [VS] [fighter]` and the giant VS text was sized for ≥600px. */
+@media (max-width: 360px) {
+  .vs-intro-portrait { width: 88px; height: 88px; }
+  .vs-intro-vs { font-size: 56px; }
+  .vs-intro-name { font-size: 16px; }
+  .vs-intro-fighters { gap: 8px; }
+  .vs-intro-stage-name { font-size: 16px; letter-spacing: 1px; }
+}
+
 /* ── VS Intro: matchup prediction badge ──────────────────────────────────
    Small chip that surfaces the player's personal W/L vs this opponent.
    Only shown for "you vs AI" matches outside Tournament. Fades in after
@@ -2961,11 +3028,21 @@ body.theme-high-contrast .vs-intro-rivalry {
 }
 
 @media (max-width: 600px) {
+  .screen-match-end-splash { min-height: 360px; padding: 24px 12px; }
   .match-end-splash-winner-portrait { width: 160px; height: 160px; }
   .match-end-splash-title { font-size: 56px; letter-spacing: 2px; }
   .match-end-splash-title.neutral { font-size: 38px; }
   .match-end-splash-name { font-size: 22px; }
   .match-end-splash-flavor { font-size: 13px; }
+}
+
+/* iPhone SE width — splash title at 56px+letter-spacing can still bump into
+   320px viewport edges. Trim one more notch. */
+@media (max-width: 360px) {
+  .match-end-splash-winner-portrait { width: 128px; height: 128px; }
+  .match-end-splash-title { font-size: 44px; letter-spacing: 1px; }
+  .match-end-splash-title.neutral { font-size: 32px; }
+  .match-end-splash-name { font-size: 18px; }
 }
 
 /* High-contrast theme — bright accent colors */
@@ -3528,8 +3605,10 @@ body.theme-high-contrast .match-end-splash-title.defeat  { color: var(--terracot
   .help-button {
     width: 44px;
     height: 44px;
-    top: 8px;
-    right: 8px;
+    /* max() preserves the 8px floor on phones without a notch but pushes
+       below the safe-area-inset when present (e.g. iPhone X+). */
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
   }
 }
 
@@ -3553,6 +3632,12 @@ body.theme-high-contrast .match-end-splash-title.defeat  { color: var(--terracot
   transition: transform 80ms;
   align-self: center;
   white-space: nowrap;
+  /* Touch target: ensure ≥44px tap height on mobile (Apple HIG min). The
+     visible pill stays compact via padding, but min-height pads the hit-area. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .info-pill:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--shadow); }
 
@@ -3613,6 +3698,9 @@ body.theme-high-contrast .match-end-splash-title.defeat  { color: var(--terracot
   cursor: pointer;
   box-shadow: 2px 2px 0 var(--shadow);
   margin-top: 2px;
+  /* Touch target ≥44px on mobile (Apple HIG). */
+  min-height: 44px;
+  min-width: 44px;
 }
 .hall-learn-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--shadow); }
 
@@ -4066,6 +4154,9 @@ button.danger:hover {
 }
 .settings-volume-slider {
   width: 100%;
+  /* Slimmer track stays visible; vertical padding on the row gives the slider
+     a generous tap area. The thumb is enlarged on mobile via the breakpoint
+     below so it's actually grabbable with a finger. */
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
@@ -4073,11 +4164,13 @@ button.danger:hover {
   border-radius: 3px;
   outline: none;
   cursor: pointer;
+  /* Eliminate iOS double-tap zoom / click delay when dragging. */
+  touch-action: manipulation;
 }
 .settings-volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--terracotta);
   border: 2px solid var(--cream);
@@ -4085,8 +4178,8 @@ button.danger:hover {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .settings-volume-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--terracotta);
   border: 2px solid var(--cream);
@@ -4115,9 +4208,13 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
 }
 
 @media (max-width: 600px) {
-  .settings-volume-row { grid-template-columns: 60px 1fr 44px; gap: 8px; }
+  .settings-volume-row { grid-template-columns: 60px 1fr 44px; gap: 8px; padding: 8px 0; }
   .settings-volume-label { font-size: 12px; }
   .settings-volume-value { font-size: 11px; }
+  /* Finger-friendly slider thumb on touch devices — 28px is comfortable to
+     drag without obscuring the track. */
+  .settings-volume-slider::-webkit-slider-thumb { width: 28px; height: 28px; }
+  .settings-volume-slider::-moz-range-thumb { width: 28px; height: 28px; }
 }
 
 /* ── Match History ─────────────────────────────────────────────────────────── */
@@ -4277,6 +4374,9 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
   line-height: 1.6;
   padding: 8px 12px;
   margin-bottom: 16px;
+  /* Prevent a single long combat-log line ("Esther reverses Judah's Spear
+     Thrust for 18 damage…") from forcing horizontal scroll on narrow phones. */
+  overflow-wrap: anywhere;
 }
 
 .detail-log-line {
@@ -4679,6 +4779,9 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
   font-size: 14px;
   line-height: 1.6;
   margin: 16px 0;
+  /* Long combat-log lines wrap inside the panel instead of triggering
+     horizontal scroll on narrow phones. */
+  overflow-wrap: anywhere;
 }
 
 .battle-log-full .log-line {
@@ -4989,7 +5092,10 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
 /* ── Share-via-URL toast ─────────────────────────────────────────────────── */
 .share-toast {
   position: fixed;
-  bottom: 80px;
+  /* Float above iPhone home indicator + above the typical 80px slot it
+     wants. max() keeps the existing 80px on desktop, lifts on devices
+     that report a bottom safe-area-inset. */
+  bottom: max(80px, calc(env(safe-area-inset-bottom) + 32px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--gold);
@@ -5240,6 +5346,12 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  /* Touch target ≥44px on mobile. min-height keeps the chip compact-looking
+     while padding-out the hit area. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .trophy-chip.active {
@@ -5501,6 +5613,15 @@ body.theme-high-contrast .settings-volume-slider::-moz-range-thumb {
   z-index: 2;
 }
 .stage-info-btn:hover { background: var(--gold); color: var(--cream); }
+/* The visible info pip stays small (22×22) so it doesn't dominate the stage
+   card. Use a touch-only pseudo-element to extend the hit target to ≥44px
+   without changing the visual layout — sits centered behind the button. */
+.stage-info-btn::before {
+  content: "";
+  position: absolute;
+  inset: -11px;
+  border-radius: 50%;
+}
 
 .stage-info-card {
   max-width: 560px;
@@ -5761,7 +5882,7 @@ body.theme-high-contrast .battle-hud-timer {
 }
 
 @media (max-width: 600px) {
-  .battle-hud { font-size: 11px; gap: 10px; padding: 3px 10px; }
+  .battle-hud { font-size: 11px; gap: 10px; padding: 3px 10px; flex-wrap: wrap; }
 }
 
 /* ── Hero Comparison Tool ────────────────────────────────────────────────── */
@@ -6017,14 +6138,19 @@ body.theme-high-contrast .era-timeline-axis {
 .settings-name-input {
   width: 100%;
   max-width: 320px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-family: var(--font-body);
-  font-size: 15px;
+  /* 16px is the iOS Safari threshold below which a focused input triggers
+     an automatic zoom. Keep this >=16px across all breakpoints so iPhone
+     users don't get jarringly zoomed when editing their name. */
+  font-size: 16px;
   border: 2px solid var(--gold);
   border-radius: 8px;
   background: var(--cream);
   color: var(--ink);
   outline: none;
+  /* Touch target ≥44px on mobile (Apple HIG). */
+  min-height: 44px;
 }
 .settings-name-input:focus {
   border-color: var(--terracotta);
@@ -6045,7 +6171,8 @@ body.theme-high-contrast .settings-name-input::placeholder {
 }
 
 @media (max-width: 600px) {
-  .settings-name-input { font-size: 14px; padding: 7px 10px; }
+  /* Keep font-size at 16px to avoid iOS focus-zoom; only relax padding. */
+  .settings-name-input { padding: 9px 10px; }
 }
 
 /* ── Hero Mastery Tiers ───────────────────────────────────────────────────
@@ -6151,7 +6278,7 @@ body.theme-high-contrast .profile-tier-badge {
   flex-wrap: wrap;
 }
 .replay-btn {
-  padding: 6px 14px;
+  padding: 8px 14px;
   background: var(--cream);
   color: var(--ink);
   border: 2px solid var(--gold);
@@ -6161,6 +6288,9 @@ body.theme-high-contrast .profile-tier-badge {
   font-weight: 700;
   cursor: pointer;
   transition: background 100ms ease, transform 100ms ease;
+  /* Touch target ≥44px on mobile. min-height pads the hit area without
+     stretching the visual button much beyond its current ~32px height. */
+  min-height: 44px;
 }
 .replay-btn:hover { background: var(--gold); transform: translateY(-1px); }
 .replay-btn.secondary {
@@ -6174,13 +6304,15 @@ body.theme-high-contrast .profile-tier-badge {
   background: var(--terracotta);
   color: var(--cream);
   border: 2px solid var(--ink);
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-radius: 8px;
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   margin-right: 8px;
+  /* Touch target ≥44px on mobile (Apple HIG). */
+  min-height: 44px;
 }
 .match-detail-replay-btn:hover { background: var(--gold); color: var(--navy); }
 
@@ -6190,5 +6322,14 @@ body.theme-high-contrast .replay-banner {
 
 @media (max-width: 600px) {
   .replay-banner { padding: 8px 12px; }
-  .replay-btn { font-size: 12px; padding: 5px 10px; }
+  .replay-banner-title { font-size: 13px; margin-bottom: 6px; }
+  .replay-banner-controls { gap: 6px; }
+  /* Keep min-height 44px from base rule for tap target; relax other padding
+     so 4 buttons (Play/Pause + Step + End + Restart) all fit on a 320px row. */
+  .replay-btn { font-size: 12px; padding: 5px 10px; min-height: 44px; }
+}
+/* Ultra-narrow phones (iPhone SE / older Androids in landscape-blocked) */
+@media (max-width: 360px) {
+  .replay-btn { font-size: 11px; padding: 5px 8px; }
+  .replay-banner-controls { gap: 4px; }
 }
