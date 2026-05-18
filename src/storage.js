@@ -45,6 +45,7 @@ var Storage = (function () {
       animSpeed: "normal",
       textSize: "normal",  // "normal" | "large" | "xlarge"
       theme: "default",  // "default" | "high-contrast"
+      strategyHints: "on",  // "on" | "off" — show contextual battle tips during the player's turn
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
@@ -148,6 +149,9 @@ var Storage = (function () {
         }
         if (parsed.theme === "default" || parsed.theme === "high-contrast") {
           out.theme = parsed.theme;
+        }
+        if (parsed.strategyHints === "on" || parsed.strategyHints === "off") {
+          out.strategyHints = parsed.strategyHints;
         }
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;

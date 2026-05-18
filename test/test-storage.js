@@ -1675,3 +1675,31 @@ test("recordQuestProgress with no event handler stays safe (unknown eventType)",
   assert.deepStrictEqual(result.newlyCompleted, []);
   assert.strictEqual(Storage.load(s).dailyQuests.quests[0].progress, 0);
 });
+
+// ── strategyHints (battle hints toggle) ───────────────────────────────────
+test("strategyHints defaults to 'on'", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.strategyHints, "on");
+});
+
+test("strategyHints round-trips 'on' / 'off' via save/load", () => {
+  const s = fakeStore();
+  for (const value of ["on", "off"]) {
+    const data = Storage.load(s);
+    data.strategyHints = value;
+    Storage.save(s, data);
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.strategyHints, value, `${value} should round-trip`);
+  }
+});
+
+test("strategyHints rejects malformed values and falls back to 'on'", () => {
+  const malformed = ["true", "false", "", "ON", "yes", null, 0, 1, true, false, [], {}];
+  for (const bad of malformed) {
+    const s = fakeStore();
+    s.setItem("heritageHeroes.save", JSON.stringify({ strategyHints: bad }));
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.strategyHints, "on",
+      `malformed strategyHints ${JSON.stringify(bad)} should default to "on"`);
+  }
+});

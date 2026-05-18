@@ -477,6 +477,48 @@ var Screens = (function () {
     return `<div class="status-badges">${badges.join("")}</div>`;
   }
 
+  // Pure helper: given a match and the active player's slot index, return a
+  // small contextual hint object `{ icon, text }` or `null` when no tactical
+  // situation applies. Priority order (high to low): reversal > charging >
+  // doubleNextAttack (empowered) > burn > opp HP <= 25 (finish).
+  function battleStrategyHint(match, activeIdx) {
+    if (!match || !match.players || !match.players[activeIdx]) return null;
+    const me = match.players[activeIdx];
+    const opp = match.players[1 - activeIdx];
+    if (!opp) return null;
+    const myStatus = me.statuses || {};
+    const oppStatus = opp.statuses || {};
+    const oppHp = opp.hp;
+
+    // 1. Opponent has reversal — don't attack
+    if (oppStatus.reversal) {
+      return { icon: "⚠️", text: "Opponent will reflect your attack — try Defend or Special." };
+    }
+
+    // 2. Opponent is charging a big attack — defend!
+    if (typeof oppStatus.charging === "number" && oppStatus.charging > 0) {
+      return { icon: "\u{1F6E1}️", text: "Opponent is charging! Defend to halve the incoming blast." };
+    }
+
+    // 3. You're empowered (2x next attack) — attack!
+    if (myStatus.doubleNextAttack) {
+      return { icon: "\u{1F4AA}", text: "Your next Attack does double damage — strike now!" };
+    }
+
+    // 4. You're burning — finish fast (take 8/turn)
+    if (typeof myStatus.burn === "number" && myStatus.burn > 0) {
+      const turnsWord = myStatus.burn === 1 ? "turn" : "turns";
+      return { icon: "\u{1F525}", text: `You're burning for ${myStatus.burn} more ${turnsWord} — finish them fast!` };
+    }
+
+    // 5. Special could finish — opp HP <= 25 (and still alive)
+    if (oppHp <= 25 && oppHp > 0) {
+      return { icon: "✨", text: "Special could finish them — answer trivia correctly to win!" };
+    }
+
+    return null;
+  }
+
   function renderBattle(state) {
     const match = state.match;
     const p0 = match.players[0];
@@ -520,6 +562,22 @@ var Screens = (function () {
       ? renderArcadeRoadmap(state, "compact")
       : "";
 
+    // Strategy hint banner: only on human turns, only when hints not disabled,
+    // never while the active player is mid-charge (one-button state). Picks
+    // the highest-priority hint via `battleStrategyHint`.
+    const hintsEnabled = !state.save || state.save.strategyHints !== "off";
+    let hintBanner = "";
+    if (isHumanTurn && hintsEnabled && !charging) {
+      const hint = battleStrategyHint(match, match.activePlayer);
+      if (hint) {
+        hintBanner = `
+  <div class="battle-hint-banner">
+    <span class="battle-hint-icon">${hint.icon}</span>
+    <span class="battle-hint-text">${Render.escapeHtml(hint.text)}</span>
+  </div>`;
+      }
+    }
+
     // Boss visual treatment
     const isBoss0 = !!p0.bossTwist;
     const isBoss1 = !!p1.bossTwist;
@@ -530,7 +588,7 @@ var Screens = (function () {
 
     return `
 <section class="screen screen-battle">
-  ${arcadeRoadmapBanner}
+  ${arcadeRoadmapBanner}${hintBanner}
   <div class="hp-bars">
     <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: label0, side: "left", rawLabel: true })}</div>
     <div class="vs-label">vs</div>
@@ -3704,6 +3762,7 @@ ${recordsHtml || ""}
     const animSpeed = (state.save && state.save.animSpeed) || "normal";
     const textSize  = (state.save && state.save.textSize)  || "normal";
     const theme     = (state.save && state.save.theme)     || "default";
+    const strategyHints = (state.save && state.save.strategyHints) || "on";
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
@@ -3758,6 +3817,17 @@ ${recordsHtml || ""}
               class="settings-radio ${theme === "default" ? "selected" : ""}">Default</button>
       <button data-action="set-theme" data-theme="high-contrast"
               class="settings-radio ${theme === "high-contrast" ? "selected" : ""}">High Contrast</button>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <h3>Battle hints</h3>
+    <p class="settings-help">Show tactical tips during your turn (recommended for new players).</p>
+    <div class="settings-radio-group">
+      <button data-action="set-strategy-hints" data-value="on"
+              class="settings-radio ${strategyHints === "on" ? "selected" : ""}">On</button>
+      <button data-action="set-strategy-hints" data-value="off"
+              class="settings-radio ${strategyHints === "off" ? "selected" : ""}">Off</button>
     </div>
   </div>
 
@@ -4303,6 +4373,7 @@ ${recordsHtml || ""}
     queueAchievementToast, showAchievementToast, showToast,
     ACHIEVEMENT_LIST,
     renderConfetti,
+    battleStrategyHint,
     _heroSpotlightStats,  // exported for tests
     _vsIntroMatchupSummary  // exported for tests
   };

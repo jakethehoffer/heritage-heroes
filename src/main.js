@@ -766,6 +766,22 @@ var Main = (function () {
         return;
       }
 
+      case "set-strategy-hints": {
+        const value = target.dataset.value;
+        if (value !== "on" && value !== "off") return;
+        const store = getStore();
+        if (store) {
+          const data = Storage.load(store);
+          data.strategyHints = value;
+          Storage.save(store, data);
+          state.save = Storage.load(store);
+        } else {
+          state.save.strategyHints = value;
+        }
+        render();
+        return;
+      }
+
       case "reset-all-prompt":
         state.overlay = "reset-all";
         render();

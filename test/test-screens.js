@@ -1016,3 +1016,171 @@ test("showCallout does not throw with undefined/null variant", () => {
   assert.doesNotThrow(() => Screens.showCallout("X", null));
 });
 
+// ── battleStrategyHint: pure tactical-hint helper ─────────────────────────
+
+test("battleStrategyHint returns null when no tactical situation applies", () => {
+  // Fresh match, full HP, no statuses, no charging.
+  const match = Combat.createMatch("moses", "david");
+  assert.strictEqual(Screens.battleStrategyHint(match, 0), null);
+  assert.strictEqual(Screens.battleStrategyHint(match, 1), null);
+});
+
+test("battleStrategyHint returns 'reversal' hint when opponent has reversal status", () => {
+  const match = Combat.createMatch("moses", "esther");
+  match.players[1].statuses.reversal = true;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint, "should return a hint");
+  assert.match(hint.text, /reflect|Reflect/);
+  assert.ok(hint.icon && hint.icon.length > 0);
+});
+
+test("battleStrategyHint returns 'charging' hint when opponent is charging", () => {
+  const match = Combat.createMatch("moses", "einstein");
+  match.players[1].statuses.charging = 1;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint);
+  assert.match(hint.text, /charging|Defend/);
+});
+
+test("battleStrategyHint returns 'empowered' hint when player has doubleNextAttack", () => {
+  const match = Combat.createMatch("golda", "david");
+  match.players[0].statuses.doubleNextAttack = true;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint);
+  assert.match(hint.text, /double damage|strike/);
+});
+
+test("battleStrategyHint returns 'burn' hint when player is burning", () => {
+  const match = Combat.createMatch("moses", "judah");
+  match.players[0].statuses.burn = 3;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint);
+  assert.match(hint.text, /burning/);
+  assert.match(hint.text, /3 more turns/);
+});
+
+test("battleStrategyHint pluralisation: 1 burn turn uses singular 'turn'", () => {
+  const match = Combat.createMatch("moses", "judah");
+  match.players[0].statuses.burn = 1;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint);
+  assert.match(hint.text, /1 more turn[^s]/);
+});
+
+test("battleStrategyHint returns 'finish them' hint when opponent HP <= 25", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.players[1].hp = 20;
+  const hint = Screens.battleStrategyHint(match, 0);
+  assert.ok(hint);
+  assert.match(hint.text, /finish|Special/);
+});
+
+test("battleStrategyHint does not fire 'finish' hint when opp HP is 0 (already dead)", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.players[1].hp = 0;
+  // No statuses set → no hint of any kind, including the finish one.
+  assert.strictEqual(Screens.battleStrategyHint(match, 0), null);
+});
+
+test("battleStrategyHint priority: reversal beats charging beats empowered beats burn beats finish", () => {
+  const match = Combat.createMatch("golda", "esther");
+  // Set EVERY trigger so we can verify the priority ladder explicitly.
+  match.players[1].statuses.reversal = true;
+  match.players[1].statuses.charging = 2;
+  match.players[0].statuses.doubleNextAttack = true;
+  match.players[0].statuses.burn = 2;
+  match.players[1].hp = 10;
+
+  // 1. Reversal is highest.
+  let hint = Screens.battleStrategyHint(match, 0);
+  assert.match(hint.text, /reflect/);
+
+  // 2. Drop reversal → charging wins.
+  delete match.players[1].statuses.reversal;
+  hint = Screens.battleStrategyHint(match, 0);
+  assert.match(hint.text, /charging/);
+
+  // 3. Drop charging → empowered wins.
+  delete match.players[1].statuses.charging;
+  hint = Screens.battleStrategyHint(match, 0);
+  assert.match(hint.text, /double damage/);
+
+  // 4. Drop empowered → burn wins.
+  delete match.players[0].statuses.doubleNextAttack;
+  hint = Screens.battleStrategyHint(match, 0);
+  assert.match(hint.text, /burning/);
+
+  // 5. Drop burn → finish-them wins (opp HP still 10).
+  delete match.players[0].statuses.burn;
+  hint = Screens.battleStrategyHint(match, 0);
+  assert.match(hint.text, /finish/);
+});
+
+test("battleStrategyHint returns null on missing match/players", () => {
+  assert.strictEqual(Screens.battleStrategyHint(null, 0), null);
+  assert.strictEqual(Screens.battleStrategyHint(undefined, 0), null);
+  assert.strictEqual(Screens.battleStrategyHint({}, 0), null);
+  assert.strictEqual(Screens.battleStrategyHint({ players: [] }, 0), null);
+  // Only one player slot populated → no opponent → null
+  const onePlayer = { players: [{ hp: 50, statuses: {} }] };
+  assert.strictEqual(Screens.battleStrategyHint(onePlayer, 0), null);
+});
+
+// ── renderBattle: hint banner integration ─────────────────────────────────
+
+function _battleState(overrides) {
+  const match = Combat.createMatch("moses", "david");
+  const state = {
+    match,
+    mode: "quick",
+    controllers: ["human", "ai"],
+    save: freshSave(),
+    arcade: null
+  };
+  if (overrides) {
+    if (overrides.match) Object.assign(state.match, overrides.match);
+    if (overrides.controllers) state.controllers = overrides.controllers;
+    if (overrides.save) state.save = Object.assign(freshSave(), overrides.save);
+    if (overrides.mode) state.mode = overrides.mode;
+  }
+  return state;
+}
+
+test("renderBattle includes hint banner when human turn, hints enabled, and a hint applies", () => {
+  const state = _battleState();
+  state.match.players[1].statuses.charging = 1;  // triggers a hint
+  const html = Screens.renderBattle(state);
+  assert.match(html, /battle-hint-banner/);
+  assert.match(html, /charging/);
+});
+
+test("renderBattle does NOT include hint banner when AI is acting", () => {
+  const state = _battleState({ controllers: ["ai", "human"] });
+  state.match.players[1].statuses.charging = 1;  // would trigger a hint, but AI's turn
+  const html = Screens.renderBattle(state);
+  assert.doesNotMatch(html, /battle-hint-banner/);
+});
+
+test("renderBattle does NOT include hint banner when strategyHints is 'off'", () => {
+  const state = _battleState({ save: { strategyHints: "off" } });
+  state.match.players[1].statuses.charging = 1;  // would trigger a hint
+  const html = Screens.renderBattle(state);
+  assert.doesNotMatch(html, /battle-hint-banner/);
+});
+
+test("renderBattle does NOT include hint banner when player is mid-charge", () => {
+  const state = _battleState();
+  // Active player (slot 0) is charging — single-button state, no point hinting.
+  state.match.players[0].statuses.charging = 2;
+  // And give the opponent something that would otherwise trigger a hint.
+  state.match.players[1].statuses.charging = 1;
+  const html = Screens.renderBattle(state);
+  assert.doesNotMatch(html, /battle-hint-banner/);
+});
+
+test("renderBattle does NOT include hint banner when no tactical hint applies", () => {
+  const state = _battleState();
+  // Fresh state, no statuses, full HP. Should render fine without the banner.
+  const html = Screens.renderBattle(state);
+  assert.doesNotMatch(html, /battle-hint-banner/);
+});
