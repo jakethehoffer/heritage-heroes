@@ -96,6 +96,11 @@ var Screens = (function () {
   ${featuredPanel}
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>
+    <button data-action="start-quick-play" class="quick-play" title="Random hero, random stage &mdash; just play.">
+      <span class="quick-play-icon" aria-hidden="true">&#x1F3B2;</span>
+      <span class="quick-play-label">Quick Play</span>
+      <span class="quick-play-sub">Random hero, random stage</span>
+    </button>
     <button data-action="open-hall" class="secondary">Hall of Heroes</button>
     <button data-action="open-timeline" class="secondary">Heritage Timeline</button>
     ${state.save.recentMatches && state.save.recentMatches.length > 0 ? `

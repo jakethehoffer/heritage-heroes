@@ -540,6 +540,7 @@ var Main = (function () {
         return;
       case "start-boss-battle": startBossBattle(); return;
       case "start-quick":  startQuick(); return;
+      case "start-quick-play": startQuickPlay(); return;
       case "start-arcade": startArcade(); return;
       case "set-opponent": setOpponent(target.dataset.opp); return;
       case "pick-hero":    pickHero(target.dataset.hero); return;
@@ -937,6 +938,35 @@ var Main = (function () {
     state.picks = { 1: null, 2: null };
     state.screen = "opponent";
     render();
+  }
+
+  // Quick Play (Random Match): one-click shortcut from the title screen.
+  // Picks a random hero for the player, a different random hero for the AI,
+  // and a fully random stage (NOT tied to either hero). Skips mode-select,
+  // opponent-select, char-select, and stage-select entirely.
+  function startQuickPlay() {
+    const STAGE_IDS = ["redsea", "elah", "throne", "temple", "cordoba", "knesset", "princeton"];
+    const playerIdx = Math.floor(Math.random() * HERO_ORDER.length);
+    const playerHeroId = HERO_ORDER[playerIdx];
+    // AI hero: random from the remaining 6 (no mirror matches)
+    const opponentPool = HERO_ORDER.filter(id => id !== playerHeroId);
+    const aiHeroId = opponentPool[Math.floor(Math.random() * opponentPool.length)];
+    const stageId = STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)];
+
+    state.mode = "quick";
+    state.controllers = ["human", "ai"];
+    state.selecting = 1;
+    state.picks = { 1: playerHeroId, 2: aiHeroId };
+    state.selectedStageId = stageId;
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.matchStats = _freshMatchStats();
+    state.bossIntroShown = true; // not a boss fight
+    state.difficulty = "normal";
+    state.match = Combat.createMatch(playerHeroId, aiHeroId, { stageId });
+    if (typeof Sfx !== "undefined" && Sfx.playMusic) {
+      Sfx.playMusic(stageId);
+    }
+    goToBattle({ aiFirstStep: false });
   }
 
   function setOpponent(opp) {

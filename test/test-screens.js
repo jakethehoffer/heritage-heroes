@@ -222,3 +222,28 @@ test("renderVsIntro: uses the locked stageId from the match when present", () =>
   const html = Screens.renderVsIntro({ match });
   assert.match(html, /Persian Throne/);
 });
+
+// ── Quick Play title button ────────────────────────────────────────────────
+
+test("renderTitle: includes Quick Play button with start-quick-play action", () => {
+  const save = freshSave();
+  // Simulate a save with some history so the recentMatches branch is active too
+  save.stats.matchesPlayed = 5;
+  save.stats.matchesWon = 3;
+  save.recentMatches = [{ id: 1, mode: "quick", winnerHeroId: "moses" }];
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /data-action="start-quick-play"/);
+  assert.match(html, /Quick Play/);
+});
+
+test("renderTitle: Quick Play button appears on a brand-new save (no matches played)", () => {
+  const save = freshSave();
+  // Brand new save: no recentMatches, no arcade wins, no endless scores
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /data-action="start-quick-play"/);
+  assert.match(html, /Quick Play/);
+  // Sanity: BEGIN is still there, and Quick Play sits right after it
+  const beginIdx = html.indexOf('data-action="goto-mode"');
+  const quickIdx = html.indexOf('data-action="start-quick-play"');
+  assert.ok(beginIdx >= 0 && quickIdx > beginIdx, "Quick Play should appear after BEGIN");
+});

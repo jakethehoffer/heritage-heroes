@@ -90,6 +90,49 @@ button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 v
 .title-buttons { display: flex; flex-direction: column; gap: 16px; align-items: stretch; min-width: 280px; }
 .title-buttons button { font-size: 22px; }
 button.secondary { background: var(--cream); color: var(--ink); }
+
+/* Quick Play — tertiary treatment: inviting "shortcut" button between BEGIN
+   and the secondary stack. Cream base like .secondary, but with a bold
+   gold left-border accent and an icon+sub-label layout so it reads as a
+   distinct "just play" option. */
+button.quick-play {
+  background: var(--cream);
+  color: var(--ink);
+  border-left: 10px solid var(--gold);
+  padding: 12px 24px 12px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon label"
+    "icon sub";
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  text-align: left;
+  line-height: 1.2;
+}
+button.quick-play .quick-play-icon {
+  grid-area: icon;
+  font-size: 32px;
+  line-height: 1;
+}
+button.quick-play .quick-play-label {
+  grid-area: label;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--navy);
+  align-self: end;
+}
+button.quick-play .quick-play-sub {
+  grid-area: sub;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink);
+  opacity: 0.7;
+  font-family: var(--font-body);
+  align-self: start;
+}
 button.back { background: var(--cream); color: var(--ink); margin-top: 24px; font-size: 18px; padding: 10px 20px; }
 .stats { font-size: 14px; color: var(--ink); opacity: 0.6; }
 
@@ -2506,6 +2549,15 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
     width: 100%;
     font-size: 20px;
   }
+
+  /* Quick Play mobile: scale label and icon proportionally */
+  button.quick-play {
+    padding: 10px 16px 10px 14px;
+    border-left-width: 8px;
+  }
+  button.quick-play .quick-play-icon { font-size: 26px; }
+  button.quick-play .quick-play-label { font-size: 20px; }
+  button.quick-play .quick-play-sub   { font-size: 12px; }
 
   /* ── Mode / Opponent / Difficulty grids ───────────── */
   .mode-grid {
