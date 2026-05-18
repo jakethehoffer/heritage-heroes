@@ -517,3 +517,43 @@ test("renderTitle: Continue button escapes the hero name to prevent HTML injecti
   // Judah Maccabee's name has no special chars — just confirm the button renders cleanly.
   assert.match(html, /as Judah Maccabee/);
 });
+
+// ── Achievement progress widget on title ──────────────────────────────────
+
+test("renderTitle: includes achievement-progress widget when at least one achievement is unlocked", () => {
+  const save = freshSave();
+  save.achievements.firstWin = Date.now();
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /class="achievement-progress"/);
+  assert.match(html, /achievement-progress-bar/);
+  assert.match(html, /achievement-progress-fill/);
+});
+
+test("renderTitle: does NOT include achievement-progress widget when zero achievements are unlocked", () => {
+  const save = freshSave();
+  // Brand-new save — every achievement entry defaults to false in Storage.defaults().
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /class="achievement-progress"/);
+});
+
+test("renderTitle: achievement-progress widget shows correct unlocked/total counts", () => {
+  const save = freshSave();
+  // Unlock three arbitrary achievements with timestamp values.
+  save.achievements.firstWin = Date.now();
+  save.achievements.arcadeChampion = Date.now();
+  save.achievements.comeback = Date.now();
+  const total = Screens.ACHIEVEMENT_LIST.length;  // expected: 25
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  // Widget should announce "<strong>3</strong> of 25 achievements" (and the
+  // accessible label should carry the same numbers).
+  assert.match(html, new RegExp(`<strong>3</strong> of ${total} achievements`));
+  assert.match(html, new RegExp(`Trophy Room: 3 of ${total} achievements unlocked`));
+});
+
+test("renderTitle: achievement-progress widget has data-action=\"open-trophy-room\" so existing handler is reused", () => {
+  const save = freshSave();
+  save.achievements.firstWin = Date.now();
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  // Confirm the click target reuses the action already wired in main.js.
+  assert.match(html, /class="achievement-progress"[\s\S]*?data-action="open-trophy-room"/);
+});

@@ -91,6 +91,60 @@ button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 v
 .title-buttons button { font-size: 22px; }
 button.secondary { background: var(--cream); color: var(--ink); }
 
+/* Achievement progress widget — a clickable "secondary action card" that
+   sits below the main title-button stack and above the stat banners. Acts
+   as a one-click shortcut to the Trophy Room and a visible progression
+   hook for collection-minded players. */
+.achievement-progress {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  margin: 16px auto 0;
+  padding: 10px 16px;
+  background: var(--cream);
+  border: 2px solid rgba(212, 165, 116, 0.5);  /* faded gold */
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  color: var(--ink);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.achievement-progress:hover {
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+.achievement-progress:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 3px;
+}
+.achievement-progress-icon { font-size: 22px; line-height: 1; }
+.achievement-progress-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.achievement-progress-label { font-size: 13px; color: var(--navy); }
+.achievement-progress-label strong { color: var(--ink); font-size: 14px; }
+.achievement-progress-bar {
+  height: 6px;
+  background: rgba(26, 42, 79, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.achievement-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--terracotta));
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+.achievement-progress-arrow { font-size: 16px; color: var(--navy); opacity: 0.6; }
+
+@media (max-width: 600px) {
+  .achievement-progress { max-width: 95%; padding: 8px 12px; gap: 10px; }
+  .achievement-progress-icon { font-size: 18px; }
+  .achievement-progress-label { font-size: 12px; }
+  .achievement-progress-arrow { font-size: 14px; }
+}
+
 /* Quick Play — tertiary treatment: inviting "shortcut" button between BEGIN
    and the secondary stack. Cream base like .secondary, but with a bold
    gold left-border accent and an icon+sub-label layout so it reads as a

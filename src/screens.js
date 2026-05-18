@@ -131,6 +131,33 @@ var Screens = (function () {
       }
     }
 
+    // Achievement progress widget — clickable shortcut to the Trophy Room.
+    // Only shown once the player has unlocked at least one achievement to
+    // avoid a discouraging "0 of 25" on a brand-new save. The existing
+    // open-trophy-room action handler in main.js wires the click.
+    const achievements = (state.save && state.save.achievements) ? state.save.achievements : {};
+    const unlockedCount = ACHIEVEMENT_LIST.filter(a => !!achievements[a.key]).length;
+    const totalCount = ACHIEVEMENT_LIST.length;
+    const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+    let achievementProgress = "";
+    if (unlockedCount > 0) {
+      achievementProgress = `
+  <button class="achievement-progress" data-action="open-trophy-room"
+          title="View Trophy Room (${unlockedCount} of ${totalCount} unlocked)"
+          aria-label="Trophy Room: ${unlockedCount} of ${totalCount} achievements unlocked">
+    <span class="achievement-progress-icon" aria-hidden="true">&#x1F3C6;</span>
+    <div class="achievement-progress-text">
+      <div class="achievement-progress-label">
+        <strong>${unlockedCount}</strong> of ${totalCount} achievements
+      </div>
+      <div class="achievement-progress-bar">
+        <div class="achievement-progress-fill" style="width: ${pct}%"></div>
+      </div>
+    </div>
+    <span class="achievement-progress-arrow" aria-hidden="true">&rarr;</span>
+  </button>`;
+    }
+
     return `
 <section class="screen screen-title">
   ${sparkles}
@@ -153,6 +180,7 @@ var Screens = (function () {
     <button data-action="show-help" class="secondary">How to Play</button>
     <button data-action="open-settings" class="secondary">Settings</button>
   </div>
+  ${achievementProgress}
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
   ${endlessStreakLine}
