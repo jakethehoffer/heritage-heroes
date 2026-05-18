@@ -1723,3 +1723,135 @@ test("renderHall includes the Compare Heroes CTA button", () => {
   assert.match(html, /class="compare-cta"/);
   assert.match(html, /Compare Heroes/);
 });
+
+// ── Hero Profile overlay: Extra Progress + Head-to-Head + Era Timeline ──────
+
+test("renderProfile includes 'Endless best run' when endlessHighScore[heroId] > 0", () => {
+  const save = freshSave();
+  save.endlessHighScore.moses = 17;
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /Endless best run:\s*<strong>17<\/strong>/);
+});
+
+test("renderProfile omits 'Endless best run' when zero or missing", () => {
+  const save = freshSave();
+  // Default: endlessHighScore.moses === 0
+  const htmlZero = Screens.renderProfile({ save }, "moses");
+  assert.doesNotMatch(htmlZero, /Endless best run/);
+
+  // Also handle the case where the bucket is missing entirely.
+  const stripped = freshSave();
+  delete stripped.endlessHighScore;
+  const htmlMissing = Screens.renderProfile({ save: stripped }, "moses");
+  assert.doesNotMatch(htmlMissing, /Endless best run/);
+});
+
+test("renderProfile includes 'Arcade ladder clears' when arcade[heroId] > 0", () => {
+  const save = freshSave();
+  save.arcade.judah = 3;
+  const html = Screens.renderProfile({ save }, "judah");
+  assert.match(html, /Arcade ladder clears:\s*<strong>3<\/strong>/);
+});
+
+test("renderProfile omits 'Arcade ladder clears' when zero", () => {
+  const save = freshSave();
+  // Default: arcade.judah === 0
+  const html = Screens.renderProfile({ save }, "judah");
+  assert.doesNotMatch(html, /Arcade ladder clears/);
+});
+
+test("renderProfile head-to-head section appears when matchups exist for this hero", () => {
+  const save = freshSave();
+  save.matchups["moses|david"] = { wins: 3, losses: 1 };
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /Head-to-Head as Moses/);
+  assert.match(html, /profile-h2h-list/);
+});
+
+test("renderProfile head-to-head section is OMITTED when no matchups for this hero", () => {
+  const save = freshSave();
+  // A matchup for a DIFFERENT hero must not bleed into this hero's profile.
+  save.matchups["david|moses"] = { wins: 1, losses: 0 };
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.doesNotMatch(html, /Head-to-Head as/);
+  assert.doesNotMatch(html, /profile-h2h-list/);
+});
+
+test("renderProfile head-to-head rows are sorted by total games desc", () => {
+  const save = freshSave();
+  // david: 2 games, esther: 6 games, judah: 4 games — order should be esther, judah, david.
+  save.matchups["moses|david"]  = { wins: 1, losses: 1 };
+  save.matchups["moses|esther"] = { wins: 4, losses: 2 };
+  save.matchups["moses|judah"]  = { wins: 2, losses: 2 };
+  const html = Screens.renderProfile({ save }, "moses");
+  const estherIdx = html.indexOf("vs Queen Esther");
+  const judahIdx  = html.indexOf("vs Judah Maccabee");
+  const davidIdx  = html.indexOf("vs King David");
+  assert.ok(estherIdx > 0 && judahIdx > 0 && davidIdx > 0, "expected all three matchups rendered");
+  assert.ok(estherIdx < judahIdx, "Esther (6 games) should come before Judah (4 games)");
+  assert.ok(judahIdx  < davidIdx, "Judah (4 games) should come before David (2 games)");
+});
+
+test("renderProfile head-to-head row shows correct W-L and percentage", () => {
+  const save = freshSave();
+  save.matchups["moses|david"] = { wins: 3, losses: 1 };  // 75%
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /vs King David/);
+  assert.match(html, /<span class="profile-h2h-record">3-1<\/span>/);
+  assert.match(html, /<span class="profile-h2h-pct">75%<\/span>/);
+});
+
+test("renderProfile head-to-head winning row has .h2h-winning class", () => {
+  const save = freshSave();
+  save.matchups["moses|david"] = { wins: 5, losses: 1 };
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /profile-h2h-row h2h-winning/);
+});
+
+test("renderProfile head-to-head losing row has .h2h-losing class", () => {
+  const save = freshSave();
+  save.matchups["moses|david"] = { wins: 1, losses: 4 };
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /profile-h2h-row h2h-losing/);
+});
+
+test("renderProfile era timeline appears in the profile output", () => {
+  const save = freshSave();
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /Position in History/);
+  assert.match(html, /era-timeline-axis/);
+  assert.match(html, /1500 BCE/);
+  assert.match(html, /Present/);
+});
+
+test("renderProfile era timeline marks the current hero as 'active'", () => {
+  const save = freshSave();
+  const html = Screens.renderProfile({ save }, "einstein");
+  // Should render exactly one active marker (the hero being viewed).
+  const activeMatches = html.match(/era-timeline-marker active/g) || [];
+  assert.strictEqual(activeMatches.length, 1, "expected exactly one active marker");
+  // Title attribute confirms which hero is highlighted.
+  assert.match(html, /class="era-timeline-marker active"[^>]*title="Albert Einstein"/);
+});
+
+test("_heroEraPosition returns close to 0 for the earliest hero (Moses, ~-1331)", () => {
+  // Moses midpoint ≈ -1331; range [-1500..2026]: (-1331 + 1500) / 3526 ≈ 4.8%
+  const pct = Screens._heroEraPosition("moses");
+  assert.ok(pct !== null, "expected a numeric percentage");
+  assert.ok(pct >= 0 && pct <= 10, `expected Moses near the left edge, got ${pct}`);
+});
+
+test("_heroEraPosition returns close to 100 for the latest hero (Einstein/Golda)", () => {
+  const einsteinPct = Screens._heroEraPosition("einstein");  // 1917 midpoint
+  const goldaPct    = Screens._heroEraPosition("golda");     // 1938 midpoint
+  assert.ok(einsteinPct !== null && goldaPct !== null, "expected numeric percentages");
+  // Both fall in the last 5% of the timeline.
+  assert.ok(einsteinPct >= 95 && einsteinPct <= 100, `Einstein should be near right edge, got ${einsteinPct}`);
+  assert.ok(goldaPct    >= 95 && goldaPct    <= 100, `Golda should be near right edge, got ${goldaPct}`);
+});
+
+test("_heroEraPosition returns null for invalid hero id", () => {
+  assert.strictEqual(Screens._heroEraPosition("nope"), null);
+  assert.strictEqual(Screens._heroEraPosition(""), null);
+  assert.strictEqual(Screens._heroEraPosition(undefined), null);
+});

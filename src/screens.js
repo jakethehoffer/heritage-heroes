@@ -3539,6 +3539,22 @@ ${recordsHtml || ""}
     return Math.round((start + end) / 2);
   }
 
+  // Returns the hero's position on a 1500 BCE → present timeline as an
+  // integer percentage [0..100]. Returns null if the hero or their dates
+  // can't be parsed. Used by the Hero Profile overlay's era timeline.
+  function _heroEraPosition(heroId) {
+    const h = Heroes.byId(heroId);
+    if (!h) return null;
+    const y = _midpointYear(h.profile && h.profile.dates);
+    if (y === null) return null;
+    // Timeline range: 1500 BCE (-1500) → 2026 CE
+    const minY = -1500;
+    const maxY = 2026;
+    if (y < minY) return 0;
+    if (y > maxY) return 100;
+    return Math.round(((y - minY) / (maxY - minY)) * 100);
+  }
+
   // ── Hero Profile modal ───────────────────────────────────────────────────
   function renderProfile(state, heroId) {
     const h = Heroes.byId(heroId);
@@ -3555,6 +3571,85 @@ ${recordsHtml || ""}
     const masteryHtml = mastered[heroId]
       ? `<span class="profile-mastery-earned">&#x1F31F; EARNED</span>`
       : `<span class="profile-mastery-hint">Get all 20 trivia questions right in Study Mode to earn the star</span>`;
+
+    // Extra per-hero progress lines — only shown when nonzero so a brand-new
+    // save stays uncluttered. Endless best and Arcade clears are tracked in
+    // separate save buckets from stats.perHero (see storage.defaults).
+    const endlessBest = (state.save && state.save.endlessHighScore && state.save.endlessHighScore[heroId]) || 0;
+    const arcadeWins  = (state.save && state.save.arcade && state.save.arcade[heroId]) || 0;
+    const endlessLine = endlessBest > 0 ? `<div>Endless best run: <strong>${endlessBest}</strong></div>` : "";
+    const arcadeLine  = arcadeWins  > 0 ? `<div>Arcade ladder clears: <strong>${arcadeWins}</strong></div>` : "";
+
+    // Head-to-head: this hero vs each of the OTHER 6, drawn from save.matchups
+    // (key format "<thisHeroId>|<opponentId>"). Only shown when at least one
+    // recorded matchup exists, so a fresh save sees no empty section.
+    const matchups = (state.save && state.save.matchups) || {};
+    const h2hRows = [];
+    for (const otherHero of Heroes.list) {
+      if (otherHero.id === heroId) continue;
+      const record = matchups[heroId + "|" + otherHero.id];
+      if (record && (record.wins + record.losses) > 0) {
+        h2hRows.push({ otherId: otherHero.id, name: otherHero.name, wins: record.wins, losses: record.losses });
+      }
+    }
+    // Sort by total games desc (most-played first), then win rate desc as tiebreak.
+    h2hRows.sort((a, b) => {
+      const totalA = a.wins + a.losses;
+      const totalB = b.wins + b.losses;
+      if (totalA !== totalB) return totalB - totalA;
+      const rateA = totalA > 0 ? a.wins / totalA : 0;
+      const rateB = totalB > 0 ? b.wins / totalB : 0;
+      return rateB - rateA;
+    });
+
+    let h2hSection = "";
+    if (h2hRows.length > 0) {
+      const rows = h2hRows.map(r => {
+        const total = r.wins + r.losses;
+        const pct = Math.round((r.wins / total) * 100);
+        const cls = r.wins > r.losses ? "h2h-winning" : r.wins < r.losses ? "h2h-losing" : "h2h-even";
+        return `<div class="profile-h2h-row ${cls}">
+          <span class="profile-h2h-opp">vs ${Render.escapeHtml(r.name)}</span>
+          <span class="profile-h2h-record">${r.wins}-${r.losses}</span>
+          <span class="profile-h2h-pct">${pct}%</span>
+        </div>`;
+      }).join("");
+      h2hSection = `
+    <div class="profile-section">
+      <h3 class="profile-section-title">Head-to-Head as ${Render.escapeHtml(h.name)}</h3>
+      <div class="profile-h2h-list">${rows}</div>
+    </div>`;
+    }
+
+    // Era timeline: places all 7 heroes on a 1500 BCE → present-day axis,
+    // highlighting the current one. Helps players see at a glance how this
+    // hero relates chronologically to the rest of the roster.
+    const eraPct = _heroEraPosition(heroId);
+    let eraTimeline = "";
+    if (eraPct !== null) {
+      const allMarkers = Heroes.list
+        .map(other => ({ id: other.id, name: other.name, pct: _heroEraPosition(other.id) }))
+        .filter(m => m.pct !== null)
+        .map(m => {
+          const isThis = m.id === heroId;
+          return `<div class="era-timeline-marker ${isThis ? "active" : ""}"
+                       style="left:${m.pct}%"
+                       title="${Render.escapeHtml(m.name)}"></div>`;
+        }).join("");
+      eraTimeline = `
+    <div class="profile-section">
+      <h3 class="profile-section-title">Position in History</h3>
+      <div class="era-timeline">
+        <div class="era-timeline-axis">${allMarkers}</div>
+        <div class="era-timeline-labels">
+          <span>1500 BCE</span>
+          <span>1 CE</span>
+          <span>1000 CE</span>
+          <span>Present</span>
+        </div>
+      </div>
+    </div>`;
+    }
 
     const portrait = Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" });
 
@@ -3580,9 +3675,13 @@ ${recordsHtml || ""}
       <div class="profile-progress">
         <div>Trivia accuracy: ${perHero.triviaCorrect}/${perHero.triviaTotal} (${trivAcc}%)</div>
         <div>Matches won: ${perHero.won} of ${perHero.played} played</div>
+        ${endlessLine}
+        ${arcadeLine}
         <div>Mastery: ${masteryHtml}</div>
       </div>
     </div>
+    ${h2hSection}
+    ${eraTimeline}
 
     <div class="overlay-buttons">
       <button data-action="close-profile">Close</button>
@@ -4673,7 +4772,7 @@ ${recordsHtml || ""}
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderQuiz, renderQuizResult, renderStats, renderResetStatsConfirm,
     renderBossIntro, renderVsIntro, renderMatchEndSplash, renderHall, renderProfile,
-    renderComparePick, renderCompare, _eraYearGap, _midpointYear,
+    renderComparePick, renderCompare, _eraYearGap, _midpointYear, _heroEraPosition,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
     renderPauseOverlay, renderBattleLog,

@@ -5578,3 +5578,79 @@ body.theme-high-contrast .compare-cta {
 body.theme-high-contrast .compare-table th {
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* ── Profile overlay: Head-to-Head + Era Timeline ─────────────────────────
+   Added to the hero-profile overlay below the existing "Your Progress" block.
+   Both sections degrade to nothing when there is no data — see renderProfile
+   in src/screens.js. */
+.profile-h2h-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.profile-h2h-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--cream);
+  border-radius: 8px;
+  border-left: 3px solid var(--gold);
+  font-size: 13px;
+}
+.profile-h2h-row.h2h-winning { border-left-color: var(--olive); }
+.profile-h2h-row.h2h-losing  { border-left-color: var(--terracotta); }
+.profile-h2h-row.h2h-even    { border-left-color: var(--gold); }
+.profile-h2h-opp { color: var(--ink); font-weight: 500; }
+.profile-h2h-record { font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.profile-h2h-pct { color: var(--navy); opacity: 0.75; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+
+.era-timeline { margin-top: 8px; padding: 8px 4px 6px; }
+.era-timeline-axis {
+  position: relative;
+  height: 24px;
+  background: linear-gradient(90deg, var(--cream), rgba(212, 165, 116, 0.3), var(--cream));
+  border: 1px solid rgba(212, 165, 116, 0.4);
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+.era-timeline-marker {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--navy);
+  border: 2px solid var(--cream);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: help;
+  transition: transform 120ms ease;
+}
+.era-timeline-marker:hover { transform: translate(-50%, -50%) scale(1.3); }
+.era-timeline-marker.active {
+  width: 16px;
+  height: 16px;
+  background: var(--terracotta);
+  border-color: var(--gold);
+  z-index: 2;
+  box-shadow: 0 0 0 3px rgba(193, 70, 45, 0.3);
+}
+.era-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--ink);
+  opacity: 0.65;
+  padding: 0 2px;
+}
+
+body.theme-high-contrast .profile-h2h-row { background: rgba(255, 255, 255, 0.08); }
+body.theme-high-contrast .era-timeline-axis {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 213, 79, 0.2), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 213, 79, 0.4);
+}
+
+@media (max-width: 600px) {
+  .profile-h2h-row { font-size: 12px; padding: 5px 10px; gap: 8px; }
+  .era-timeline-axis { height: 20px; }
+  .era-timeline-marker { width: 8px; height: 8px; }
+  .era-timeline-marker.active { width: 14px; height: 14px; }
+  .era-timeline-labels { font-size: 9px; }
+}
