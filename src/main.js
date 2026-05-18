@@ -36,7 +36,7 @@ var Main = (function () {
     });
   }
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
+    screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | match-end-splash | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
     trophyFilter: "all",   // "all" | "unlocked" | "locked"
     trophySort:   "recent", // "recent" | "category" | "progress"
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
@@ -72,6 +72,7 @@ var Main = (function () {
     pendingAiTimeout: null,      // id of scheduled aiStep timeout (clearable on pause)
     pendingMatchEndTimeout: null, // id of scheduled onMatchEnd timeout (clearable on pause)
     pendingVsIntroTimeout: null,  // id of VS-intro auto-advance timeout (clearable on skip/quit)
+    pendingMatchEndSplashTimeout: null, // id of match-end VICTORY/DEFEAT splash auto-advance timeout
     // Stage Select (Quick Match vs AI only)
     selectedStageId: null        // populated when player picks a stage in Quick Match vs AI
   };
@@ -535,6 +536,7 @@ var Main = (function () {
     else if (state.screen === "charselect") body = Screens.renderCharSelect(state);
     else if (state.screen === "vs-intro") body = Screens.renderVsIntro(state);
     else if (state.screen === "battle") body = Screens.renderBattle(state);
+    else if (state.screen === "match-end-splash") body = Screens.renderMatchEndSplash(state);
     else if (state.screen === "result") body = Screens.renderResult(state);
     else if (state.screen === "study") body = Screens.renderStudySession(state);
     else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
@@ -661,6 +663,7 @@ var Main = (function () {
       case "player-move":  playerMove(target.dataset.move); return;
       case "ai-step":      aiStep(); return;
       case "vs-skip":      _advanceToBattle(); return;
+      case "match-end-skip": _advanceToResult(); return;
       case "rematch":      rematch(); return;
       case "arcade-next":  arcadeNext(); return;
       case "arcade-retry": startArcade(); return;
@@ -1951,10 +1954,10 @@ var Main = (function () {
     Sfx.play("victory");
     const store = getStore();
 
-    // Spectator mode: no stats, no achievements, no matchup recording — just show result
+    // Spectator mode: no stats, no achievements, no matchup recording — just show result.
+    // Skip the VICTORY/DEFEAT splash for spectator (just watching, no ceremony needed).
     if (state.mode === "spectator") {
-      state.screen = "result";
-      render();
+      goToResult({ skipSplash: true });
       return;
     }
 
@@ -2077,8 +2080,8 @@ var Main = (function () {
         state.save = Storage.load(store);
       }
       state.currentMatchLowHp = { 0: false, 1: false };
-      state.screen = "result";
-      render();
+      // Daily Challenge — show the VICTORY/DEFEAT splash before the recap.
+      goToResult();
       return;
     }
 
@@ -2247,8 +2250,11 @@ var Main = (function () {
       state.save = Storage.load(store);
     }
 
-    state.screen = "result";
-    render();
+    // Quick Match / Arcade / fallthrough — show the VICTORY/DEFEAT splash
+    // before the recap screen. Arcade ladder completion still routes through
+    // renderResult() which then dispatches renderArcadeEnding — the splash
+    // is the same in either case.
+    goToResult();
   }
 
   function quitToTitle() {
@@ -2256,6 +2262,7 @@ var Main = (function () {
     if (state.pendingVsIntroTimeout) { clearTimeout(state.pendingVsIntroTimeout); state.pendingVsIntroTimeout = null; }
     if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
     if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
+    if (state.pendingMatchEndSplashTimeout) { clearTimeout(state.pendingMatchEndSplashTimeout); state.pendingMatchEndSplashTimeout = null; }
     state._pendingAiFirstStep = false;
     state.overlay = null;
     state.match = null;
@@ -2276,6 +2283,7 @@ var Main = (function () {
     if (state.pendingVsIntroTimeout) { clearTimeout(state.pendingVsIntroTimeout); state.pendingVsIntroTimeout = null; }
     if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
     if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
+    if (state.pendingMatchEndSplashTimeout) { clearTimeout(state.pendingMatchEndSplashTimeout); state.pendingMatchEndSplashTimeout = null; }
     state._pendingAiFirstStep = false;
     state.overlay = null;
     state.match = null;
@@ -2364,6 +2372,46 @@ var Main = (function () {
     ) {
       state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
     }
+  }
+
+  // ── Match-end splash routing ──────────────────────────────────────────────
+  // Mirror of goToBattle / _advanceToBattle for the VICTORY/DEFEAT splash
+  // that bookends each match. Centralizes the screen transition so every
+  // match-end site can opt in (or out) with a single skipSplash flag.
+  function _matchEndSplashAutoAdvanceMs() {
+    const speed = state.save && state.save.animSpeed;
+    if (speed === "fast")  return 1200;
+    if (speed === "slow")  return 2400;
+    return 1800; // normal default
+  }
+
+  function goToResult(opts) {
+    const options = opts || {};
+    if (state.pendingMatchEndSplashTimeout) {
+      clearTimeout(state.pendingMatchEndSplashTimeout);
+      state.pendingMatchEndSplashTimeout = null;
+    }
+    if (options.skipSplash) {
+      _advanceToResult();
+      return;
+    }
+    state.screen = "match-end-splash";
+    render();
+    if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+      state.pendingMatchEndSplashTimeout = window.setTimeout(_advanceToResult, _matchEndSplashAutoAdvanceMs());
+    } else {
+      // Headless/no-window environment — advance immediately so logic still flows.
+      _advanceToResult();
+    }
+  }
+
+  function _advanceToResult() {
+    if (state.pendingMatchEndSplashTimeout) {
+      clearTimeout(state.pendingMatchEndSplashTimeout);
+      state.pendingMatchEndSplashTimeout = null;
+    }
+    state.screen = "result";
+    render();
   }
 
   // Consume the active player's turn without any combat effect (fumbled trivia).

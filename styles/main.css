@@ -2652,6 +2652,134 @@ body.theme-high-contrast .battle-hint-banner {
   .vs-intro-matchup-icon { font-size: 14px; }
 }
 
+/* ── Match-End VICTORY / DEFEAT splash ──────────────────────────────────
+   Symmetric bookend to the VS Intro shown briefly between the final
+   combat tick and the result screen. Auto-advances on a timer (driven
+   by animSpeed) and is click-anywhere skippable. */
+.screen-match-end-splash {
+  position: relative;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 20px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+.match-end-splash-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  opacity: 0.25;
+  pointer-events: none;
+}
+.match-end-splash-bg svg { width: 100%; height: 100%; object-fit: cover; }
+
+.match-end-splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.match-end-splash-winner-portrait {
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: match-end-portrait-rise 0.6s ease-out backwards;
+}
+.match-end-splash-winner-portrait svg { width: 100%; height: 100%; }
+
+.match-end-splash-title {
+  font-family: var(--font-heading);
+  font-size: 84px;
+  letter-spacing: 4px;
+  margin: 0;
+  text-shadow: 4px 4px 0 var(--ink);
+  animation: match-end-title-pop 0.7s ease-out 0.3s backwards;
+}
+.match-end-splash-title.victory { color: var(--gold); }
+.match-end-splash-title.defeat  { color: var(--terracotta); }
+.match-end-splash-title.neutral { color: var(--navy); font-size: 56px; }
+
+.match-end-splash-name {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  color: var(--navy);
+  margin: 0;
+  animation: match-end-fade-up 0.5s ease-out 0.6s backwards;
+}
+
+.match-end-splash-flavor {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--ink);
+  opacity: 0.85;
+  margin: 0;
+  animation: match-end-fade-up 0.5s ease-out 0.8s backwards;
+}
+
+.match-end-splash-skip-hint {
+  position: absolute;
+  bottom: 20px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--ink);
+  opacity: 0;
+  animation: match-end-skip-fade 0.5s ease-out 1.4s forwards;
+  z-index: 3;
+}
+
+@keyframes match-end-portrait-rise {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes match-end-title-pop {
+  0%   { opacity: 0; transform: scale(0.3) rotate(-3deg); }
+  60%  { opacity: 1; transform: scale(1.15) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes match-end-fade-up {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes match-end-skip-fade {
+  0%   { opacity: 0; }
+  100% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-end-splash-winner-portrait,
+  .match-end-splash-title,
+  .match-end-splash-name,
+  .match-end-splash-flavor,
+  .match-end-splash-skip-hint {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .match-end-splash-winner-portrait { width: 160px; height: 160px; }
+  .match-end-splash-title { font-size: 56px; letter-spacing: 2px; }
+  .match-end-splash-title.neutral { font-size: 38px; }
+  .match-end-splash-name { font-size: 22px; }
+  .match-end-splash-flavor { font-size: 13px; }
+}
+
+/* High-contrast theme — bright accent colors */
+body.theme-high-contrast .match-end-splash-title.victory { color: var(--gold); }
+body.theme-high-contrast .match-end-splash-title.defeat  { color: var(--terracotta); }
+
 /* ============================================================
    TITLE SCREEN POLISH — Featured Hero, Sparkles, Pulse
    ============================================================ */

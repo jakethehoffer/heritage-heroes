@@ -223,6 +223,125 @@ test("renderVsIntro: uses the locked stageId from the match when present", () =>
   assert.match(html, /Persian Throne/);
 });
 
+// ── Match-End VICTORY / DEFEAT splash ───────────────────────────────────────
+
+function _splashMatch(p0, p1, opts) {
+  // Build a Combat match and force a winner so the splash has data to render.
+  const match = Combat.createMatch(p0, p1, opts);
+  match.winner = (opts && typeof opts.winnerSlot === "number") ? opts.winnerSlot : 0;
+  return match;
+}
+
+test("renderMatchEndSplash: returns markup with the winner's name and stage", () => {
+  const match = _splashMatch("moses", "david", { stageId: "throne", winnerSlot: 0 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick"
+  });
+  assert.match(html, /screen-match-end-splash/);
+  const mosesName = Heroes.byId("moses").name;
+  assert.ok(html.includes(mosesName), "expected the winner's name in output");
+  // Stage attribute should reflect the locked stageId
+  assert.match(html, /data-stage="throne"/);
+});
+
+test("renderMatchEndSplash: shows VICTORY! when human (slot 0) wins vs AI", () => {
+  const match = _splashMatch("moses", "david", { winnerSlot: 0 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick"
+  });
+  assert.match(html, /match-end-splash-title victory/);
+  assert.match(html, /VICTORY!/);
+  assert.doesNotMatch(html, /DEFEAT!/);
+});
+
+test("renderMatchEndSplash: shows DEFEAT! when AI (slot 1) wins vs human", () => {
+  const match = _splashMatch("moses", "david", { winnerSlot: 1 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick"
+  });
+  assert.match(html, /match-end-splash-title defeat/);
+  assert.match(html, /DEFEAT!/);
+  assert.doesNotMatch(html, /VICTORY!/);
+});
+
+test("renderMatchEndSplash: shows neutral PLAYER 1 WINS! / PLAYER 2 WINS! for couch matches", () => {
+  const matchP1 = _splashMatch("moses", "david", { winnerSlot: 0 });
+  const htmlP1 = Screens.renderMatchEndSplash({
+    match: matchP1,
+    controllers: ["human", "human"],
+    mode: "quick"
+  });
+  assert.match(htmlP1, /match-end-splash-title neutral/);
+  assert.match(htmlP1, /PLAYER 1 WINS!/);
+
+  const matchP2 = _splashMatch("moses", "david", { winnerSlot: 1 });
+  const htmlP2 = Screens.renderMatchEndSplash({
+    match: matchP2,
+    controllers: ["human", "human"],
+    mode: "quick"
+  });
+  assert.match(htmlP2, /match-end-splash-title neutral/);
+  assert.match(htmlP2, /PLAYER 2 WINS!/);
+  assert.doesNotMatch(htmlP2, /VICTORY!|DEFEAT!/);
+});
+
+test("renderMatchEndSplash: shows neutral winner name for spectator mode", () => {
+  const match = _splashMatch("esther", "judah", { winnerSlot: 1 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["ai", "ai"],
+    mode: "spectator"
+  });
+  assert.match(html, /match-end-splash-title neutral/);
+  // Should include the winner's name and "WINS!" (not VICTORY/DEFEAT/PLAYER X)
+  const judahName = Heroes.byId("judah").name;
+  assert.ok(html.includes(judahName.toUpperCase() + " WINS!"),
+    `expected '${judahName.toUpperCase()} WINS!' in markup`);
+  assert.doesNotMatch(html, /VICTORY!|DEFEAT!|PLAYER 1 WINS!|PLAYER 2 WINS!/);
+});
+
+test("renderMatchEndSplash: shows neutral WINS THIS ROUND! for tournament mode", () => {
+  const match = _splashMatch("rambam", "einstein", { winnerSlot: 0 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["human", "ai"],
+    mode: "tournament"
+  });
+  assert.match(html, /match-end-splash-title neutral/);
+  const rambamName = Heroes.byId("rambam").name;
+  assert.ok(html.includes(rambamName.toUpperCase() + " WINS THIS ROUND!"),
+    "tournament splash should use neutral '... WINS THIS ROUND!' title");
+  assert.doesNotMatch(html, /VICTORY!|DEFEAT!/);
+});
+
+test("renderMatchEndSplash: returns empty string when match is missing or has no winner", () => {
+  assert.strictEqual(Screens.renderMatchEndSplash({}), "");
+  assert.strictEqual(Screens.renderMatchEndSplash({ match: null }), "");
+  assert.strictEqual(Screens.renderMatchEndSplash({ match: { players: [] } }), "");
+  // Match exists with players but winner is still null (pre-fight)
+  const pending = Combat.createMatch("moses", "david");
+  pending.winner = null;
+  assert.strictEqual(Screens.renderMatchEndSplash({ match: pending }), "");
+});
+
+test("renderMatchEndSplash: output contains data-action=\"match-end-skip\"", () => {
+  const match = _splashMatch("moses", "david", { winnerSlot: 0 });
+  const html = Screens.renderMatchEndSplash({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick"
+  });
+  assert.match(html, /data-action="match-end-skip"/);
+  // Skip hint must also be present so players know the screen is dismissible.
+  assert.match(html, /match-end-splash-skip-hint/);
+});
+
 // ── Quick Play title button ────────────────────────────────────────────────
 
 test("renderTitle: includes Quick Play button with start-quick-play action", () => {

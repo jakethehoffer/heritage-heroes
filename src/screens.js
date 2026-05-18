@@ -1066,6 +1066,88 @@ ${recordsHtml || ""}
 </section>`;
   }
 
+  // ── Match-End VICTORY / DEFEAT splash ─────────────────────────────────────
+  // Symmetric bookend to the VS Intro: brief celebratory beat after every
+  // match before the result screen renders. Auto-advances on a timer (driven
+  // by animSpeed) and click-anywhere skips. Per-mode skip rules live in
+  // main.js — this renderer just paints what it's told to.
+  //
+  // Title text varies by who's playing:
+  //   human-vs-AI: "VICTORY!" or "DEFEAT!" from the human's perspective
+  //   human-vs-human couch: neutral "PLAYER 1 WINS!" / "PLAYER 2 WINS!"
+  //   spectator (ai-vs-ai): neutral "<Hero> WINS!"
+  //   tournament: neutral "<Hero> WINS THIS ROUND!"
+  function _matchEndSplashTitleInfo(state, match, winnerSlot, winnerHero) {
+    const controllers = state && state.controllers;
+    const mode = state && state.mode;
+    if (mode === "tournament") {
+      return {
+        className: "neutral",
+        text: `${winnerHero.name.toUpperCase()} WINS THIS ROUND!`
+      };
+    }
+    if (controllers && controllers[0] === "ai" && controllers[1] === "ai") {
+      return {
+        className: "neutral",
+        text: `${winnerHero.name.toUpperCase()} WINS!`
+      };
+    }
+    if (controllers && controllers[0] === "human" && controllers[1] === "human") {
+      return {
+        className: "neutral",
+        text: winnerSlot === 0 ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!"
+      };
+    }
+    // Default: human (slot 0) vs AI (slot 1). VICTORY if human won.
+    if (controllers && controllers[0] === "human" && controllers[1] === "ai") {
+      return winnerSlot === 0
+        ? { className: "victory", text: "VICTORY!" }
+        : { className: "defeat",  text: "DEFEAT!" };
+    }
+    // Fallback (e.g., AI vs human, or controllers missing): neutral winner.
+    return {
+      className: "neutral",
+      text: `${winnerHero.name.toUpperCase()} WINS!`
+    };
+  }
+
+  // Flavor line — kept brief (one line). Tone matches the title category.
+  function _matchEndSplashFlavor(titleClass, winnerHero) {
+    if (titleClass === "victory") return "A triumph for the ages!";
+    if (titleClass === "defeat")  return `${winnerHero.name} proves their might.`;
+    return `${winnerHero.name} takes the round.`;
+  }
+
+  function renderMatchEndSplash(state) {
+    const match = state && state.match;
+    if (!match || !match.players || match.players.length < 2) return "";
+    if (match.winner !== 0 && match.winner !== 1) return "";
+
+    const winnerSlot = match.winner;
+    const winnerHero = Heroes.byId(match.players[winnerSlot].heroId);
+    if (!winnerHero) return "";
+
+    const stageId = match.stageId || winnerHero.stageId || "";
+    const stageBackdrop = stageId && Stages && typeof Stages.byId === "function"
+      ? Stages.byId(stageId)
+      : "";
+    const portrait = Render.renderHero({ heroId: winnerHero.id, pose: "idle", facing: "right" });
+    const titleInfo = _matchEndSplashTitleInfo(state, match, winnerSlot, winnerHero);
+    const flavor = _matchEndSplashFlavor(titleInfo.className, winnerHero);
+
+    return `
+<section class="screen screen-match-end-splash" data-action="match-end-skip">
+  <div class="match-end-splash-bg" data-stage="${Render.escapeHtml(stageId)}">${stageBackdrop}</div>
+  <div class="match-end-splash-content">
+    <div class="match-end-splash-winner-portrait">${portrait}</div>
+    <h1 class="match-end-splash-title ${titleInfo.className}">${Render.escapeHtml(titleInfo.text)}</h1>
+    <p class="match-end-splash-name">${Render.escapeHtml(winnerHero.name)}</p>
+    <p class="match-end-splash-flavor">${Render.escapeHtml(flavor)}</p>
+  </div>
+  <p class="match-end-splash-skip-hint">Click anywhere to continue &rarr;</p>
+</section>`;
+  }
+
   function renderBossIntro(state) {
     const heroId = state.arcade && state.arcade.remaining[0];
     if (!heroId) return "";
@@ -4357,7 +4439,7 @@ ${recordsHtml || ""}
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderQuiz, renderQuizResult, renderStats, renderResetStatsConfirm,
-    renderBossIntro, renderVsIntro, renderHall, renderProfile,
+    renderBossIntro, renderVsIntro, renderMatchEndSplash, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
     renderPauseOverlay, renderBattleLog,
