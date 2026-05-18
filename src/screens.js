@@ -4931,6 +4931,13 @@ ${recordsHtml || ""}
         if (!h) return "";
         const isMastered = !!mastered[heroId];
         const portrait = Render.renderHero({ heroId, pose: "idle", facing: "right" });
+        // Light-touch educational addition: surface the hero's signature
+        // stage and its subtitle under the era line. Pure render — silently
+        // skipped if the hero has no stageId or the stage isn't known.
+        const stageInfo = h.stageId ? stageInfoOf(h.stageId) : null;
+        const stageLine = stageInfo
+          ? `<p class="timeline-stage">&#x1F4CD; ${Render.escapeHtml(stageInfo.name)} &mdash; ${Render.escapeHtml(stageInfo.subtitle)}</p>`
+          : "";
         return `
 <button class="timeline-hero" data-action="view-profile" data-hero="${heroId}">
   <div class="timeline-date">${Render.escapeHtml(h.profile && h.profile.dates ? h.profile.dates : "")}</div>
@@ -4938,6 +4945,7 @@ ${recordsHtml || ""}
   <div class="timeline-info">
     <h3 class="timeline-name">${isMastered ? "&#x1F31F; " : ""}${Render.escapeHtml(h.name)}</h3>
     <span class="era">${Render.escapeHtml(h.era)}</span>
+    ${stageLine}
     <p class="timeline-bio">${Render.escapeHtml(h.bio)}</p>
   </div>
 </button>`;
@@ -4961,16 +4969,59 @@ ${recordsHtml || ""}
 </section>`;
   }
 
-  const STAGE_NAMES = {
-    redsea:    "Red Sea",
-    elah:      "Valley of Elah",
-    throne:    "Persian Throne",
-    temple:    "Temple",
-    cordoba:   "Cordoba Study",
-    knesset:   "Knesset",
-    princeton: "Princeton Study"
+  // Rich per-stage info — name, evocative subtitle, and a brief historical
+  // description (3-4 sentences) shown in the optional stage-info overlay on
+  // the stage-select screen. Content sourced from mainstream historical and
+  // biblical references; deliberately conservative — no novel claims.
+  const STAGE_INFO = {
+    redsea: {
+      name: "Red Sea",
+      subtitle: "Where the Exodus crossed",
+      description: "According to the Book of Exodus, the Israelites crossed the Red Sea on dry ground as Moses parted the waters with God's help. Pharaoh's chariots were swept away in the closing waves. The crossing marks the founding moment of the Israelite nation's liberation from slavery."
+    },
+    elah: {
+      name: "Valley of Elah",
+      subtitle: "Site of David vs Goliath",
+      description: "The Valley of Elah in the Judean foothills is where, according to the Book of Samuel, the young shepherd David faced the Philistine champion Goliath. Armed only with a sling and five smooth stones, David struck the giant in the forehead and won the battle for Israel."
+    },
+    throne: {
+      name: "Persian Throne",
+      subtitle: "Esther's court in Susa",
+      description: "The royal palace at Susa was the seat of the Persian Empire under King Ahasuerus (Xerxes I). Here Queen Esther risked her life to approach the king uninvited and reveal Haman's plot, leading to the deliverance of the Jewish people — commemorated each year at Purim."
+    },
+    temple: {
+      name: "The Temple",
+      subtitle: "Judah's rededicated holy place",
+      description: "The Second Temple in Jerusalem was the spiritual center of Jewish life. After being desecrated by the Seleucid Greeks, Judah Maccabee and his brothers reclaimed it in 164 BCE and rededicated it — the founding miracle of Hanukkah, when a single jar of oil burned for eight days."
+    },
+    cordoba: {
+      name: "Cordoba Study",
+      subtitle: "Maimonides's Andalusian beginnings",
+      description: "Cordoba, in Muslim-ruled Spain, was a thriving center of Jewish learning in the 12th century. Born here in 1138, Maimonides (Moshe ben Maimon) absorbed the city's tradition of philosophy, science, and Talmud — foundations that would shape his Mishneh Torah and Guide for the Perplexed."
+    },
+    knesset: {
+      name: "The Knesset",
+      subtitle: "Israel's parliament — Golda's stage",
+      description: "The Knesset is the legislature of the State of Israel, located in Jerusalem. Golda Meir served as a member from 1949 and became Prime Minister in 1969 — the first woman to hold the office in Israel and one of the first in the world. She led the country through the Yom Kippur War of 1973."
+    },
+    princeton: {
+      name: "Princeton Study",
+      subtitle: "Einstein's American sanctuary",
+      description: "Albert Einstein moved to Princeton, New Jersey in 1933, fleeing the rise of Nazism in Germany. At the Institute for Advanced Study he continued his work on a unified field theory until his death in 1955. A vocal Zionist, Einstein was offered the presidency of Israel in 1952 but declined."
+    }
   };
-  function stageNameOf(stageId) { return STAGE_NAMES[stageId] || stageId; }
+  // Backward-compatible: existing callers pass a stageId and get back a
+  // string (the human-readable stage name). Unknown ids fall through to the
+  // id itself so callers stay safe even on bad data.
+  function stageNameOf(stageId) {
+    return (STAGE_INFO[stageId] && STAGE_INFO[stageId].name) || stageId;
+  }
+  // New: returns the full info object ({name, subtitle, description}) for a
+  // known stage, or null. Used by the optional stage-info overlay and the
+  // Heritage Timeline subtitle line.
+  function stageInfoOf(stageId) {
+    return STAGE_INFO[stageId] || null;
+  }
 
   // Generates a stylized SVG card commemorating a completed match.
   // Returns the full <svg>...</svg> string ready for download as image/svg+xml,
@@ -5104,12 +5155,25 @@ ${recordsHtml || ""}
       const hero = Heroes.byId(heroId);
       if (!hero) return "";
       const isDefault = suggestedStageId && hero.stageId === suggestedStageId && heroId === state.picks[2];
+      const info = stageInfoOf(hero.stageId);
+      const subtitleHtml = (info && info.subtitle)
+        ? `<p class="stage-subtitle">${Render.escapeHtml(info.subtitle)}</p>`
+        : "";
+      const stageName = stageNameOf(hero.stageId);
+      // Info button is a sibling of the .stage-card button (nested buttons
+      // are invalid HTML). We render it as an absolutely-positioned overlay
+      // wrapping each card in a small container so the click target for
+      // "view-stage-info" doesn't also fire "pick-stage".
       return `
-        <button class="stage-card${isDefault ? " recommended" : ""}" data-action="pick-stage" data-stage="${Render.escapeHtml(hero.stageId)}">
-          ${isDefault ? '<span class="stage-recommended-badge">Suggested</span>' : ""}
-          <div class="stage-thumbnail">${Stages.byId(hero.stageId)}</div>
-          <p class="stage-name">${Render.escapeHtml(hero.name)}&rsquo;s ${Render.escapeHtml(stageNameOf(hero.stageId))}</p>
-        </button>`;
+        <div class="stage-card-wrap">
+          <button class="stage-card${isDefault ? " recommended" : ""}" data-action="pick-stage" data-stage="${Render.escapeHtml(hero.stageId)}">
+            ${isDefault ? '<span class="stage-recommended-badge">Suggested</span>' : ""}
+            <div class="stage-thumbnail">${Stages.byId(hero.stageId)}</div>
+            <p class="stage-name">${Render.escapeHtml(hero.name)}&rsquo;s ${Render.escapeHtml(stageName)}</p>
+            ${subtitleHtml}
+          </button>
+          <button class="stage-info-btn" data-action="view-stage-info" data-stage="${Render.escapeHtml(hero.stageId)}" aria-label="Learn about ${Render.escapeHtml(stageName)}" title="Learn about ${Render.escapeHtml(stageName)}">&#x2139;</button>
+        </div>`;
     }).join("");
 
     return `
@@ -5121,6 +5185,31 @@ ${recordsHtml || ""}
   </div>
   <button data-action="goto-mode" class="back">&larr; Back</button>
 </section>`;
+  }
+
+  // Optional educational overlay shown when the player taps the small "ⓘ"
+  // info button on a stage card. Returns "" when no stage is being viewed so
+  // the render dispatcher can safely concatenate the result unconditionally.
+  function renderStageInfoOverlay(state) {
+    const id = state && state.viewingStageId;
+    if (!id) return "";
+    const info = stageInfoOf(id);
+    if (!info) return "";
+    const backdrop = (typeof Stages !== "undefined" && Stages && typeof Stages.byId === "function")
+      ? Stages.byId(id)
+      : "";
+    return `
+<div class="overlay">
+  <div class="overlay-card stage-info-card">
+    <div class="stage-info-backdrop">${backdrop}</div>
+    <h2 class="stage-info-name">${Render.escapeHtml(info.name)}</h2>
+    <p class="stage-info-subtitle">${Render.escapeHtml(info.subtitle)}</p>
+    <p class="stage-info-desc">${Render.escapeHtml(info.description)}</p>
+    <div class="overlay-buttons">
+      <button data-action="close-stage-info">Close</button>
+    </div>
+  </div>
+</div>`;
   }
 
   return {
@@ -5140,6 +5229,9 @@ ${recordsHtml || ""}
     renderTournamentSetup, renderTournamentBracket, renderTournamentResult,
     renderTrophyRoom,
     renderStageSelect,
+    renderStageInfoOverlay,
+    stageNameOf,
+    stageInfoOf,
     renderVictoryCardSvg,
     renderHpChart,
     _renderRecapSections,  // exported for tests

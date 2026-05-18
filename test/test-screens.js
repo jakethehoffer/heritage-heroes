@@ -2549,3 +2549,99 @@ test("_renderRecapSections still renders the chart for legacy stats without the 
   });
   assert.doesNotMatch(html, /recap-chart-wrap/);
 });
+
+// ── Stage Info: subtitles + historical descriptions ────────────────────────
+// Tests for the educational stage-info feature: rich per-stage metadata
+// (name/subtitle/description), backward-compat stageNameOf, the new
+// stageInfoOf, the stage-select card subtitle + info button, and the
+// renderStageInfoOverlay description card.
+
+test("STAGE_INFO via stageInfoOf has entries for all 7 stages", () => {
+  const ids = ["redsea", "elah", "throne", "temple", "cordoba", "knesset", "princeton"];
+  for (const id of ids) {
+    const info = Screens.stageInfoOf(id);
+    assert.ok(info, `expected info for stage ${id}`);
+  }
+});
+
+test("each STAGE_INFO entry has non-empty name, subtitle, description strings", () => {
+  const ids = ["redsea", "elah", "throne", "temple", "cordoba", "knesset", "princeton"];
+  for (const id of ids) {
+    const info = Screens.stageInfoOf(id);
+    assert.ok(info, `expected info for stage ${id}`);
+    assert.strictEqual(typeof info.name, "string", `${id}: name must be string`);
+    assert.ok(info.name.length > 0, `${id}: name must be non-empty`);
+    assert.strictEqual(typeof info.subtitle, "string", `${id}: subtitle must be string`);
+    assert.ok(info.subtitle.length > 0, `${id}: subtitle must be non-empty`);
+    assert.strictEqual(typeof info.description, "string", `${id}: description must be string`);
+    assert.ok(info.description.length > 0, `${id}: description must be non-empty`);
+  }
+});
+
+test("stageNameOf returns the .name field for valid stage ids", () => {
+  assert.strictEqual(Screens.stageNameOf("redsea"), "Red Sea");
+  assert.strictEqual(Screens.stageNameOf("elah"), "Valley of Elah");
+  assert.strictEqual(Screens.stageNameOf("throne"), "Persian Throne");
+  assert.strictEqual(Screens.stageNameOf("temple"), "The Temple");
+  assert.strictEqual(Screens.stageNameOf("cordoba"), "Cordoba Study");
+  assert.strictEqual(Screens.stageNameOf("knesset"), "The Knesset");
+  assert.strictEqual(Screens.stageNameOf("princeton"), "Princeton Study");
+});
+
+test("stageNameOf falls back to the id for unknown stages (backward-compat)", () => {
+  assert.strictEqual(Screens.stageNameOf("not-a-real-stage"), "not-a-real-stage");
+  assert.strictEqual(Screens.stageNameOf(""), "");
+});
+
+test("stageInfoOf returns null for unknown stage", () => {
+  assert.strictEqual(Screens.stageInfoOf("not-a-real-stage"), null);
+  assert.strictEqual(Screens.stageInfoOf(""), null);
+  assert.strictEqual(Screens.stageInfoOf(undefined), null);
+});
+
+test("renderStageSelect includes the .stage-subtitle line for at least one card", () => {
+  const state = {
+    picks: { 1: "moses", 2: "david" }
+  };
+  const html = Screens.renderStageSelect(state);
+  assert.match(html, /class="stage-subtitle"/);
+  // Should also include the Red Sea subtitle since moses is in the card list.
+  assert.match(html, /Where the Exodus crossed/);
+});
+
+test("renderStageSelect includes the view-stage-info button for each card", () => {
+  const state = {
+    picks: { 1: "moses", 2: "david" }
+  };
+  const html = Screens.renderStageSelect(state);
+  assert.match(html, /data-action="view-stage-info"/);
+  // 7 heroes → 7 info buttons.
+  const matches = html.match(/data-action="view-stage-info"/g) || [];
+  assert.strictEqual(matches.length, 7, "expected one info button per stage card");
+});
+
+test("renderStageInfoOverlay returns \"\" when viewingStageId is null", () => {
+  assert.strictEqual(Screens.renderStageInfoOverlay({}), "");
+  assert.strictEqual(Screens.renderStageInfoOverlay({ viewingStageId: null }), "");
+  assert.strictEqual(Screens.renderStageInfoOverlay(null), "");
+});
+
+test("renderStageInfoOverlay returns \"\" for an unknown stage id (safe fallback)", () => {
+  assert.strictEqual(Screens.renderStageInfoOverlay({ viewingStageId: "not-a-real-stage" }), "");
+});
+
+test("renderStageInfoOverlay returns overlay markup with name + subtitle + description for a valid id", () => {
+  const html = Screens.renderStageInfoOverlay({ viewingStageId: "redsea" });
+  assert.match(html, /class="overlay"/);
+  assert.match(html, /class="overlay-card stage-info-card"/);
+  assert.match(html, /class="stage-info-name"/);
+  assert.match(html, /Red Sea/);
+  assert.match(html, /Where the Exodus crossed/);
+  // First sentence of the description — sanity-check the body wired up.
+  assert.match(html, /Israelites crossed the Red Sea/);
+});
+
+test("renderStageInfoOverlay output contains the close-stage-info action", () => {
+  const html = Screens.renderStageInfoOverlay({ viewingStageId: "throne" });
+  assert.match(html, /data-action="close-stage-info"/);
+});

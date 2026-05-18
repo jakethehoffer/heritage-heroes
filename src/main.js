@@ -54,8 +54,9 @@ var Main = (function () {
     screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | match-end-splash | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room | compare-pick | compare
     trophyFilter: "all",   // "all" | "unlocked" | "locked"
     trophySort:   "recent", // "recent" | "category" | "progress"
-    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
+    overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done' | 'stage-info'
     profileHeroId: null,
+    viewingStageId: null,   // stage id whose historical-info overlay is open (paired with state.overlay === 'stage-info')
     tutorialStep: 0,
     mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily' | 'tournament' | 'spectator' | 'quiz'
     difficulty: "normal",   // 'normal' | 'hard'
@@ -669,6 +670,7 @@ var Main = (function () {
     if (state.overlay === "pause")        overlay = Screens.renderPauseOverlay(state);
     if (state.overlay === "battle-log")   overlay = Screens.renderBattleLog(state);
     if (state.overlay === "whats-new")    overlay = Screens.renderWhatsNew(state);
+    if (state.overlay === "stage-info")   overlay = Screens.renderStageInfoOverlay(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -798,6 +800,16 @@ var Main = (function () {
         return;
       case "show-help":    state.overlay = "help"; render(); return;
       case "close-overlay": state.overlay = null; render(); return;
+      case "view-stage-info":
+        state.viewingStageId = target.dataset.stage;
+        state.overlay = "stage-info";
+        render();
+        return;
+      case "close-stage-info":
+        state.viewingStageId = null;
+        state.overlay = null;
+        render();
+        return;
       case "replay-tutorial": {
         // Manual tutorial replay from Help overlay or Settings.
         // Does NOT touch save.tutorialSeen — the flag only controls the
