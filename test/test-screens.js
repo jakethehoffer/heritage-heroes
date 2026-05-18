@@ -2758,3 +2758,156 @@ test("renderVictoryCardSvg escapes playerName in the share card (XSS)", () => {
   // escapeXml turns < into &lt;
   assert.match(svg, /&lt;script&gt;/);
 });
+
+// ── Hero Mastery Tiers ──────────────────────────────────────────────────────
+// Pure helper + char-select / Profile / Hall integration tests.
+
+test("heroMasteryTier returns null when perHeroStats is null/undefined and not mastered", () => {
+  assert.strictEqual(Screens.heroMasteryTier(undefined, false), null);
+  assert.strictEqual(Screens.heroMasteryTier(null, false), null);
+  // Stats object exists but no triviaCorrect field → treated as 0.
+  assert.strictEqual(Screens.heroMasteryTier({}, false), null);
+});
+
+test("heroMasteryTier returns null when triviaCorrect < 3", () => {
+  assert.strictEqual(Screens.heroMasteryTier({ triviaCorrect: 0 }, false), null);
+  assert.strictEqual(Screens.heroMasteryTier({ triviaCorrect: 1 }, false), null);
+  assert.strictEqual(Screens.heroMasteryTier({ triviaCorrect: 2 }, false), null);
+});
+
+test("heroMasteryTier returns 'apprentice' for triviaCorrect 3-9", () => {
+  for (const n of [3, 4, 7, 9]) {
+    const t = Screens.heroMasteryTier({ triviaCorrect: n }, false);
+    assert.ok(t, `expected a tier for ${n} correct`);
+    assert.strictEqual(t.tier, "apprentice");
+    assert.strictEqual(t.label, "Apprentice");
+    assert.strictEqual(t.correct, n);
+  }
+});
+
+test("heroMasteryTier returns 'adept' for triviaCorrect 10-19", () => {
+  for (const n of [10, 15, 19]) {
+    const t = Screens.heroMasteryTier({ triviaCorrect: n }, false);
+    assert.ok(t);
+    assert.strictEqual(t.tier, "adept");
+    assert.strictEqual(t.label, "Adept");
+    assert.strictEqual(t.correct, n);
+  }
+});
+
+test("heroMasteryTier returns 'scholar' for triviaCorrect 20-49", () => {
+  for (const n of [20, 35, 49]) {
+    const t = Screens.heroMasteryTier({ triviaCorrect: n }, false);
+    assert.ok(t);
+    assert.strictEqual(t.tier, "scholar");
+    assert.strictEqual(t.label, "Scholar");
+    assert.strictEqual(t.correct, n);
+  }
+});
+
+test("heroMasteryTier returns 'sage' for triviaCorrect >= 50", () => {
+  for (const n of [50, 73, 200]) {
+    const t = Screens.heroMasteryTier({ triviaCorrect: n }, false);
+    assert.ok(t);
+    assert.strictEqual(t.tier, "sage");
+    assert.strictEqual(t.label, "Sage");
+    assert.strictEqual(t.correct, n);
+  }
+});
+
+test("heroMasteryTier returns 'master' when isMastered is true (regardless of correct count)", () => {
+  // Mastered trumps every other tier.
+  for (const n of [0, 5, 25, 60, 999]) {
+    const t = Screens.heroMasteryTier({ triviaCorrect: n }, true);
+    assert.ok(t);
+    assert.strictEqual(t.tier, "master");
+    assert.strictEqual(t.label, "Master");
+    assert.strictEqual(t.correct, n);
+  }
+});
+
+test("heroMasteryTier returns 'master' when isMastered AND triviaCorrect is 0", () => {
+  // The mastery flag is the sealed gate; tier should be master even at 0.
+  const t = Screens.heroMasteryTier({ triviaCorrect: 0 }, true);
+  assert.ok(t);
+  assert.strictEqual(t.tier, "master");
+});
+
+test("renderProfile includes the tier display in Your Progress", () => {
+  const save = freshSave();
+  save.stats.perHero.moses.triviaCorrect = 12; // adept
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /Mastery tier:/);
+  assert.match(html, /profile-tier-badge profile-tier-adept/);
+  assert.match(html, /Adept/);
+  assert.match(html, /12 trivia correct so far/);
+});
+
+test("renderProfile shows 'Not yet' tier when no progress", () => {
+  const save = freshSave();
+  // Default triviaCorrect = 0, not mastered.
+  const html = Screens.renderProfile({ save }, "moses");
+  assert.match(html, /Mastery tier:/);
+  assert.match(html, /profile-tier-none/);
+  assert.match(html, /Not yet/);
+  // Hint references the hero by name.
+  assert.match(html, /Answer 3 of Moses/);
+});
+
+test("renderProfile shows master tier when isMastered", () => {
+  const save = freshSave();
+  save.mastered.david = true;
+  // triviaCorrect can be anything (e.g. 0 — they cleared a perfect session).
+  const html = Screens.renderProfile({ save }, "david");
+  assert.match(html, /profile-tier-badge profile-tier-master/);
+  assert.match(html, /Master/);
+  assert.match(html, /All 20 trivia in a single session!/);
+});
+
+test("_heroSpotlightStats includes intermediate tier chip when applicable", () => {
+  const save = freshSave();
+  save.stats.perHero.moses.triviaCorrect = 25; // scholar
+  const html = Screens._heroSpotlightStats(save, "moses", "quick");
+  assert.match(html, /hero-stat-tier hero-stat-tier-scholar/);
+  assert.match(html, /Scholar/);
+  assert.match(html, /\(25 correct\)/);
+});
+
+test("_heroSpotlightStats omits tier chip when isMastered (MASTERED chip already covers it)", () => {
+  const save = freshSave();
+  save.mastered.moses = true;
+  save.stats.perHero.moses.triviaCorrect = 25;
+  const html = Screens._heroSpotlightStats(save, "moses", "quick");
+  // MASTERED chip still shows.
+  assert.match(html, /MASTERED/);
+  // No duplicate tier chip for the master tier.
+  assert.doesNotMatch(html, /hero-stat-tier-master/);
+  // And no intermediate tier chip either — mastery overrides.
+  assert.doesNotMatch(html, /hero-stat-tier-scholar/);
+});
+
+test("_heroSpotlightStats omits tier chip when no tier yet (< 3 correct)", () => {
+  const save = freshSave();
+  save.stats.perHero.moses.triviaCorrect = 2;
+  // Give them a played match so the block isn't the empty state.
+  save.stats.perHero.moses.played = 1;
+  save.stats.perHero.moses.won = 1;
+  const html = Screens._heroSpotlightStats(save, "moses", "quick");
+  assert.doesNotMatch(html, /hero-stat-tier/);
+});
+
+test("renderHall includes the tier badge next to hero names when tier is non-null", () => {
+  const save = freshSave();
+  save.stats.perHero.moses.triviaCorrect = 10;   // adept
+  save.stats.perHero.david.triviaCorrect = 55;   // sage
+  save.mastered.esther = true;                   // master
+  // judah stays untiered (0 correct, not mastered).
+  const html = Screens.renderHall({ save });
+  assert.match(html, /hall-tier-badge hall-tier-adept/);
+  assert.match(html, /hall-tier-badge hall-tier-sage/);
+  assert.match(html, /hall-tier-badge hall-tier-master/);
+  // The label is exposed via the title attribute for hover/screen readers.
+  assert.match(html, /title="Adept"/);
+  assert.match(html, /title="Sage"/);
+  assert.match(html, /title="Master"/);
+});

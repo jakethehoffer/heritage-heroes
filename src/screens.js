@@ -408,6 +408,32 @@ var Screens = (function () {
 </section>`;
   }
 
+  // ── Hero Mastery Tiers ────────────────────────────────────────────────────
+  // Returns a mastery tier for a hero based on cumulative trivia-correct count
+  // + the binary mastered flag. Master tier is reserved for the existing
+  // "perfect study session" achievement (save.mastered[heroId]); intermediate
+  // tiers are based on lifetime trivia correct counts from save.stats.perHero.
+  //
+  // Thresholds (fixed):
+  //   master     → save.mastered[heroId] === true (any correct count)
+  //   sage       → ≥ 50 lifetime trivia correct
+  //   scholar    → ≥ 20 lifetime trivia correct
+  //   adept      → ≥ 10 lifetime trivia correct
+  //   apprentice → ≥  3 lifetime trivia correct
+  //   null       → < 3 correct and not mastered
+  //
+  // Safe-default: missing perHeroStats or non-integer triviaCorrect → 0.
+  function heroMasteryTier(perHeroStats, isMastered) {
+    const correct = (perHeroStats && Number.isInteger(perHeroStats.triviaCorrect))
+      ? perHeroStats.triviaCorrect : 0;
+    if (isMastered) return { tier: "master",     label: "Master",     icon: "\u{1F31F}", correct: correct };
+    if (correct >= 50) return { tier: "sage",       label: "Sage",       icon: "\u{1F4DC}", correct: correct };
+    if (correct >= 20) return { tier: "scholar",    label: "Scholar",    icon: "\u{1F4D6}", correct: correct };
+    if (correct >= 10) return { tier: "adept",      label: "Adept",      icon: "✨",    correct: correct };
+    if (correct >= 3)  return { tier: "apprentice", label: "Apprentice", icon: "\u{1F331}", correct: correct };
+    return null;
+  }
+
   // Build the compact Spotlight Stats block for a hero card.
   // Returns a `<div class="hero-stats">…</div>` HTML string.
   //
@@ -417,6 +443,9 @@ var Screens = (function () {
   // Mode-specific:
   //   endless  → 🔥 Best run: N      when endlessHighScore[heroId] > 0
   //   arcade   → 👑 Arcade wins: N   when arcade[heroId] > 0
+  // Mastery tier (intermediate only — master is already covered by MASTERED):
+  //   Apprentice/Adept/Scholar/Sage chip — when heroMasteryTier(...) != null
+  //                                        AND hero is NOT mastered.
   // Empty-state: no data at all → "✨ New — never played" (italic muted)
   //
   // Safe-default everything: any missing object/field is treated as 0/false.
@@ -451,6 +480,13 @@ var Screens = (function () {
 
     if (mode === "arcade" && arcadeWins > 0) {
       chips.push(`<span class="hero-stat">&#x1F451; Arcade wins: ${arcadeWins}</span>`);
+    }
+
+    // Mastery tier chip — only intermediate tiers (apprentice → sage).
+    // Master tier is omitted because the ★ MASTERED chip above already covers it.
+    const tier = heroMasteryTier(ph, isMastered);
+    if (tier && !isMastered) {
+      chips.push(`<span class="hero-stat hero-stat-tier hero-stat-tier-${tier.tier}">${tier.icon} ${Render.escapeHtml(tier.label)} (${tier.correct} correct)</span>`);
     }
 
     if (chips.length === 0) {
@@ -3559,12 +3595,23 @@ ${recordsHtml || ""}
   // ── Hall of Heroes screen ────────────────────────────────────────────────
   function renderHall(state) {
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
+    const perHeroAll = (state.save && state.save.stats && state.save.stats.perHero) || {};
     const cards = Heroes.list.map(h => {
       const masteredStar = mastered[h.id] ? "&#x1F31F; " : "";
+      // Tier badge appears next to the hero name when earned. The Master tier
+      // uses the same star icon as masteredStar but is intentional: the name
+      // line should still call out the rank at a glance, and the title attribute
+      // names the tier for hover/screen readers.
+      const ph = perHeroAll[h.id] || {};
+      const isMastered = !!mastered[h.id];
+      const tier = heroMasteryTier(ph, isMastered);
+      const tierBadge = tier
+        ? `<span class="hall-tier-badge hall-tier-${tier.tier}" title="${Render.escapeHtml(tier.label)}">${tier.icon}</span>`
+        : "";
       return `
 <div class="hall-hero-card" data-action="view-profile" data-hero="${h.id}">
   <div class="hall-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
-  <div class="hall-hero-name">${masteredStar}${Render.escapeHtml(h.name)}</div>
+  <div class="hall-hero-name">${masteredStar}${Render.escapeHtml(h.name)}${tierBadge}</div>
   <div class="era">${Render.escapeHtml(h.era)}</div>
   <button class="hall-learn-btn" data-action="view-profile" data-hero="${h.id}">Learn More</button>
 </div>`;
@@ -3770,9 +3817,20 @@ ${recordsHtml || ""}
     const trivAcc = perHero.triviaTotal > 0
       ? Math.round((perHero.triviaCorrect / perHero.triviaTotal) * 100)
       : 0;
-    const masteryHtml = mastered[heroId]
-      ? `<span class="profile-mastery-earned">&#x1F31F; EARNED</span>`
-      : `<span class="profile-mastery-hint">Get all 20 trivia questions right in Study Mode to earn the star</span>`;
+
+    // Mastery tier display — replaces the older binary "EARNED / hint" line.
+    // Master tier is reserved for the existing perfect-study-session achievement
+    // (save.mastered[heroId]); intermediate tiers reflect lifetime trivia correct.
+    const tier = heroMasteryTier(perHero, mastered[heroId]);
+    const tierLine = tier
+      ? `<div class="profile-tier-line">
+           Mastery tier: <span class="profile-tier-badge profile-tier-${tier.tier}">${tier.icon} ${Render.escapeHtml(tier.label)}</span>
+           <span class="profile-tier-hint">${tier.tier === "master" ? "All 20 trivia in a single session!" : `${tier.correct} trivia correct so far`}</span>
+         </div>`
+      : `<div class="profile-tier-line">
+           Mastery tier: <span class="profile-tier-none">Not yet</span>
+           <span class="profile-tier-hint">Answer 3 of ${Render.escapeHtml(h.name)}'s trivia questions to begin your journey</span>
+         </div>`;
 
     // Extra per-hero progress lines — only shown when nonzero so a brand-new
     // save stays uncluttered. Endless best and Arcade clears are tracked in
@@ -3879,7 +3937,7 @@ ${recordsHtml || ""}
         <div>Matches won: ${perHero.won} of ${perHero.played} played</div>
         ${endlessLine}
         ${arcadeLine}
-        <div>Mastery: ${masteryHtml}</div>
+        ${tierLine}
       </div>
     </div>
     ${h2hSection}
@@ -5273,7 +5331,8 @@ ${recordsHtml || ""}
     _heroSpotlightStats,  // exported for tests
     _vsIntroMatchupSummary,  // exported for tests
     _rivalryFor,  // exported for tests
-    _matchElapsedString  // exported for tests
+    _matchElapsedString,  // exported for tests
+    heroMasteryTier
   };
 })();
 

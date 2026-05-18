@@ -6032,3 +6032,77 @@ body.theme-high-contrast .settings-name-input::placeholder {
 @media (max-width: 600px) {
   .settings-name-input { font-size: 14px; padding: 7px 10px; }
 }
+
+/* ── Hero Mastery Tiers ───────────────────────────────────────────────────
+   Five ranked tiers: apprentice → adept → scholar → sage → master.
+   Master is reserved for the existing "perfect study session" flag, so it
+   only appears in the Profile + Hall (the char-select MASTERED chip already
+   covers it). Colors map to the palette tokens for tonal continuity. */
+
+/* Mastery tier chips on char-select hero cards */
+.hero-stat-tier-apprentice { border-color: rgba(107, 142, 35, 0.7); background: rgba(107, 142, 35, 0.1); }
+.hero-stat-tier-adept      { border-color: rgba(193, 70, 45, 0.7); background: rgba(193, 70, 45, 0.1); }
+.hero-stat-tier-scholar    { border-color: rgba(26, 42, 79, 0.7); background: rgba(26, 42, 79, 0.1); }
+.hero-stat-tier-sage       { border-color: rgba(212, 165, 116, 0.9); background: rgba(212, 165, 116, 0.15); }
+.hero-stat-tier-master     { border-color: var(--gold); background: rgba(212, 165, 116, 0.25); font-weight: 700; }
+
+/* Profile overlay tier display */
+.profile-tier-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+.profile-tier-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  border: 2px solid;
+}
+.profile-tier-badge.profile-tier-apprentice { border-color: var(--olive); color: var(--olive); background: rgba(107, 142, 35, 0.1); }
+.profile-tier-badge.profile-tier-adept      { border-color: var(--terracotta); color: var(--terracotta); background: rgba(193, 70, 45, 0.1); }
+.profile-tier-badge.profile-tier-scholar    { border-color: var(--navy); color: var(--navy); background: rgba(26, 42, 79, 0.1); }
+.profile-tier-badge.profile-tier-sage       { border-color: var(--gold); color: var(--gold); background: rgba(212, 165, 116, 0.15); }
+.profile-tier-badge.profile-tier-master {
+  border-color: var(--gold);
+  color: var(--navy);
+  background: linear-gradient(135deg, rgba(212, 165, 116, 0.3), rgba(193, 70, 45, 0.2));
+  font-size: 16px;
+}
+.profile-tier-hint {
+  font-size: 11px;
+  color: var(--ink);
+  opacity: 0.7;
+  font-style: italic;
+}
+.profile-tier-none {
+  padding: 3px 12px;
+  border-radius: 12px;
+  border: 2px solid rgba(26, 26, 26, 0.2);
+  color: var(--ink);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Hall of Heroes hero name + tier badge */
+.hall-tier-badge {
+  font-size: 14px;
+  margin-left: 4px;
+  vertical-align: baseline;
+}
+.hall-tier-master { font-size: 18px; }
+
+body.theme-high-contrast .hero-stat-tier-apprentice,
+body.theme-high-contrast .hero-stat-tier-adept,
+body.theme-high-contrast .hero-stat-tier-scholar,
+body.theme-high-contrast .hero-stat-tier-sage,
+body.theme-high-contrast .hero-stat-tier-master {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-high-contrast .profile-tier-badge {
+  background: rgba(255, 255, 255, 0.08);
+}
