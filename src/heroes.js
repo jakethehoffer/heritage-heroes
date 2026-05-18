@@ -1001,7 +1001,36 @@ var Heroes = (function () {
     return { trivia: hero.trivia[idx], index: idx, exhausted };
   }
 
-  return { list, byId, pickTrivia };
+  // Returns a randomly-selected { heroId, heroName, explanation } drawn from
+  // the entire pool of trivia explanations across every hero. Used by the
+  // "Did You Know?" card on the title screen to passively surface a piece
+  // of history on every visit. Pure function: deterministic given `rng`.
+  // Uses Math.random by default but accepts an rng function for tests.
+  function pickRandomFact(rng) {
+    const rand = (typeof rng === "function") ? rng : Math.random;
+    // Build flat pool of {heroId, qIdx} across all heroes' trivia entries.
+    const pool = [];
+    for (const hero of list) {
+      if (!Array.isArray(hero.trivia)) continue;
+      for (let i = 0; i < hero.trivia.length; i++) {
+        const entry = hero.trivia[i];
+        if (entry && typeof entry.explanation === "string" && entry.explanation.length > 0) {
+          pool.push({ heroId: hero.id, qIdx: i });
+        }
+      }
+    }
+    if (pool.length === 0) return null;
+    const idx = Math.floor(rand() * pool.length);
+    const pick = pool[idx];
+    const hero = byId(pick.heroId);
+    return {
+      heroId: pick.heroId,
+      heroName: hero ? hero.name : pick.heroId,
+      explanation: hero.trivia[pick.qIdx].explanation
+    };
+  }
+
+  return { list, byId, pickTrivia, pickRandomFact };
 })();
 
 if (typeof module !== "undefined") module.exports = Heroes;

@@ -145,6 +145,65 @@ button.secondary { background: var(--cream); color: var(--ink); }
   .achievement-progress-arrow { font-size: 14px; }
 }
 
+/* "Did You Know?" rotating fact card on the title screen. Sits below the
+   achievement-progress widget and above the stat banners. Each render of
+   the title picks a fresh trivia explanation; clicking opens the related
+   hero's profile via the existing view-profile action handler. */
+.title-funfact {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 14px auto 0;
+  padding: 12px 18px;
+  background: var(--cream);
+  border: 2px solid rgba(107, 142, 35, 0.4);  /* faded olive */
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  color: var(--ink);
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.title-funfact:hover {
+  border-color: var(--olive);
+  transform: translateY(-1px);
+}
+.title-funfact:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 3px;
+}
+.title-funfact-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--navy);
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+.title-funfact-text {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  margin: 0 0 6px;
+  font-style: italic;
+}
+.title-funfact-attribution {
+  font-size: 12px;
+  color: var(--navy);
+  opacity: 0.7;
+  margin: 0;
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  .title-funfact { max-width: 95%; padding: 10px 14px; }
+  .title-funfact-text { font-size: 13px; }
+  .title-funfact-label { font-size: 11px; }
+  .title-funfact-attribution { font-size: 11px; }
+}
+
 /* Quick Play — tertiary treatment: inviting "shortcut" button between BEGIN
    and the secondary stack. Cream base like .secondary, but with a bold
    gold left-border accent and an icon+sub-label layout so it reads as a

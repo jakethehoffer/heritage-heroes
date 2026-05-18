@@ -131,3 +131,60 @@ test("pickTrivia exhausted flag is true only on the last question of a cycle", (
   const last = Heroes.pickTrivia(heroId, used);
   assert.strictEqual(last.exhausted, true, "exhausted should be true on the final question of the cycle");
 });
+
+// ── pickRandomFact — "Did You Know?" card on the title screen ────────────────
+
+test("pickRandomFact returns a valid {heroId, heroName, explanation} shape", () => {
+  const fact = Heroes.pickRandomFact();
+  assert.ok(fact !== null, "should not return null when heroes exist");
+  assert.ok(typeof fact.heroId === "string" && fact.heroId.length > 0, "heroId is a non-empty string");
+  assert.ok(typeof fact.heroName === "string" && fact.heroName.length > 0, "heroName is a non-empty string");
+  assert.ok(typeof fact.explanation === "string" && fact.explanation.length > 0, "explanation is a non-empty string");
+});
+
+test("pickRandomFact heroId is one of the 7 heroes", () => {
+  // Run several picks to make sure every result lands on a valid hero id.
+  for (let i = 0; i < 25; i++) {
+    const fact = Heroes.pickRandomFact();
+    assert.ok(EXPECTED_IDS.includes(fact.heroId), `unexpected heroId: ${fact.heroId}`);
+  }
+});
+
+test("pickRandomFact respects custom rng for determinism — () => 0 returns first hero's first explanation", () => {
+  const fact = Heroes.pickRandomFact(() => 0);
+  const firstHero = Heroes.list[0];
+  assert.strictEqual(fact.heroId, firstHero.id, "rng=0 picks the first hero in the pool");
+  assert.strictEqual(fact.heroName, firstHero.name, "heroName matches the first hero");
+  assert.strictEqual(fact.explanation, firstHero.trivia[0].explanation,
+    "rng=0 picks the first trivia entry's explanation");
+});
+
+test("pickRandomFact returns different facts for rngs that point to different pool entries", () => {
+  // The flat pool spans every hero's trivia in order. () => 0 lands on the
+  // very first entry; () => 0.9999 lands on the very last. They must differ.
+  const factLow  = Heroes.pickRandomFact(() => 0);
+  const factHigh = Heroes.pickRandomFact(() => 0.9999);
+  assert.notStrictEqual(factLow.explanation, factHigh.explanation,
+    "rng=0 and rng=0.9999 should yield different explanations");
+});
+
+test("pickRandomFact rng near 1 selects the last hero's last explanation", () => {
+  // Floor(0.9999 * 140) = 139, the last index in the pool — matches the last
+  // trivia entry of the last hero in the roster.
+  const fact = Heroes.pickRandomFact(() => 0.9999);
+  const lastHero = Heroes.list[Heroes.list.length - 1];
+  const lastEntry = lastHero.trivia[lastHero.trivia.length - 1];
+  assert.strictEqual(fact.heroId, lastHero.id, "rng=0.9999 lands on the last hero");
+  assert.strictEqual(fact.explanation, lastEntry.explanation,
+    "rng=0.9999 lands on the last trivia entry's explanation");
+});
+
+test("pickRandomFact explanation is drawn from the named hero's own trivia pool", () => {
+  for (let i = 0; i < 10; i++) {
+    const fact = Heroes.pickRandomFact();
+    const hero = Heroes.byId(fact.heroId);
+    const explanations = hero.trivia.map(t => t.explanation);
+    assert.ok(explanations.includes(fact.explanation),
+      `explanation should belong to ${fact.heroId}'s trivia`);
+  }
+});

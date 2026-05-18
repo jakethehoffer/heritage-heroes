@@ -689,3 +689,109 @@ test("renderTitle: achievement-progress widget has data-action=\"open-trophy-roo
   // Confirm the click target reuses the action already wired in main.js.
   assert.match(html, /class="achievement-progress"[\s\S]*?data-action="open-trophy-room"/);
 });
+
+// ── "Did You Know?" rotating fact card on title ───────────────────────────
+//
+// These tests stub Heroes.pickRandomFact so the rendered HTML is deterministic.
+// Each test restores the original implementation in a try/finally so other
+// suites that import Heroes still see the real function.
+
+test("renderTitle: includes title-funfact when Heroes.pickRandomFact returns a fact", () => {
+  const save = freshSave();
+  const original = Heroes.pickRandomFact;
+  Heroes.pickRandomFact = () => ({
+    heroId: "moses",
+    heroName: "Moses",
+    explanation: "Moses led the Israelites out of Egyptian slavery."
+  });
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.match(html, /class="title-funfact"/);
+    assert.match(html, /Did You Know\?/);
+    assert.match(html, /Moses led the Israelites out of Egyptian slavery\./);
+    assert.match(html, /About Moses/);
+  } finally {
+    Heroes.pickRandomFact = original;
+  }
+});
+
+test("renderTitle: title-funfact has data-action=\"view-profile\" and data-hero set to the fact's heroId", () => {
+  const save = freshSave();
+  const original = Heroes.pickRandomFact;
+  Heroes.pickRandomFact = () => ({
+    heroId: "einstein",
+    heroName: "Albert Einstein",
+    explanation: "E=mc² means energy equals mass times the speed of light squared."
+  });
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    // Both attributes must appear on the same .title-funfact button.
+    assert.match(html, /class="title-funfact"[\s\S]*?data-action="view-profile"/);
+    assert.match(html, /class="title-funfact"[\s\S]*?data-hero="einstein"/);
+  } finally {
+    Heroes.pickRandomFact = original;
+  }
+});
+
+test("renderTitle: title-funfact gracefully omitted when Heroes.pickRandomFact returns null", () => {
+  const save = freshSave();
+  const original = Heroes.pickRandomFact;
+  Heroes.pickRandomFact = () => null;
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.doesNotMatch(html, /class="title-funfact"/);
+    assert.doesNotMatch(html, /Did You Know/);
+    // And the rest of the screen still renders without throwing.
+    assert.match(html, /<h1>Heritage Heroes<\/h1>/);
+  } finally {
+    Heroes.pickRandomFact = original;
+  }
+});
+
+test("renderTitle: title-funfact escapes hero name and explanation to prevent HTML injection", () => {
+  const save = freshSave();
+  const original = Heroes.pickRandomFact;
+  Heroes.pickRandomFact = () => ({
+    heroId: "moses",
+    heroName: "<script>alert('xss')</script>",
+    explanation: "<img src=x onerror=alert(1)>"
+  });
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    // Raw injected tags must not appear inside the rendered card.
+    assert.doesNotMatch(html, /<script>alert\('xss'\)<\/script>/);
+    assert.doesNotMatch(html, /<img src=x onerror=alert\(1\)>/);
+    // But escaped versions should be present.
+    assert.match(html, /&lt;script&gt;/);
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  } finally {
+    Heroes.pickRandomFact = original;
+  }
+});
+
+test("renderTitle: title-funfact sits between achievement-progress widget and the stat banners", () => {
+  const save = freshSave();
+  // Need an unlocked achievement so the achievement-progress widget renders.
+  save.achievements.firstWin = Date.now();
+  // Also seed an arcade win so the stat banner ("Arcade wins: N") renders.
+  save.arcade.moses = 3;
+  const original = Heroes.pickRandomFact;
+  Heroes.pickRandomFact = () => ({
+    heroId: "moses",
+    heroName: "Moses",
+    explanation: "An ordering-test fact."
+  });
+  try {
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    const achIdx  = html.indexOf('class="achievement-progress"');
+    const factIdx = html.indexOf('class="title-funfact"');
+    const statIdx = html.indexOf("Arcade wins:");
+    assert.ok(achIdx >= 0, "expected achievement-progress widget in output");
+    assert.ok(factIdx >= 0, "expected title-funfact card in output");
+    assert.ok(statIdx >= 0, "expected Arcade wins stat banner in output");
+    assert.ok(achIdx < factIdx, "fact card should appear after achievement-progress");
+    assert.ok(factIdx < statIdx, "fact card should appear before stat banners");
+  } finally {
+    Heroes.pickRandomFact = original;
+  }
+});

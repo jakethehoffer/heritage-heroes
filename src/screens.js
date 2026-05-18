@@ -158,6 +158,27 @@ var Screens = (function () {
   </button>`;
     }
 
+    // "Did You Know?" rotating fact card — surfaces one of the 140 hand-crafted
+    // trivia explanations on every visit to the title screen. Click opens that
+    // hero's profile via the existing view-profile action handler. A fresh fact
+    // is picked on each render, so the existing titleFeaturedTimer (which
+    // re-renders every 8s as the featured hero rotates) naturally rotates the
+    // fact too — no new timer needed.
+    let factCard = "";
+    const fact = (Heroes && typeof Heroes.pickRandomFact === "function")
+      ? Heroes.pickRandomFact()
+      : null;
+    if (fact) {
+      factCard = `
+  <button class="title-funfact" data-action="view-profile" data-hero="${fact.heroId}"
+          title="Click to learn more about ${Render.escapeHtml(fact.heroName)}"
+          aria-label="Did You Know? ${Render.escapeHtml(fact.explanation)} Click to view ${Render.escapeHtml(fact.heroName)}'s profile.">
+    <span class="title-funfact-label">&#x1F4A1; Did You Know?</span>
+    <p class="title-funfact-text">${Render.escapeHtml(fact.explanation)}</p>
+    <p class="title-funfact-attribution">About ${Render.escapeHtml(fact.heroName)} &rarr;</p>
+  </button>`;
+    }
+
     return `
 <section class="screen screen-title">
   ${sparkles}
@@ -181,6 +202,7 @@ var Screens = (function () {
     <button data-action="open-settings" class="secondary">Settings</button>
   </div>
   ${achievementProgress}
+  ${factCard}
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
   ${endlessStreakLine}
