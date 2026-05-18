@@ -257,6 +257,138 @@ test("renderConfetti: default count produces a wrapper with 30 pieces", () => {
   assert.strictEqual(pieces.length, 30, "default count should be 30");
 });
 
+// ── VS Intro matchup prediction badge ──────────────────────────────────────
+
+test("_vsIntroMatchupSummary: empty matchups returns first-time meeting", () => {
+  const result = Screens._vsIntroMatchupSummary({}, "moses", "david");
+  assert.strictEqual(result.icon, "✨");
+  assert.strictEqual(result.text, "First time meeting!");
+});
+
+test("_vsIntroMatchupSummary: missing matchups arg returns first-time meeting", () => {
+  const result = Screens._vsIntroMatchupSummary(undefined, "moses", "david");
+  assert.strictEqual(result.icon, "✨");
+  assert.strictEqual(result.text, "First time meeting!");
+});
+
+test("_vsIntroMatchupSummary: matchups missing this specific key returns first-time meeting", () => {
+  const matchups = { "moses|esther": { wins: 2, losses: 0 } };
+  const result = Screens._vsIntroMatchupSummary(matchups, "moses", "david");
+  assert.strictEqual(result.icon, "✨");
+  assert.strictEqual(result.text, "First time meeting!");
+});
+
+test("_vsIntroMatchupSummary: record with both 0 still treated as first-time meeting", () => {
+  const matchups = { "moses|david": { wins: 0, losses: 0 } };
+  const result = Screens._vsIntroMatchupSummary(matchups, "moses", "david");
+  assert.strictEqual(result.icon, "✨");
+  assert.strictEqual(result.text, "First time meeting!");
+});
+
+test("_vsIntroMatchupSummary: wins > losses returns winning record", () => {
+  const matchups = { "moses|david": { wins: 3, losses: 1 } };
+  const result = Screens._vsIntroMatchupSummary(matchups, "moses", "david");
+  assert.strictEqual(result.text, "Your record: 3-1");
+  // sanity: icon non-empty (trophy)
+  assert.ok(result.icon && result.icon.length > 0);
+});
+
+test("_vsIntroMatchupSummary: wins < losses returns tough matchup with raw wins-losses order", () => {
+  const matchups = { "moses|david": { wins: 1, losses: 4 } };
+  const result = Screens._vsIntroMatchupSummary(matchups, "moses", "david");
+  assert.strictEqual(result.text, "Tough matchup: 1-4");
+  assert.ok(result.icon && result.icon.length > 0);
+});
+
+test("_vsIntroMatchupSummary: equal wins and losses returns even match", () => {
+  const matchups = { "moses|david": { wins: 2, losses: 2 } };
+  const result = Screens._vsIntroMatchupSummary(matchups, "moses", "david");
+  assert.strictEqual(result.text, "Even match: 2-2");
+  assert.ok(result.icon && result.icon.length > 0);
+});
+
+test("renderVsIntro: renders matchup prediction badge when controllers are [human, ai]", () => {
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save: freshSave()
+  });
+  assert.match(html, /vs-intro-matchup-prediction/);
+  assert.match(html, /First time meeting!/);
+});
+
+test("renderVsIntro: does NOT render matchup badge for couch [human, human] play", () => {
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "human"],
+    mode: "quick",
+    save: freshSave()
+  });
+  assert.doesNotMatch(html, /vs-intro-matchup-prediction/);
+});
+
+test("renderVsIntro: does NOT render matchup badge for spectator [ai, ai]", () => {
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["ai", "ai"],
+    mode: "spectator",
+    save: freshSave()
+  });
+  assert.doesNotMatch(html, /vs-intro-matchup-prediction/);
+});
+
+test("renderVsIntro: does NOT render matchup badge in tournament mode even with [human, ai]", () => {
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "tournament",
+    save: freshSave()
+  });
+  assert.doesNotMatch(html, /vs-intro-matchup-prediction/);
+});
+
+test("renderVsIntro: does NOT render matchup badge when controllers are missing", () => {
+  const match = Combat.createMatch("moses", "david");
+  // Plain renderVsIntro call without controllers context (e.g., the existing
+  // tests above) must stay backward-compatible — badge is opt-in.
+  const html = Screens.renderVsIntro({ match });
+  assert.doesNotMatch(html, /vs-intro-matchup-prediction/);
+});
+
+test("renderVsIntro: shows correct wins-losses text for a populated matchup record", () => {
+  const save = freshSave();
+  save.matchups["moses|david"] = { wins: 5, losses: 2 };
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save
+  });
+  assert.match(html, /vs-intro-matchup-prediction/);
+  assert.match(html, /Your record: 5-2/);
+});
+
+test("renderVsIntro: matchup badge sits between stage name and fighters", () => {
+  const match = Combat.createMatch("moses", "david");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save: freshSave()
+  });
+  const stageIdx    = html.indexOf("vs-intro-stage-name");
+  const matchupIdx  = html.indexOf("vs-intro-matchup-prediction");
+  const fightersIdx = html.indexOf("vs-intro-fighters");
+  assert.ok(stageIdx >= 0 && matchupIdx > stageIdx && fightersIdx > matchupIdx,
+    "matchup badge should render between stage name and fighters block");
+});
+
 test("renderConfetti: respects the count option", () => {
   const html = Screens.renderConfetti({ count: 50 });
   const pieces = html.match(/class="confetti-piece"/g) || [];

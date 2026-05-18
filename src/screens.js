@@ -868,6 +868,33 @@ ${recordsHtml || ""}
   // ── VS Intro screen ──────────────────────────────────────────────────────
   // Brief pre-battle fighter intro: hero portraits swoop in, big "VS" text,
   // stage name announced. Adds a beat of anticipation before each match.
+
+  // Pure helper: derives a "matchup prediction" badge from save.matchups.
+  // Returns { icon, text } for first-time, winning, losing, or even records.
+  // Defensive on missing/zero data so callers can pass it freely.
+  function _vsIntroMatchupSummary(matchups, playerHeroId, opponentHeroId) {
+    const key = playerHeroId + "|" + opponentHeroId;
+    const record = (matchups || {})[key];
+    if (!record || ((record.wins || 0) === 0 && (record.losses || 0) === 0)) {
+      return { icon: "✨", text: "First time meeting!" };
+    }
+    const w = record.wins || 0;
+    const L = record.losses || 0;
+    if (w > L)  return { icon: "\u{1F3C6}", text: `Your record: ${w}-${L}` };
+    if (w < L)  return { icon: "\u{1F4AA}", text: `Tough matchup: ${w}-${L}` };
+    return { icon: "⚔️", text: `Even match: ${w}-${L}` };
+  }
+
+  // Should the matchup-prediction badge appear in this VS intro?
+  // Only when slot 0 is human and slot 1 is AI — the "you vs AI" case where
+  // "your record" is unambiguous. Tournament is excluded because slot
+  // ownership can be shared across multiple humans in 4-player brackets.
+  function _shouldShowMatchupBadge(state) {
+    if (!state || state.mode === "tournament") return false;
+    const c = state.controllers;
+    return !!(c && c[0] === "human" && c[1] === "ai");
+  }
+
   function renderVsIntro(state) {
     const match = state.match;
     if (!match || !match.players || match.players.length < 2) return "";
@@ -883,10 +910,23 @@ ${recordsHtml || ""}
       : "";
     const portrait0 = Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" });
     const portrait1 = Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" });
+
+    // Matchup prediction badge (only for "you vs AI" outside Tournament).
+    let matchupBadge = "";
+    if (_shouldShowMatchupBadge(state)) {
+      const matchups = (state.save && state.save.matchups) || {};
+      const summary = _vsIntroMatchupSummary(matchups, p0HeroId, p1HeroId);
+      matchupBadge = `
+  <div class="vs-intro-matchup-prediction">
+    <span class="vs-intro-matchup-icon">${summary.icon}</span>
+    <span class="vs-intro-matchup-text">${Render.escapeHtml(summary.text)}</span>
+  </div>`;
+    }
+
     return `
 <section class="screen screen-vs-intro" data-action="vs-skip" data-stage="${Render.escapeHtml(stageId)}">
   <div class="vs-intro-bg" data-stage="${Render.escapeHtml(stageId)}">${stageBackdrop}</div>
-  <div class="vs-intro-stage-name">&#x1F4CD; ${Render.escapeHtml(stageName)}</div>
+  <div class="vs-intro-stage-name">&#x1F4CD; ${Render.escapeHtml(stageName)}</div>${matchupBadge}
   <div class="vs-intro-fighters">
     <div class="vs-intro-fighter left">
       <div class="vs-intro-portrait left">${portrait0}</div>
@@ -4167,7 +4207,8 @@ ${recordsHtml || ""}
     queueAchievementToast, showAchievementToast, showToast,
     ACHIEVEMENT_LIST,
     renderConfetti,
-    _heroSpotlightStats  // exported for tests
+    _heroSpotlightStats,  // exported for tests
+    _vsIntroMatchupSummary  // exported for tests
   };
 })();
 

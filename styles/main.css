@@ -2347,6 +2347,42 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   }
 }
 
+/* ── VS Intro: matchup prediction badge ──────────────────────────────────
+   Small chip that surfaces the player's personal W/L vs this opponent.
+   Only shown for "you vs AI" matches outside Tournament. Fades in after
+   the stage name has settled (~700ms delay) so it feels like a follow-up
+   beat, not a competing focal point. */
+.vs-intro-matchup-prediction {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 248, 231, 0.85);  /* cream, slightly translucent */
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 600;
+  margin: 6px auto 0;
+  animation: vs-intro-matchup-fade 0.6s ease-out 0.7s backwards;
+}
+.vs-intro-matchup-icon { font-size: 16px; line-height: 1; }
+.vs-intro-matchup-text { line-height: 1.2; }
+@keyframes vs-intro-matchup-fade {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-intro-matchup-prediction { animation: none; }
+}
+@media (max-width: 600px) {
+  .vs-intro-matchup-prediction { font-size: 12px; padding: 5px 10px; gap: 6px; }
+  .vs-intro-matchup-icon { font-size: 14px; }
+}
+
 /* ============================================================
    TITLE SCREEN POLISH — Featured Hero, Sparkles, Pulse
    ============================================================ */
