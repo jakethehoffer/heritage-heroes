@@ -941,6 +941,7 @@ ${recordsHtml || ""}
   <div class="result-buttons">
     <button data-action="arcade-next">Next Opponent</button>
     <button data-action="share-arcade" class="share-btn">&#x1F4E8; Share this arcade run</button>
+    <button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>
     <button data-action="goto-title" class="secondary">Quit Run</button>
   </div>
 </section>`;
@@ -975,6 +976,7 @@ ${recordsHtml || ""}
   ${recap}
   <div class="result-buttons">
     ${playerWon ? `<button data-action="share-daily" class="share-btn">&#x1F4E8; Share this challenge</button>` : ""}
+    <button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -989,6 +991,7 @@ ${recordsHtml || ""}
   ${recap}
   <div class="result-buttons">
     <button data-action="start-spectator">Watch Another</button>
+    <button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -1004,6 +1007,7 @@ ${recordsHtml || ""}
   <div class="result-buttons">
     <button data-action="rematch">Play Again</button>
     <button data-action="share-quick" class="share-btn">&#x1F4E8; Share this matchup</button>
+    <button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -3736,6 +3740,9 @@ ${recordsHtml || ""}
          <p class="previous-best">Previous best: ${e.previousBest}</p>`
       : `<p class="previous-best">Your best with ${Render.escapeHtml(heroName)}: ${bestScore}</p>`;
     const confetti = e.isNewBest ? renderConfetti({ count: 35 }) : "";
+    const downloadBtn = (state.match && state.match.winner !== null && state.match.winner !== undefined)
+      ? `<button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>`
+      : "";
     return `
 <section class="screen screen-endless-result">
   ${confetti}
@@ -3745,6 +3752,7 @@ ${recordsHtml || ""}
   <div class="endless-result-actions">
     <button data-action="retry-endless">Try Again</button>
     <button data-action="share-endless" class="share-btn">&#x1F4E8; Share your streak (${e.streak})</button>
+    ${downloadBtn}
     <button data-action="pick-different-hero" class="secondary">Pick Different Hero</button>
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
@@ -4680,6 +4688,9 @@ ${recordsHtml || ""}
   <div class="result-buttons">
     <button data-action="start-tournament">Play Another</button>
     ${winnerHumanNumber ? `<button data-action="share-tournament" class="share-btn">&#x1F4E8; Share this tournament</button>` : ""}
+    ${state.match && state.match.winner !== null && state.match.winner !== undefined
+      ? `<button data-action="download-result-card" class="share-btn">&#x1F4F8; Download Result Card</button>`
+      : ""}
     <button data-action="goto-title" class="secondary">Main Menu</button>
   </div>
 </section>`;
@@ -4766,6 +4777,125 @@ ${recordsHtml || ""}
   };
   function stageNameOf(stageId) { return STAGE_NAMES[stageId] || stageId; }
 
+  // Generates a stylized SVG card commemorating a completed match.
+  // Returns the full <svg>...</svg> string ready for download as image/svg+xml,
+  // or null if state lacks the data needed to render a meaningful card.
+  // The SVG is self-contained: no external fonts, assets, or scripts.
+  function renderVictoryCardSvg(state, opts) {
+    const match = state && state.match;
+    if (!match || !match.players || match.winner === null || match.winner === undefined) {
+      return null;
+    }
+
+    const options = opts || {};
+    const W = options.width  || 1200;
+    const H = options.height || 630;  // 1.91:1 — standard social card ratio
+
+    const winnerSlot = match.winner;
+    const loserSlot  = 1 - winnerSlot;
+    const winnerHero = Heroes.byId(match.players[winnerSlot].heroId);
+    const loserHero  = Heroes.byId(match.players[loserSlot].heroId);
+    if (!winnerHero || !loserHero) return null;
+
+    const stageId   = match.stageId || winnerHero.stageId || "";
+    const stageName = stageNameOf(stageId);
+    const turns     = match.turnNumber || 0;
+    const winnerHpLeft = match.players[winnerSlot].hp;
+
+    // Title text: "VICTORY!" if human (slot 0) won vs AI, "DEFEAT!" if human
+    // lost to AI, otherwise a neutral "[Hero] WINS!" for spectator / couch /
+    // tournament cases where it isn't clearly "you" who won or lost.
+    const c = (state && state.controllers) || [];
+    const humanWon  = c[0] === "human" && c[1] === "ai" && winnerSlot === 0;
+    const humanLost = c[0] === "human" && c[1] === "ai" && winnerSlot === 1;
+    const titleText = humanWon  ? "VICTORY!"
+                    : humanLost ? "DEFEAT!"
+                    : `${winnerHero.name.toUpperCase()} WINS!`;
+    const titleColor = humanWon  ? "#d4a574"   // gold
+                     : humanLost ? "#c1462d"   // terracotta
+                     : "#1a2a4f";              // navy
+
+    // Render hero portraits via the existing renderHero builder. Each returns
+    // a full <svg viewBox="0 0 200 200">...</svg> string. To embed them inside
+    // our card we strip the outer <svg> tags and place the inner content into
+    // a nested <svg> with its own position/size — SVG-in-SVG is valid.
+    const winnerPortraitSvg = Render.renderHero({ heroId: winnerHero.id, pose: "idle", facing: "right" });
+    const loserPortraitSvg  = Render.renderHero({ heroId: loserHero.id,  pose: "idle", facing: "left" });
+    const winnerInner = winnerPortraitSvg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+    const loserInner  = loserPortraitSvg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+
+    // Layout
+    const portraitW = 280;
+    const portraitH = 280;
+    const winnerX = W / 2 - portraitW / 2;
+    const winnerY = 140;
+    const loserPortraitW = 140;
+    const loserPortraitH = 140;
+    const loserX  = 70;
+    const loserY  = H - loserPortraitH - 70;
+
+    const escape = (s) => Render.escapeXml(s);
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Georgia, serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#fff8e7"/>
+      <stop offset="100%" stop-color="#faf3e0"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"  stop-color="#d4a574"/>
+      <stop offset="100%" stop-color="#c1462d"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+
+  <!-- Decorative top + bottom borders -->
+  <rect x="0" y="0" width="${W}" height="6" fill="url(#goldGrad)"/>
+  <rect x="0" y="${H - 6}" width="${W}" height="6" fill="url(#goldGrad)"/>
+
+  <!-- Big title -->
+  <text x="${W / 2}" y="100" text-anchor="middle"
+        font-size="96" font-weight="bold" fill="${titleColor}"
+        stroke="#1a1a1a" stroke-width="3" paint-order="stroke fill"
+        letter-spacing="4">${escape(titleText)}</text>
+
+  <!-- Winner portrait (large, centered) -->
+  <svg x="${winnerX}" y="${winnerY}" width="${portraitW}" height="${portraitH}" viewBox="0 0 200 200">
+    ${winnerInner}
+  </svg>
+
+  <!-- Winner name + era -->
+  <text x="${W / 2}" y="${winnerY + portraitH + 50}" text-anchor="middle"
+        font-size="42" font-weight="bold" fill="#1a2a4f">${escape(winnerHero.name)}</text>
+  <text x="${W / 2}" y="${winnerY + portraitH + 80}" text-anchor="middle"
+        font-size="20" fill="#1a1a1a" opacity="0.75">${escape(winnerHero.era)}</text>
+
+  <!-- Small loser portrait + "defeated" caption (bottom-left) -->
+  <svg x="${loserX}" y="${loserY}" width="${loserPortraitW}" height="${loserPortraitH}" viewBox="0 0 200 200" opacity="0.65">
+    ${loserInner}
+  </svg>
+  <text x="${loserX + loserPortraitW / 2}" y="${loserY + loserPortraitH + 20}"
+        text-anchor="middle" font-size="14" fill="#1a1a1a" opacity="0.7">
+    defeated ${escape(loserHero.name)}
+  </text>
+
+  <!-- Stage + turn count (bottom-right corner) -->
+  <text x="${W - 40}" y="${H - 60}" text-anchor="end" font-size="18" fill="#1a2a4f" font-weight="bold">
+    &#x1F4CD; ${escape(stageName)}
+  </text>
+  <text x="${W - 40}" y="${H - 30}" text-anchor="end" font-size="14" fill="#1a1a1a" opacity="0.7">
+    ${turns} turns &#xb7; ${winnerHpLeft} HP remaining
+  </text>
+
+  <!-- Branding (bottom-center) -->
+  <text x="${W / 2}" y="${H - 30}" text-anchor="middle" font-size="14" fill="#1a2a4f" opacity="0.7" font-style="italic">
+    Heritage Heroes
+  </text>
+</svg>`;
+  }
+
   const STAGE_SELECT_HERO_ORDER = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
   function renderStageSelect(state) {
@@ -4815,6 +4945,7 @@ ${recordsHtml || ""}
     renderTournamentSetup, renderTournamentBracket, renderTournamentResult,
     renderTrophyRoom,
     renderStageSelect,
+    renderVictoryCardSvg,
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,

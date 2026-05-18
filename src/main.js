@@ -170,6 +170,21 @@ var Main = (function () {
     );
   }
 
+  // Triggers a browser download of `content` as `filename` with the given
+  // mime type. Headless-safe: callers must check for document/Blob/URL
+  // existence before invoking.
+  function _triggerDownload(content, filename, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function acceptChallenge() {
     const c = state.incomingChallenge;
     if (!c) return;
@@ -1195,6 +1210,24 @@ var Main = (function () {
       case "share-tournament": {
         if (!state.tournament) return;
         copyShareLink("tournament", { h: state.tournament.slots[0] });
+        return;
+      }
+
+      case "download-result-card": {
+        if (typeof document === "undefined" || typeof Blob === "undefined" || typeof URL === "undefined") return;
+        const svg = Screens.renderVictoryCardSvg(state);
+        if (!svg) return;
+        const m = state.match;
+        const winnerSlot = m.winner;
+        const loserSlot  = 1 - winnerSlot;
+        const wHero = Heroes.byId(m.players[winnerSlot].heroId);
+        const lHero = Heroes.byId(m.players[loserSlot].heroId);
+        if (!wHero || !lHero) return;
+        const filename = `heritage-heroes-${wHero.id}-vs-${lHero.id}-${Date.now()}.svg`;
+        _triggerDownload(svg, filename, "image/svg+xml");
+        if (typeof Screens.showToast === "function") {
+          Screens.showToast("Result card downloaded!");
+        }
         return;
       }
 

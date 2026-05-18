@@ -1928,3 +1928,218 @@ test("Sfx.setMasterVolume / setMusicVolume / setSfxVolume do not throw in headle
   assert.ok(levels.music  >= 0 && levels.music  <= 1, "music in 0..1");
   assert.ok(levels.sfx    >= 0 && levels.sfx    <= 1, "sfx in 0..1");
 });
+
+// ── Victory Share Card (SVG download) ────────────────────────────────────
+
+function _resultState(overrides) {
+  const heroA = (overrides && overrides.heroA) || "moses";
+  const heroB = (overrides && overrides.heroB) || "david";
+  const match = Combat.createMatch(heroA, heroB);
+  match.winner = (overrides && overrides.winner !== undefined) ? overrides.winner : 0;
+  match.turnNumber = (overrides && overrides.turnNumber !== undefined) ? overrides.turnNumber : 7;
+  const state = {
+    match,
+    mode: (overrides && overrides.mode) || "quick",
+    controllers: (overrides && overrides.controllers) || ["human", "ai"],
+    save: freshSave(),
+    matchStats: {
+      biggestHit: null,
+      specialsUsed: [0, 0],
+      triviaCorrect: 0,
+      triviaTotal: 0,
+      triviaSeen: {}
+    }
+  };
+  return state;
+}
+
+test("renderVictoryCardSvg returns null when state has no match", () => {
+  assert.strictEqual(Screens.renderVictoryCardSvg(null), null);
+  assert.strictEqual(Screens.renderVictoryCardSvg({}), null);
+  assert.strictEqual(Screens.renderVictoryCardSvg({ match: null }), null);
+});
+
+test("renderVictoryCardSvg returns null when match has no winner", () => {
+  const match = Combat.createMatch("moses", "david");
+  // winner is left as null (default from createMatch)
+  assert.strictEqual(Screens.renderVictoryCardSvg({ match, controllers: ["human", "ai"] }), null);
+});
+
+test("renderVictoryCardSvg returns null when match hero ids are invalid", () => {
+  const fakeMatch = {
+    players: [{ heroId: "not-a-hero", hp: 50 }, { heroId: "also-fake", hp: 0 }],
+    winner: 0,
+    turnNumber: 3,
+    stageId: "redsea"
+  };
+  assert.strictEqual(
+    Screens.renderVictoryCardSvg({ match: fakeMatch, controllers: ["human", "ai"] }),
+    null
+  );
+});
+
+test("renderVictoryCardSvg returns an <svg> string with viewBox and dimensions", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState());
+  assert.ok(typeof svg === "string", "should return a string");
+  assert.match(svg, /^<svg\b/);
+  assert.match(svg, /<\/svg>$/);
+  assert.match(svg, /xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(svg, /viewBox="0 0 1200 630"/);
+  assert.match(svg, /width="1200"/);
+  assert.match(svg, /height="630"/);
+});
+
+test("renderVictoryCardSvg honors custom width/height via opts", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState(), { width: 800, height: 420 });
+  assert.match(svg, /viewBox="0 0 800 420"/);
+  assert.match(svg, /width="800"/);
+  assert.match(svg, /height="420"/);
+});
+
+test("renderVictoryCardSvg includes the winner's name", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState({ heroA: "moses", heroB: "david", winner: 0 }));
+  assert.match(svg, /Moses/);
+});
+
+test("renderVictoryCardSvg includes the loser's name in the 'defeated' caption", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState({ heroA: "moses", heroB: "david", winner: 0 }));
+  assert.match(svg, /defeated King David/);
+});
+
+test("renderVictoryCardSvg shows 'VICTORY!' when human (slot 0) beats AI", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState({
+    controllers: ["human", "ai"],
+    winner: 0
+  }));
+  assert.match(svg, /VICTORY!/);
+  assert.doesNotMatch(svg, /DEFEAT!/);
+});
+
+test("renderVictoryCardSvg shows 'DEFEAT!' when AI (slot 1) beats human", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState({
+    controllers: ["human", "ai"],
+    winner: 1
+  }));
+  assert.match(svg, /DEFEAT!/);
+  assert.doesNotMatch(svg, /VICTORY!/);
+});
+
+test("renderVictoryCardSvg shows a neutral '[Hero] WINS!' title for spectator / couch matches", () => {
+  // Spectator: both AI
+  const svgSpec = Screens.renderVictoryCardSvg(_resultState({
+    controllers: ["ai", "ai"],
+    heroA: "esther", heroB: "judah", winner: 0
+  }));
+  assert.match(svgSpec, /QUEEN ESTHER WINS!/);
+  assert.doesNotMatch(svgSpec, /VICTORY!|DEFEAT!/);
+
+  // Couch: both human
+  const svgCouch = Screens.renderVictoryCardSvg(_resultState({
+    controllers: ["human", "human"],
+    heroA: "esther", heroB: "judah", winner: 1
+  }));
+  assert.match(svgCouch, /JUDAH MACCABEE WINS!/);
+  assert.doesNotMatch(svgCouch, /VICTORY!|DEFEAT!/);
+});
+
+test("renderVictoryCardSvg includes the stage name and turn count", () => {
+  const state = _resultState({ heroA: "moses", heroB: "david", winner: 0, turnNumber: 11 });
+  // Moses' default stage from createMatch is taken from heroB.stageId. Force one
+  // for determinism.
+  state.match.stageId = "elah";
+  const svg = Screens.renderVictoryCardSvg(state);
+  assert.match(svg, /Valley of Elah/);
+  assert.match(svg, /11 turns/);
+});
+
+test("renderVictoryCardSvg embeds portraits as nested SVG elements (no nested xmlns clutter)", () => {
+  const svg = Screens.renderVictoryCardSvg(_resultState());
+  // The card has the outer <svg> plus two nested <svg> elements (winner + loser portraits).
+  const svgOpens = (svg.match(/<svg\b/g) || []).length;
+  assert.strictEqual(svgOpens, 3, "expected one outer + two nested <svg> opens");
+  // The nested portraits should keep their viewBox="0 0 200 200".
+  const inner = (svg.match(/viewBox="0 0 200 200"/g) || []).length;
+  assert.strictEqual(inner, 2, "expected two nested portraits with viewBox 0 0 200 200");
+});
+
+test("renderResult includes a download-result-card button outside Practice mode", () => {
+  // Quick mode (default)
+  const state = _resultState({ heroA: "moses", heroB: "david", winner: 0 });
+  const html = Screens.renderResult(state);
+  assert.match(html, /data-action="download-result-card"/);
+});
+
+test("renderResult does NOT include the download-result-card button in Practice mode", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.winner = 0;
+  const state = {
+    mode: "practice",
+    controllers: ["human", "human"],
+    match,
+    save: freshSave(),
+    matchStats: null
+  };
+  const html = Screens.renderResult(state);
+  assert.doesNotMatch(html, /data-action="download-result-card"/);
+});
+
+test("renderTournamentResult includes the download-result-card button on the champion screen", () => {
+  // Tournament champion path requires both `tournament.bracket.finalWinner`
+  // AND `state.match` (the just-finished final). Build both.
+  const match = Combat.createMatch("moses", "david");
+  match.winner = 0;
+  const t = {
+    humanCount: 1,
+    slotControllers: ["human", "ai", "ai", "ai"],
+    slots: ["moses", "david", "esther", "judah"],
+    bracket: {
+      semi1Winner: "moses", semi1WinnerSlot: 0,
+      semi2Winner: "esther", semi2WinnerSlot: 2,
+      semi2Log: null,
+      finalWinner: "moses", finalWinnerSlot: 0
+    },
+    currentMatch: "final"
+  };
+  const html = Screens.renderTournamentResult({ tournament: t, save: freshSave(), match });
+  assert.match(html, /data-action="download-result-card"/);
+});
+
+test("renderTournamentResult elimination screen does NOT include the download button", () => {
+  const t = {
+    humanCount: 1,
+    slotControllers: ["human", "ai", "ai", "ai"],
+    slots: ["moses", "david", "esther", "judah"],
+    bracket: {
+      semi1Winner: "david", semi1WinnerSlot: 1,
+      semi2Winner: null, semi2WinnerSlot: null,
+      semi2Log: null,
+      finalWinner: null, finalWinnerSlot: null
+    },
+    eliminatedBy: "david",
+    currentMatch: "semi1"
+  };
+  const html = Screens.renderTournamentResult({ tournament: t, save: freshSave() });
+  assert.doesNotMatch(html, /data-action="download-result-card"/);
+});
+
+test("renderEndlessResult includes the download-result-card button when state.match exists", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.winner = 1;  // endless run ends when the player loses
+  const state = {
+    endless: { heroId: "moses", streak: 3, isNewBest: false, previousBest: 5 },
+    save: freshSave(),
+    match
+  };
+  const html = Screens.renderEndlessResult(state);
+  assert.match(html, /data-action="download-result-card"/);
+});
+
+test("renderEndlessResult does NOT include the download button when state.match is missing", () => {
+  const state = {
+    endless: { heroId: "moses", streak: 0, isNewBest: false, previousBest: 5 },
+    save: freshSave()
+    // no match field
+  };
+  const html = Screens.renderEndlessResult(state);
+  assert.doesNotMatch(html, /data-action="download-result-card"/);
+});
