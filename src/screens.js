@@ -788,6 +788,45 @@ ${recordsHtml || ""}
     einstein: "E=mc² charges in 1 turn instead of 2"
   };
 
+  // ── VS Intro screen ──────────────────────────────────────────────────────
+  // Brief pre-battle fighter intro: hero portraits swoop in, big "VS" text,
+  // stage name announced. Adds a beat of anticipation before each match.
+  function renderVsIntro(state) {
+    const match = state.match;
+    if (!match || !match.players || match.players.length < 2) return "";
+    const p0HeroId = match.players[0].heroId;
+    const p1HeroId = match.players[1].heroId;
+    const h0 = Heroes.byId(p0HeroId);
+    const h1 = Heroes.byId(p1HeroId);
+    if (!h0 || !h1) return "";
+    const stageId = match.stageId || h1.stageId || "";
+    const stageName = stageNameOf(stageId);
+    const stageBackdrop = stageId && Stages && typeof Stages.byId === "function"
+      ? Stages.byId(stageId)
+      : "";
+    const portrait0 = Render.renderHero({ heroId: h0.id, pose: "idle", facing: "right" });
+    const portrait1 = Render.renderHero({ heroId: h1.id, pose: "idle", facing: "left" });
+    return `
+<section class="screen screen-vs-intro" data-action="vs-skip" data-stage="${Render.escapeHtml(stageId)}">
+  <div class="vs-intro-bg" data-stage="${Render.escapeHtml(stageId)}">${stageBackdrop}</div>
+  <div class="vs-intro-stage-name">&#x1F4CD; ${Render.escapeHtml(stageName)}</div>
+  <div class="vs-intro-fighters">
+    <div class="vs-intro-fighter left">
+      <div class="vs-intro-portrait left">${portrait0}</div>
+      <div class="vs-intro-name left">${Render.escapeHtml(h0.name)}</div>
+      <div class="vs-intro-era left">${Render.escapeHtml(h0.era)}</div>
+    </div>
+    <div class="vs-intro-vs">VS</div>
+    <div class="vs-intro-fighter right">
+      <div class="vs-intro-portrait right">${portrait1}</div>
+      <div class="vs-intro-name right">${Render.escapeHtml(h1.name)}</div>
+      <div class="vs-intro-era right">${Render.escapeHtml(h1.era)}</div>
+    </div>
+  </div>
+  <p class="vs-intro-skip-hint">Click anywhere to start &rarr;</p>
+</section>`;
+  }
+
   function renderBossIntro(state) {
     const heroId = state.arcade && state.arcade.remaining[0];
     if (!heroId) return "";
@@ -3991,7 +4030,7 @@ ${recordsHtml || ""}
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderQuiz, renderQuizResult, renderStats, renderResetStatsConfirm,
-    renderBossIntro, renderHall, renderProfile,
+    renderBossIntro, renderVsIntro, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
     renderPauseOverlay, renderBattleLog,

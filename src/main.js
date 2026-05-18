@@ -13,7 +13,7 @@ var Main = (function () {
     });
   }
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
+    screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
     trophyFilter: "all",   // "all" | "unlocked" | "locked"
     trophySort:   "recent", // "recent" | "category" | "progress"
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
@@ -48,6 +48,7 @@ var Main = (function () {
     // Pause support
     pendingAiTimeout: null,      // id of scheduled aiStep timeout (clearable on pause)
     pendingMatchEndTimeout: null, // id of scheduled onMatchEnd timeout (clearable on pause)
+    pendingVsIntroTimeout: null,  // id of VS-intro auto-advance timeout (clearable on skip/quit)
     // Stage Select (Quick Match vs AI only)
     selectedStageId: null        // populated when player picks a stage in Quick Match vs AI
   };
@@ -163,8 +164,7 @@ var Main = (function () {
         hardMode: c.hard,
         hardOpponentSlot: 1
       });
-      state.screen = "battle";
-      render();
+      goToBattle({ aiFirstStep: false });
       return;
     }
     if (c.type === "endless") {
@@ -285,8 +285,7 @@ var Main = (function () {
       challenge.opponentHeroId,
       { hardMode: challenge.difficulty === "hard", hardOpponentSlot: 1 }
     );
-    state.screen = "battle";
-    render();
+    goToBattle({ aiFirstStep: false });
   }
 
   // ── Achievement check ─────────────────────────────────────────────────────
@@ -423,6 +422,7 @@ var Main = (function () {
     else if (state.screen === "opponent") body = Screens.renderOpponentSelect(state);
     else if (state.screen === "difficulty") body = Screens.renderDifficultySelect(state);
     else if (state.screen === "charselect") body = Screens.renderCharSelect(state);
+    else if (state.screen === "vs-intro") body = Screens.renderVsIntro(state);
     else if (state.screen === "battle") body = Screens.renderBattle(state);
     else if (state.screen === "result") body = Screens.renderResult(state);
     else if (state.screen === "study") body = Screens.renderStudySession(state);
@@ -546,6 +546,7 @@ var Main = (function () {
       case "pick-stage":   pickStage(target.dataset.stage); return;
       case "player-move":  playerMove(target.dataset.move); return;
       case "ai-step":      aiStep(); return;
+      case "vs-skip":      _advanceToBattle(); return;
       case "rematch":      rematch(); return;
       case "arcade-next":  arcadeNext(); return;
       case "arcade-retry": startArcade(); return;
@@ -1155,12 +1156,9 @@ var Main = (function () {
     state.controllers = [t.slotControllers[slotA], t.slotControllers[slotB]];
     state.match = Combat.createMatch(t.slots[slotA], t.slots[slotB]);
     state._currentTournamentSlots = [slotA, slotB];
-    state.screen = "battle";
-    render();
-    // Schedule first AI step if the first player is AI
-    if (state.controllers[0] === "ai") {
-      state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
-    }
+    // Tournament matches always SHOW intro; schedule first AI move after intro
+    // if player 0's controller is AI.
+    goToBattle({ aiFirstStep: state.controllers[0] === "ai" });
   }
 
   function pickHero(heroId) {
@@ -1252,12 +1250,9 @@ var Main = (function () {
       state.matchStats = _freshMatchStats();
       state.bossIntroShown = true;
       state.match = Combat.createMatch(state.picks[1], state.picks[2]);
-      state.screen = "battle";
-      render();
-      // Schedule first AI move (both controllers are AI)
-      if (state.controllers[0] === "ai") {
-        state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
-      }
+      // Spectator: skip the VS intro (user just wants to watch). Schedule the
+      // first AI move (both controllers are AI).
+      goToBattle({ aiFirstStep: state.controllers[0] === "ai", skipIntro: true });
       return;
     }
 
@@ -1277,8 +1272,7 @@ var Main = (function () {
         state.currentMatchLowHp = { 0: false, 1: false };
         state.matchStats = _freshMatchStats();
         state.match = Combat.createMatch(state.picks[1], state.picks[2]);
-        state.screen = "battle";
-        render();
+        goToBattle({ aiFirstStep: false });
         return;
       }
       state.selecting = 2;
@@ -1289,8 +1283,7 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
-    state.screen = "battle";
-    render();
+    goToBattle({ aiFirstStep: false });
   }
 
   function pickStage(stageId) {
@@ -1307,8 +1300,7 @@ var Main = (function () {
     if (typeof Sfx !== "undefined" && Sfx.playMusic) {
       Sfx.playMusic(state.selectedStageId);
     }
-    state.screen = "battle";
-    render();
+    goToBattle({ aiFirstStep: false });
   }
 
   function startNextArcadeMatch() {
@@ -1323,7 +1315,7 @@ var Main = (function () {
     _launchArcadeMatch();
   }
 
-  function _launchArcadeMatch() {
+  function _launchArcadeMatch(launchOpts) {
     const isBossFight = state.arcade.remaining.length === 1;
     const opponent = state.arcade.remaining[0];
     const hardMode = state.difficulty === "hard";
@@ -1336,12 +1328,14 @@ var Main = (function () {
       opponent,
       opts
     );
-    state.screen = "battle";
-    render();
+    // Skip VS intro if launched immediately after the dramatic boss-intro
+    // screen (chaining the two pre-battle screens would feel redundant).
+    const skipIntro = !!(launchOpts && launchOpts.skipIntro);
+    goToBattle({ aiFirstStep: false, skipIntro });
   }
 
   function startBossBattle() {
-    _launchArcadeMatch();
+    _launchArcadeMatch({ skipIntro: true });
   }
 
   // ── Endless Survival helpers ───────────────────────────────────────────────
@@ -1369,8 +1363,10 @@ var Main = (function () {
     if (state.endless.streak > 0 && typeof state.endless.carriedHp === "number") {
       state.match.players[0].hp = state.endless.carriedHp;
     }
-    state.screen = "battle";
-    render();
+    // Show VS intro only on the FIRST match of the run; subsequent rounds
+    // skip it (the player is "on a roll" and we don't want to interrupt).
+    const skipIntro = state.endless.streak > 0;
+    goToBattle({ aiFirstStep: false, skipIntro });
   }
 
   function continueEndless() {
@@ -1862,6 +1858,11 @@ var Main = (function () {
   }
 
   function quitToTitle() {
+    // Cancel any scheduled timeouts so they don't fire after we navigate away.
+    if (state.pendingVsIntroTimeout) { clearTimeout(state.pendingVsIntroTimeout); state.pendingVsIntroTimeout = null; }
+    if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
+    if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
+    state._pendingAiFirstStep = false;
     state.overlay = null;
     state.match = null;
     state.arcade = null;
@@ -1878,6 +1879,10 @@ var Main = (function () {
   function quitToCharSelect() {
     // Returns to character select, preserving the current mode and controllers.
     // In arcade, this restarts the ladder (player must repick their hero).
+    if (state.pendingVsIntroTimeout) { clearTimeout(state.pendingVsIntroTimeout); state.pendingVsIntroTimeout = null; }
+    if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
+    if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
+    state._pendingAiFirstStep = false;
     state.overlay = null;
     state.match = null;
     state.arcade = null;
@@ -1893,8 +1898,7 @@ var Main = (function () {
     state.currentMatchLowHp = { 0: false, 1: false };
     state.matchStats = _freshMatchStats();
     state.match = Combat.createMatch(state.picks[1], state.picks[2]);
-    state.screen = "battle";
-    render();
+    goToBattle({ aiFirstStep: false });
   }
 
   function arcadeNext() {
@@ -1906,6 +1910,66 @@ var Main = (function () {
     if (speed === "slow") return Math.round(baseMs * 2.0);
     if (speed === "fast") return Math.round(baseMs * 0.6);
     return baseMs; // normal
+  }
+
+  // ── VS Intro routing ───────────────────────────────────────────────────────
+  // Centralized helper for routing a freshly-created match through the
+  // VS Intro screen (then on to battle). Replaces the inline triplet
+  // `state.screen = "battle"; render(); maybe-schedule-aiStep` at every
+  // match-start site. opts:
+  //   - aiFirstStep (bool): if true, after entering battle we schedule the
+  //     first AI move when controllers[match.activePlayer] === "ai".
+  //   - skipIntro (bool): bypass the VS intro animation and go straight to
+  //     battle (spectator, mid-Endless runs, post-boss-intro).
+  function _vsIntroAutoAdvanceMs() {
+    const speed = state.save && state.save.animSpeed;
+    if (speed === "fast")   return 1500;
+    if (speed === "slow")   return 3000;
+    return 2200; // normal / default
+  }
+
+  function goToBattle(opts) {
+    const options = opts || {};
+    // Always clear any prior VS-intro timeout — no overlapping schedules.
+    if (state.pendingVsIntroTimeout) {
+      clearTimeout(state.pendingVsIntroTimeout);
+      state.pendingVsIntroTimeout = null;
+    }
+    state._pendingAiFirstStep = !!options.aiFirstStep;
+    if (options.skipIntro) {
+      _advanceToBattle();
+      return;
+    }
+    state.screen = "vs-intro";
+    render();
+    if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+      state.pendingVsIntroTimeout = window.setTimeout(_advanceToBattle, _vsIntroAutoAdvanceMs());
+    } else {
+      // Headless/no-window environment — advance immediately so logic still flows.
+      _advanceToBattle();
+    }
+  }
+
+  function _advanceToBattle() {
+    if (state.pendingVsIntroTimeout) {
+      clearTimeout(state.pendingVsIntroTimeout);
+      state.pendingVsIntroTimeout = null;
+    }
+    const shouldScheduleAi = !!state._pendingAiFirstStep;
+    state._pendingAiFirstStep = false;
+    state.screen = "battle";
+    render();
+    if (
+      shouldScheduleAi
+      && state.match
+      && !state.match.winner
+      && state.controllers
+      && state.controllers[state.match.activePlayer] === "ai"
+      && typeof window !== "undefined"
+      && typeof window.setTimeout === "function"
+    ) {
+      state.pendingAiTimeout = window.setTimeout(aiStep, scaledDelay(800));
+    }
   }
 
   // Consume the active player's turn without any combat effect (fumbled trivia).

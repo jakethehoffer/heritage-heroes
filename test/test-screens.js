@@ -6,6 +6,8 @@ const test = require("node:test");
 const assert = require("node:assert");
 const Screens = require("../src/screens.js");
 const Storage = require("../src/storage.js");
+const Combat = require("../src/combat.js");
+const Heroes = require("../src/heroes.js");
 
 function freshSave() {
   return Storage.defaults();
@@ -168,4 +170,55 @@ test("renderCharSelect: does not throw when save is missing entirely", () => {
   assert.doesNotThrow(() =>
     Screens.renderCharSelect({ mode: "quick", selecting: 1, save: {} })
   );
+});
+
+// ── VS Intro screen ─────────────────────────────────────────────────────────
+
+test("renderVsIntro: includes both hero names and the stage name", () => {
+  const match = Combat.createMatch("moses", "david");
+  const state = { match };
+  const html = Screens.renderVsIntro(state);
+  const mosesName = Heroes.byId("moses").name;
+  const davidName = Heroes.byId("david").name;
+  assert.match(html, /screen-vs-intro/);
+  assert.ok(html.includes(mosesName), "expected Moses' name in output");
+  assert.ok(html.includes(davidName), "expected David's name in output");
+  // David's default stage is Valley of Elah
+  assert.match(html, /Valley of Elah/);
+});
+
+test("renderVsIntro: shows VS divider, skip hint, and stage backdrop scaffold", () => {
+  const match = Combat.createMatch("esther", "judah");
+  const html = Screens.renderVsIntro({ match });
+  assert.match(html, /class="vs-intro-vs"/);
+  assert.match(html, />VS</);
+  assert.match(html, /vs-intro-skip-hint/);
+  assert.match(html, /vs-intro-bg/);
+  assert.match(html, /data-action="vs-skip"/);
+});
+
+test("renderVsIntro: each fighter shows portrait, name, and era", () => {
+  const match = Combat.createMatch("rambam", "einstein");
+  const html = Screens.renderVsIntro({ match });
+  const rambam = Heroes.byId("rambam");
+  const einstein = Heroes.byId("einstein");
+  // Both portraits rendered
+  const portraits = html.match(/vs-intro-portrait/g) || [];
+  assert.ok(portraits.length >= 2, "expected two portrait wrappers");
+  // Both eras present
+  assert.ok(html.includes(rambam.era), "expected left hero's era in markup");
+  assert.ok(html.includes(einstein.era), "expected right hero's era in markup");
+});
+
+test("renderVsIntro: returns empty string when match is missing", () => {
+  assert.strictEqual(Screens.renderVsIntro({}), "");
+  assert.strictEqual(Screens.renderVsIntro({ match: null }), "");
+  assert.strictEqual(Screens.renderVsIntro({ match: { players: [] } }), "");
+});
+
+test("renderVsIntro: uses the locked stageId from the match when present", () => {
+  // Force a non-default stage to confirm match.stageId wins over hero default
+  const match = Combat.createMatch("moses", "david", { stageId: "throne" });
+  const html = Screens.renderVsIntro({ match });
+  assert.match(html, /Persian Throne/);
 });
