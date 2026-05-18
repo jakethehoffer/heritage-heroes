@@ -3000,6 +3000,151 @@ button.danger:hover {
   font-style: italic;
 }
 
+/* ── Daily streak calendar (Stats screen) ─────────────────────────────────── */
+.daily-calendar {
+  margin-top: 16px;
+  background: var(--cream);
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.daily-calendar-caption {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--navy);
+  margin-bottom: 10px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.daily-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.daily-calendar-header {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--navy);
+  text-align: center;
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+.daily-calendar-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1.5px dashed rgba(26, 42, 79, 0.25);
+  color: rgba(26, 26, 26, 0.45);
+  min-height: 36px;
+}
+.daily-calendar-cell.pad {
+  background: transparent;
+  border: none;
+  min-height: 0;
+}
+.daily-calendar-cell.completed {
+  background: var(--olive);
+  color: var(--cream);
+  border: 1.5px solid var(--olive);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.daily-calendar-cell.today {
+  outline: 3px solid var(--terracotta);
+  outline-offset: 1px;
+  color: var(--ink);
+}
+.daily-calendar-cell.today.completed {
+  color: var(--cream);
+}
+.daily-calendar-cell.future {
+  visibility: hidden;
+}
+.daily-calendar-legend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink);
+  flex-wrap: wrap;
+}
+.daily-calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.daily-calendar-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1.5px dashed rgba(26, 42, 79, 0.35);
+  vertical-align: middle;
+}
+.daily-calendar-swatch.completed {
+  background: var(--olive);
+  border: 1.5px solid var(--olive);
+}
+.daily-calendar-swatch.today {
+  background: var(--bg);
+  border: 1.5px solid var(--terracotta);
+  outline: 1.5px solid var(--terracotta);
+  outline-offset: -3px;
+}
+
+@media (max-width: 600px) {
+  .daily-calendar { padding: 10px 8px; }
+  .daily-calendar-grid { gap: 4px; max-width: 320px; }
+  .daily-calendar-cell { font-size: 12px; min-height: 32px; }
+  .daily-calendar-legend { font-size: 11px; gap: 10px; }
+}
+
+/* ── Daily streak compact strip (Title screen) ────────────────────────────── */
+.daily-strip {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--cream);
+  border: 1.5px solid var(--gold);
+  border-radius: 14px;
+  align-items: center;
+}
+.daily-strip-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1.5px dashed rgba(26, 42, 79, 0.35);
+}
+.daily-strip-dot.completed {
+  background: var(--olive);
+  border: 1.5px solid var(--olive);
+}
+.daily-strip-dot.today {
+  outline: 2px solid var(--terracotta);
+  outline-offset: 1px;
+}
+
+@media (max-width: 600px) {
+  .daily-strip { gap: 5px; padding: 5px 8px; }
+  .daily-strip-dot { width: 12px; height: 12px; }
+}
+
 /* ── Heritage Timeline screen ─────────────────────────────────────────────── */
 .screen-timeline {
   max-width: 720px;

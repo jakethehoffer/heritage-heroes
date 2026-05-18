@@ -3,6 +3,7 @@ var Screens = (function () {
   const Render = (typeof require !== "undefined") ? require("./render.js") : window.Render;
   const Stages = (typeof require !== "undefined") ? require("./stages.js") : window.Stages;
   const Combat = (typeof require !== "undefined") ? require("./combat.js") : window.Combat;
+  const Storage = (typeof require !== "undefined") ? require("./storage.js") : window.Storage;
 
   function renderTitle(state) {
     const stats = state.save && state.save.arcade ? state.save.arcade : {};
@@ -30,6 +31,7 @@ var Screens = (function () {
 
     // Daily challenge banner
     let dailyBannerLine = "";
+    let dailyStripLine = "";
     if (state.dailyToday) {
       const dt = state.dailyToday;
       const heroA = Heroes.byId(dt.challenge.playerHeroId);
@@ -41,6 +43,12 @@ var Screens = (function () {
         : `&rarr; Today's Challenge: ${heroAName} vs ${heroBName}${dt.challenge.difficulty === "hard" ? " (Hard)" : ""}`;
       const bannerCls = dt.stats.completedToday ? "daily-banner claimed" : "daily-banner available";
       dailyBannerLine = `<p class="${bannerCls}">${statusText}</p>`;
+
+      // Compact 7-day strip — only if user has at least one completion to celebrate.
+      const dailySave = state.save && state.save.daily;
+      if (dailySave && dailySave.lifetimeCompletions > 0) {
+        dailyStripLine = _renderDailyStrip(state.save, null);
+      }
     }
 
     // Featured hero panel
@@ -95,6 +103,7 @@ var Screens = (function () {
   ${masteryLine}
   ${endlessStreakLine}
   ${dailyBannerLine}
+  ${dailyStripLine}
 </section>`;
   }
 
@@ -2851,6 +2860,66 @@ ${recordsHtml || ""}
     return { totalCount, top, best, worst };
   }
 
+  // Build the 5-week calendar grid block for the Stats screen.
+  function _renderDailyCalendarBlock(save, todayIso) {
+    const entries = Storage.dailyCalendar(save, 35, todayIso);
+    // Pad the front so the grid aligns to a Sun-Sat row.
+    // entries[0] is the oldest day; figure out its weekday index (0=Sun..6=Sat).
+    const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const firstWeekdayIdx = WEEKDAYS.indexOf(entries[0].weekday);
+    const padCount = firstWeekdayIdx >= 0 ? firstWeekdayIdx : 0;
+
+    const headerCells = WEEKDAYS.map(function (wd) {
+      return `<div class="daily-calendar-header">${wd}</div>`;
+    }).join("");
+
+    const padCells = [];
+    for (let i = 0; i < padCount; i++) {
+      padCells.push(`<div class="daily-calendar-cell pad" aria-hidden="true"></div>`);
+    }
+
+    const dayCells = entries.map(function (e) {
+      const classes = ["daily-calendar-cell"];
+      if (e.completed) classes.push("completed");
+      if (e.isToday) classes.push("today");
+      if (e.isFuture) classes.push("future");
+      const label = e.completed
+        ? `${e.monthShort} ${e.dayOfMonth} — completed`
+        : `${e.monthShort} ${e.dayOfMonth} — missed`;
+      return `<div class="${classes.join(" ")}" title="${Render.escapeHtml(label)}" aria-label="${Render.escapeHtml(label)}">${e.dayOfMonth}</div>`;
+    }).join("");
+
+    return `
+<div class="daily-calendar">
+  <p class="daily-calendar-caption">Last 5 weeks</p>
+  <div class="daily-calendar-grid">
+    ${headerCells}
+    ${padCells.join("")}
+    ${dayCells}
+  </div>
+  <div class="daily-calendar-legend">
+    <span class="daily-calendar-legend-item"><span class="daily-calendar-swatch completed"></span>Completed</span>
+    <span class="daily-calendar-legend-item"><span class="daily-calendar-swatch"></span>Missed</span>
+    <span class="daily-calendar-legend-item"><span class="daily-calendar-swatch today"></span>Today</span>
+  </div>
+</div>`;
+  }
+
+  // Build the compact 7-day strip for the Title screen.
+  function _renderDailyStrip(save, todayIso) {
+    const entries = Storage.dailyCalendar(save, 6, todayIso);
+    const dots = entries.map(function (e) {
+      const classes = ["daily-strip-dot"];
+      if (e.completed) classes.push("completed");
+      if (e.isToday) classes.push("today");
+      const label = e.completed
+        ? `${e.weekday} ${e.monthShort} ${e.dayOfMonth} — completed`
+        : `${e.weekday} ${e.monthShort} ${e.dayOfMonth} — missed`;
+      return `<span class="${classes.join(" ")}" title="${Render.escapeHtml(label)}" aria-label="${Render.escapeHtml(label)}"></span>`;
+    }).join("");
+    return `<div class="daily-strip" aria-label="Last 7 days of daily challenges">${dots}</div>`;
+  }
+
   function renderStats(state) {
     const save = state.save || {};
     const stats = save.stats || { matchesPlayed: 0, matchesWon: 0, triviaCorrect: 0, triviaTotal: 0, perHero: {} };
@@ -2926,6 +2995,7 @@ ${recordsHtml || ""}
       <div>&#x1F3C6; Best streak: <strong>${dailyData.bestStreak}</strong></div>
       <div>&#x1F4C5; Lifetime completions: <strong>${dailyData.lifetimeCompletions}</strong></div>
     </div>
+    ${_renderDailyCalendarBlock(save, _todayIsoForStats)}
   </div>
 
   <div class="stats-section">

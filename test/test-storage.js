@@ -742,3 +742,131 @@ test("matchups round-trip via save/load and malformed entries are filtered out",
   assert.strictEqual(data.matchups["BAD|KEY"],     undefined, "uppercase key should be filtered");
   assert.strictEqual(data.matchups["esther|judah"], undefined, "non-integer wins should be filtered");
 });
+
+// ── dailyCalendar ─────────────────────────────────────────────────────────
+
+test("dailyCalendar returns daysBack + 1 entries (today + N days back)", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 35, "2026-05-17");
+  assert.strictEqual(result.length, 36, "should be daysBack (35) + 1 (today) = 36 entries");
+});
+
+test("dailyCalendar default daysBack is 35 (returns 36 entries)", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, undefined, "2026-05-17");
+  assert.strictEqual(result.length, 36);
+});
+
+test("dailyCalendar entries are oldest first, last entry is today with isToday:true", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  // 7 entries: 2026-05-11 ... 2026-05-17
+  assert.strictEqual(result.length, 7);
+  assert.strictEqual(result[0].iso, "2026-05-11", "first entry should be 6 days before today");
+  assert.strictEqual(result[6].iso, "2026-05-17", "last entry should be today");
+  assert.strictEqual(result[6].isToday, true);
+  assert.strictEqual(result[0].isToday, false);
+});
+
+test("dailyCalendar marks completed dates correctly", () => {
+  const save = Storage.defaults();
+  save.daily.completedDates = ["2026-05-14", "2026-05-16", "2026-05-17"];
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  const byIso = {};
+  for (const e of result) byIso[e.iso] = e;
+  assert.strictEqual(byIso["2026-05-14"].completed, true);
+  assert.strictEqual(byIso["2026-05-16"].completed, true);
+  assert.strictEqual(byIso["2026-05-17"].completed, true);
+  assert.strictEqual(byIso["2026-05-15"].completed, false);
+  assert.strictEqual(byIso["2026-05-13"].completed, false);
+  assert.strictEqual(byIso["2026-05-12"].completed, false);
+  assert.strictEqual(byIso["2026-05-11"].completed, false);
+});
+
+test("dailyCalendar handles empty completedDates (no entries completed)", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  for (const entry of result) {
+    assert.strictEqual(entry.completed, false, `${entry.iso} should be uncompleted`);
+  }
+});
+
+test("dailyCalendar handles a save with no daily field (no crash, all uncompleted)", () => {
+  const save = {};  // intentionally missing daily
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  assert.strictEqual(result.length, 7, "should still return 7 entries");
+  for (const entry of result) {
+    assert.strictEqual(entry.completed, false);
+  }
+  assert.strictEqual(result[6].isToday, true);
+});
+
+test("dailyCalendar entries include dayOfMonth, monthShort, weekday fields", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 0, "2026-05-17");
+  assert.strictEqual(result.length, 1);
+  const today = result[0];
+  assert.strictEqual(today.iso, "2026-05-17");
+  assert.strictEqual(today.dayOfMonth, 17);
+  assert.strictEqual(typeof today.monthShort, "string");
+  assert.ok(today.monthShort.length >= 3, "monthShort should be a short label like 'May'");
+  assert.strictEqual(typeof today.weekday, "string");
+  assert.ok(today.weekday.length >= 3, "weekday should be a short label like 'Sun'");
+});
+
+test("dailyCalendar marks no entry as future when todayIso is the last entry", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  for (const entry of result) {
+    assert.strictEqual(entry.isFuture, false, `${entry.iso} should not be future`);
+  }
+});
+
+test("dailyCalendar filters out malformed completedDates entries", () => {
+  const save = Storage.defaults();
+  save.daily.completedDates = ["2026-05-14", "bogus-date", 12345, null, "2026-05-17"];
+  const result = Storage.dailyCalendar(save, 6, "2026-05-17");
+  const byIso = {};
+  for (const e of result) byIso[e.iso] = e;
+  assert.strictEqual(byIso["2026-05-14"].completed, true);
+  assert.strictEqual(byIso["2026-05-17"].completed, true);
+  // malformed entries don't add phantom completed days
+  assert.strictEqual(byIso["2026-05-15"].completed, false);
+});
+
+test("dailyCalendar when todayIso is omitted derives today from new Date()", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 6);
+  assert.strictEqual(result.length, 7);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dy = String(d.getDate()).padStart(2, "0");
+  const todayIso = `${y}-${m}-${dy}`;
+  assert.strictEqual(result[6].iso, todayIso);
+  assert.strictEqual(result[6].isToday, true);
+});
+
+test("dailyCalendar with daysBack=0 returns just today", () => {
+  const save = Storage.defaults();
+  const result = Storage.dailyCalendar(save, 0, "2026-05-17");
+  assert.strictEqual(result.length, 1);
+  assert.strictEqual(result[0].iso, "2026-05-17");
+  assert.strictEqual(result[0].isToday, true);
+});
+
+test("dailyCalendar handles month boundaries correctly", () => {
+  const save = Storage.defaults();
+  save.daily.completedDates = ["2026-04-30", "2026-05-01"];
+  const result = Storage.dailyCalendar(save, 3, "2026-05-02");
+  // entries: 2026-04-29, 2026-04-30, 2026-05-01, 2026-05-02
+  assert.strictEqual(result.length, 4);
+  assert.strictEqual(result[0].iso, "2026-04-29");
+  assert.strictEqual(result[1].iso, "2026-04-30");
+  assert.strictEqual(result[2].iso, "2026-05-01");
+  assert.strictEqual(result[3].iso, "2026-05-02");
+  assert.strictEqual(result[1].completed, true);
+  assert.strictEqual(result[2].completed, true);
+  assert.strictEqual(result[0].completed, false);
+  assert.strictEqual(result[3].completed, false);
+});

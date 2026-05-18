@@ -324,6 +324,54 @@ var Storage = (function () {
     return data;
   }
 
+  // Returns an array of `{ iso, dayOfMonth, monthShort, weekday, completed, isToday, isFuture }`
+  // describing the last `daysBack` days plus today (always last entry, isToday: true).
+  // Pure function: deterministic given (save, daysBack, todayIso). If todayIso is null/omitted,
+  // today is derived from new Date().
+  function dailyCalendar(save, daysBack, todayIso) {
+    if (typeof daysBack !== "number" || !Number.isFinite(daysBack) || daysBack < 0) {
+      daysBack = 35;
+    }
+    // Round down — only whole days make sense.
+    daysBack = Math.floor(daysBack);
+
+    let effectiveTodayIso = todayIso;
+    if (typeof effectiveTodayIso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveTodayIso)) {
+      effectiveTodayIso = _isoFromDate(new Date());
+    }
+
+    // Extract completedDates the same way load() validates: only ISO-format strings.
+    const rawDates = (save && save.daily && Array.isArray(save.daily.completedDates))
+      ? save.daily.completedDates
+      : [];
+    const completedSet = new Set(
+      rawDates.filter(function (d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); })
+    );
+
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    const out = [];
+    // Walk forward from oldest (daysBack ago) to today.
+    for (let offset = daysBack; offset >= 0; offset--) {
+      // Use noon to avoid DST edge cases when subtracting days.
+      const d = new Date(effectiveTodayIso + "T12:00:00");
+      d.setDate(d.getDate() - offset);
+      const iso = _isoFromDate(d);
+      out.push({
+        iso: iso,
+        dayOfMonth: d.getDate(),
+        monthShort: MONTHS[d.getMonth()],
+        weekday: WEEKDAYS[d.getDay()],
+        completed: completedSet.has(iso),
+        isToday: iso === effectiveTodayIso,
+        isFuture: false  // we never include future days in the window
+      });
+    }
+    return out;
+  }
+
   // Returns live daily stats computed against today's date.
   function dailyStats(store) {
     if (!store) {
@@ -376,8 +424,8 @@ var Storage = (function () {
 
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
-           recordMatchHistory, recordDailyCompletion, dailyStats, recordTournamentWin,
-           recordMatchup };
+           recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
+           recordTournamentWin, recordMatchup };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;
