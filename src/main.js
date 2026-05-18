@@ -100,7 +100,21 @@ var Main = (function () {
       specialsUsed: [0, 0],   // count per player slot
       triviaCorrect: 0,
       triviaTotal: 0,
-      triviaSeen: {}          // heroId -> array of trivia indices seen this match
+      triviaSeen: {},         // heroId -> array of trivia indices seen this match
+      // Damage tracking per player slot (0 / 1).
+      // index i = total damage dealt BY player i
+      // index i = total damage taken BY player i
+      // In normal attacks/specials, dealt[i] === taken[1-i]. Burn-tick and
+      // reversal damage are attributed via "1 - pIdx" at the point damage is
+      // applied — an approximation that's close enough for a recap stat (see
+      // the inline comment near the damage application site).
+      damageDealtBy: [0, 0],
+      damageTakenBy: [0, 0],
+      // Match elapsed-time bookkeeping (ms). Set at match construction; sealed
+      // by onMatchEnd. The recap reads (endedAt - startedAt) for total time;
+      // the battle HUD reads (Date.now() - startedAt) for the live counter.
+      startedAt: (typeof Date !== "undefined") ? Date.now() : 0,
+      endedAt: null
     };
   }
 
@@ -2062,6 +2076,16 @@ var Main = (function () {
         // This player took damage
         Screens.flashHit(pIdx);
         Screens.showDamageNumber(pIdx, delta, "damage");
+        // Track aggregate damage for the recap. `pIdx` is the victim;
+        // attacker is approximated as the other player. This is exact for
+        // attacks/specials, and for burn-tick / reversal it still flows the
+        // right direction (the burn source is the "other player" relative to
+        // the burned victim, and reversal damage hits the attacker, who is
+        // also "the other player" relative to the slot that took it).
+        if (state.matchStats) {
+          state.matchStats.damageTakenBy[pIdx] += delta;
+          state.matchStats.damageDealtBy[1 - pIdx] += delta;
+        }
         Sfx.play("hit");
         // Play attack slash FX on the hit target for basic attacks
         if (move === "attack") {
@@ -2129,6 +2153,12 @@ var Main = (function () {
 
   function onMatchEnd() {
     Sfx.play("victory");
+    // Seal the match-elapsed clock. The recap reads endedAt - startedAt for
+    // total time, and the battle HUD timer (which polls Date.now() while
+    // playing) freezes once endedAt is set.
+    if (state.matchStats && !state.matchStats.endedAt && typeof Date !== "undefined") {
+      state.matchStats.endedAt = Date.now();
+    }
     const store = getStore();
 
     // Spectator mode: no stats, no achievements, no matchup recording — just show result.

@@ -648,9 +648,23 @@ var Screens = (function () {
     const fighter0Class = `fighter fighter-left${isBoss0 ? " is-boss" : ""}`;
     const fighter1Class = `fighter fighter-right${isBoss1 ? " is-boss" : ""}`;
 
+    // Persistent HUD strip — turn counter + match timer. Sits below the arcade
+    // roadmap (when present) and above the HP bars. The timer reads "current
+    // elapsed at this render" — it advances each turn (every render) rather
+    // than ticking live every second (no setInterval to avoid extra render
+    // churn during fights). On the result screen, matchStats.endedAt freezes
+    // the value to the final match duration.
+    const turnN = (match.turnNumber || 1);
+    const elapsed = _matchElapsedString(state.matchStats);
+    const battleHud = `
+  <div class="battle-hud">
+    <span class="battle-hud-turn">Turn ${turnN}</span>
+    <span class="battle-hud-timer">${elapsed}</span>
+  </div>`;
+
     return `
 <section class="screen screen-battle">
-  ${arcadeRoadmapBanner}${practiceBadge}${hintBanner}
+  ${arcadeRoadmapBanner}${battleHud}${practiceBadge}${hintBanner}
   <div class="hp-bars">
     <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: label0, side: "left", rawLabel: true })}</div>
     <div class="vs-label">vs</div>
@@ -826,6 +840,27 @@ var Screens = (function () {
 </div>`;
   }
 
+  // ── Helper: format match elapsed time as m:ss for HUD + recap ────────────
+  // Returns "0:00" when matchStats is null/missing or startedAt is unset (the
+  // pre-match state). When endedAt is set (match concluded), the result is
+  // stable; otherwise it reads "current elapsed at this render" — which is
+  // updated whenever render() runs (every player move).
+  function _matchElapsedString(matchStats) {
+    if (!matchStats) return "0:00";
+    // Treat null/undefined startedAt as "no match yet" — but allow 0 as a
+    // valid epoch (used by some tests + a defensive fallback when Date is
+    // unavailable). Same for endedAt: a literal 0 is honored as "ended at
+    // epoch", which in practice never happens but keeps the helper pure.
+    if (matchStats.startedAt == null) return "0:00";
+    const endTime = (matchStats.endedAt != null)
+      ? matchStats.endedAt
+      : (typeof Date !== "undefined" ? Date.now() : matchStats.startedAt);
+    const secs = Math.max(0, Math.floor((endTime - matchStats.startedAt) / 1000));
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m + ":" + (s < 10 ? "0" + s : s);
+  }
+
   // ── Helper: pick a "Did You Know?" fact from heroes not seen this match ──
   function _pickDidYouKnow(h0, h1, stats) {
     const seen0 = (stats && stats.triviaSeen && stats.triviaSeen[h0.id]) || [];
@@ -856,6 +891,15 @@ var Screens = (function () {
       ? `<div class="summary-row"><span class="summary-label">Trivia</span><span class="summary-value">${stats.triviaCorrect}&thinsp;/&thinsp;${stats.triviaTotal} correct</span></div>`
       : "";
 
+    // Aggregate damage rows — present whenever the new field exists. Legacy
+    // matchStats from saved sessions without these fields fall back to 0/0
+    // (no row hidden, but the value will read "0 damage" honestly).
+    const dealtBy = (stats.damageDealtBy && stats.damageDealtBy.length === 2) ? stats.damageDealtBy : [0, 0];
+    const takenBy = (stats.damageTakenBy && stats.damageTakenBy.length === 2) ? stats.damageTakenBy : [0, 0];
+
+    // Match duration row — formatted m:ss using endedAt when present.
+    const durationText = _matchElapsedString(stats);
+
     const fact = _pickDidYouKnow(h0, h1, stats);
     const portrait = Render.renderHero({ heroId: fact.hero.id, pose: "idle", facing: "right" });
 
@@ -863,8 +907,13 @@ var Screens = (function () {
 <div class="match-summary">
   <h3>Match Summary</h3>
   <div class="summary-grid">
-    <div class="summary-row"><span class="summary-label">Turns</span><span class="summary-value">${turns}</span></div>
+    <div class="summary-row"><span class="summary-label">Lasted</span><span class="summary-value">${turns} turn${turns === 1 ? "" : "s"}</span></div>
+    <div class="summary-row"><span class="summary-label">Match time</span><span class="summary-value">${durationText}</span></div>
     <div class="summary-row"><span class="summary-label">Biggest hit</span><span class="summary-value">${biggestHitText}</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h0.name)} dealt</span><span class="summary-value">${dealtBy[0]} damage</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h0.name)} took</span><span class="summary-value">${takenBy[0]} damage</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h1.name)} dealt</span><span class="summary-value">${dealtBy[1]} damage</span></div>
+    <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h1.name)} took</span><span class="summary-value">${takenBy[1]} damage</span></div>
     <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h0.name)}'s specials</span><span class="summary-value">${stats.specialsUsed[0]}</span></div>
     <div class="summary-row"><span class="summary-label">${Render.escapeHtml(h1.name)}'s specials</span><span class="summary-value">${stats.specialsUsed[1]}</span></div>
     ${triviaStat}
@@ -5022,7 +5071,8 @@ ${recordsHtml || ""}
     battleStrategyHint,
     _heroSpotlightStats,  // exported for tests
     _vsIntroMatchupSummary,  // exported for tests
-    _rivalryFor  // exported for tests
+    _rivalryFor,  // exported for tests
+    _matchElapsedString  // exported for tests
   };
 })();
 

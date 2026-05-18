@@ -5560,6 +5560,49 @@ body.theme-high-contrast .practice-badge {
   color: var(--terracotta);
 }
 
+/* ── Battle HUD ────────────────────────────────────────────────────────────
+   Small persistent strip near the top of the battle screen showing the
+   current turn number and the match elapsed time. Sits below the arcade
+   roadmap (when present) and above the HP bars. The timer is render-driven:
+   it updates whenever the battle screen re-renders (every player move).
+   Frozen to the final value once matchStats.endedAt is set. */
+.battle-hud {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 0 auto 8px;
+  padding: 4px 14px;
+  background: rgba(26, 42, 79, 0.06);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--navy);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.battle-hud-turn,
+.battle-hud-timer {
+  letter-spacing: 0.5px;
+}
+.battle-hud-timer {
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+body.theme-high-contrast .battle-hud {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cream);
+}
+body.theme-high-contrast .battle-hud-timer {
+  color: var(--cream);
+  opacity: 0.7;
+}
+
+@media (max-width: 600px) {
+  .battle-hud { font-size: 11px; gap: 10px; padding: 3px 10px; }
+}
+
 /* ── Hero Comparison Tool ────────────────────────────────────────────────── */
 
 /* Hall of Heroes -> Compare CTA */

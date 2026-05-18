@@ -1568,6 +1568,68 @@ test("renderBattle does NOT show .practice-badge in other modes", () => {
   }
 });
 
+// ── Battle HUD: turn counter + match timer ────────────────────────────────
+
+test("_matchElapsedString returns \"0:00\" when matchStats is null or missing startedAt", () => {
+  assert.strictEqual(Screens._matchElapsedString(null), "0:00");
+  assert.strictEqual(Screens._matchElapsedString(undefined), "0:00");
+  assert.strictEqual(Screens._matchElapsedString({}), "0:00");
+  // Explicit null/undefined startedAt are treated as "no match yet". (A
+  // literal 0 is honored as a valid timestamp — that's what the timer
+  // produces when paired with endedAt for elapsed-from-zero tests below.)
+  assert.strictEqual(Screens._matchElapsedString({ startedAt: null }), "0:00");
+  assert.strictEqual(Screens._matchElapsedString({ startedAt: undefined }), "0:00");
+});
+
+test("_matchElapsedString returns \"0:30\" for 30 seconds elapsed (frozen via endedAt)", () => {
+  const stats = { startedAt: 1_000_000, endedAt: 1_030_000 };  // 30s
+  assert.strictEqual(Screens._matchElapsedString(stats), "0:30");
+});
+
+test("_matchElapsedString returns \"1:05\" for 65 seconds elapsed", () => {
+  const stats = { startedAt: 0, endedAt: 65_000 };
+  assert.strictEqual(Screens._matchElapsedString(stats), "1:05");
+});
+
+test("_matchElapsedString returns \"10:00\" for 600 seconds elapsed", () => {
+  const stats = { startedAt: 100_000, endedAt: 700_000 };
+  assert.strictEqual(Screens._matchElapsedString(stats), "10:00");
+});
+
+test("_matchElapsedString uses endedAt when present (fixed elapsed, not live)", () => {
+  // If endedAt is set, the result must NOT advance even after the real wall
+  // clock moves on. Capture the value, sleep a frame's worth of wall time
+  // (impossible synchronously, so just call twice — endedAt is honored so
+  // both reads return the same string regardless of Date.now).
+  const stats = { startedAt: 0, endedAt: 42_000 };  // 0:42
+  const first = Screens._matchElapsedString(stats);
+  const second = Screens._matchElapsedString(stats);
+  assert.strictEqual(first, "0:42");
+  assert.strictEqual(second, "0:42");
+});
+
+test("renderBattle includes .battle-hud with turn number", () => {
+  const state = _battleState();
+  state.match.turnNumber = 7;
+  state.matchStats = { startedAt: Date.now(), endedAt: null, damageDealtBy: [0, 0], damageTakenBy: [0, 0] };
+  const html = Screens.renderBattle(state);
+  assert.match(html, /class="battle-hud"/);
+  assert.match(html, /class="battle-hud-turn">Turn 7</);
+});
+
+test("renderBattle includes .battle-hud with timer in m:ss format", () => {
+  const state = _battleState();
+  // Freeze the clock via endedAt so the assertion isn't flaky.
+  state.matchStats = {
+    startedAt: 0,
+    endedAt: 95_000,  // 1:35
+    damageDealtBy: [0, 0],
+    damageTakenBy: [0, 0]
+  };
+  const html = Screens.renderBattle(state);
+  assert.match(html, /class="battle-hud-timer">1:35</);
+});
+
 test("renderResult returns the Practice-specific variant when state.mode is practice", () => {
   const match = Combat.createMatch("moses", "david");
   match.winner = 0;  // moses wins
