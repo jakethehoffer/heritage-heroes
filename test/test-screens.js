@@ -795,3 +795,50 @@ test("renderTitle: title-funfact sits between achievement-progress widget and th
     Heroes.pickRandomFact = original;
   }
 });
+
+// ── renderSettings: text-size radio group ────────────────────────────────────
+test("renderSettings: includes the Text Size radio group with all 3 options", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /Text Size/);
+  assert.match(html, /data-action="set-text-size"\s+data-size="normal"/);
+  assert.match(html, /data-action="set-text-size"\s+data-size="large"/);
+  assert.match(html, /data-action="set-text-size"\s+data-size="xlarge"/);
+  // Visible button labels
+  assert.match(html, />Normal</);
+  assert.match(html, />Large</);
+  assert.match(html, />Extra Large</);
+});
+
+test("renderSettings: marks the correct text-size radio 'selected' when textSize='large'", () => {
+  const save = freshSave();
+  save.textSize = "large";
+  const html = Screens.renderSettings({ save });
+  // Pull just the text-size radio group so we don't match the anim-speed block.
+  const block = html.match(/<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>/);
+  assert.ok(block, "expected three set-text-size buttons in a row");
+  const group = block[0];
+  assert.match(group, /data-size="large"[^>]*class="settings-radio selected"/);
+  assert.doesNotMatch(group, /data-size="normal"[^>]*class="settings-radio selected"/);
+  assert.doesNotMatch(group, /data-size="xlarge"[^>]*class="settings-radio selected"/);
+});
+
+test("renderSettings: marks 'xlarge' radio selected when textSize='xlarge'", () => {
+  const save = freshSave();
+  save.textSize = "xlarge";
+  const html = Screens.renderSettings({ save });
+  const block = html.match(/<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>/);
+  assert.ok(block, "expected three set-text-size buttons");
+  assert.match(block[0], /data-size="xlarge"[^>]*class="settings-radio selected"/);
+});
+
+test("renderSettings: defaults to 'normal' selected when textSize is missing", () => {
+  const save = freshSave();
+  // Force-remove the field to simulate a legacy save with no textSize at all.
+  delete save.textSize;
+  const html = Screens.renderSettings({ save });
+  const block = html.match(/<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-text-size"[\s\S]*?<\/button>/);
+  assert.ok(block, "expected three set-text-size buttons");
+  assert.match(block[0], /data-size="normal"[^>]*class="settings-radio selected"/);
+});
+

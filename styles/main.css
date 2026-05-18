@@ -4874,3 +4874,89 @@ button.danger:hover {
   .confetti,
   .confetti-piece { animation: none; display: none; }
 }
+
+/* ── Text size (accessibility) ──────────────────────────────────────── */
+/* "normal" is the default — no overrides needed.
+   "large" and "xlarge" scale UP key text-heavy elements that grandpa needs
+   to actually read. Doesn't try to scale every px font-size in the codebase
+   (that would be whack-a-mole); focuses on the elements where reading
+   matters most. Selectors here all map to real class names in src/screens.js
+   (see e.g. .bio, .moves, .trivia-question, .moves-row button strong, etc.). */
+
+/* Large */
+body.text-large .hero-meta .bio                  { font-size: 15px; }
+body.text-large .hero-meta .moves                { font-size: 14px; }
+body.text-large .hero-meta h3                    { font-size: 18px; }
+
+body.text-large .trivia-question,
+body.text-large .study-question,
+body.text-large .quiz-question                   { font-size: 18px; }
+body.text-large .trivia-options button,
+body.text-large .study-options button,
+body.text-large .quiz-options button             { font-size: 16px; }
+body.text-large .trivia-explanation,
+body.text-large .study-explanation,
+body.text-large .quiz-explanation                { font-size: 15px; }
+body.text-large .study-feedback-result,
+body.text-large .quiz-feedback-result            { font-size: 16px; }
+
+body.text-large .battle-log-full .log-line,
+body.text-large .move-log                        { font-size: 15px; }
+
+body.text-large .moves-row button strong         { font-size: 20px; }
+body.text-large .moves-row button .sub           { font-size: 14px; }
+
+body.text-large .profile-card .profile-bio,
+body.text-large .profile-card .profile-dates,
+body.text-large .profile-card .profile-quote     { font-size: 15px; }
+
+body.text-large .title-funfact-text,
+body.text-large .featured-quote                  { font-size: 16px; }
+
+body.text-large .match-summary .summary-row,
+body.text-large .match-records .records-list li,
+body.text-large .dyk-text                        { font-size: 15px; }
+body.text-large .tagline                         { font-size: 21px; }
+
+body.text-large .achievement-toast .toast-title  { font-size: 15px; }
+body.text-large .achievement-toast .toast-desc   { font-size: 13px; }
+body.text-large .overlay-card p                  { font-size: 15px; }
+
+/* Extra Large */
+body.text-xlarge .hero-meta .bio                 { font-size: 17px; }
+body.text-xlarge .hero-meta .moves               { font-size: 16px; }
+body.text-xlarge .hero-meta h3                   { font-size: 20px; }
+
+body.text-xlarge .trivia-question,
+body.text-xlarge .study-question,
+body.text-xlarge .quiz-question                  { font-size: 21px; }
+body.text-xlarge .trivia-options button,
+body.text-xlarge .study-options button,
+body.text-xlarge .quiz-options button            { font-size: 18px; }
+body.text-xlarge .trivia-explanation,
+body.text-xlarge .study-explanation,
+body.text-xlarge .quiz-explanation               { font-size: 17px; }
+body.text-xlarge .study-feedback-result,
+body.text-xlarge .quiz-feedback-result           { font-size: 18px; }
+
+body.text-xlarge .battle-log-full .log-line,
+body.text-xlarge .move-log                       { font-size: 17px; }
+
+body.text-xlarge .moves-row button strong        { font-size: 22px; }
+body.text-xlarge .moves-row button .sub          { font-size: 16px; }
+
+body.text-xlarge .profile-card .profile-bio,
+body.text-xlarge .profile-card .profile-dates,
+body.text-xlarge .profile-card .profile-quote    { font-size: 17px; }
+
+body.text-xlarge .title-funfact-text,
+body.text-xlarge .featured-quote                 { font-size: 18px; }
+
+body.text-xlarge .match-summary .summary-row,
+body.text-xlarge .match-records .records-list li,
+body.text-xlarge .dyk-text                       { font-size: 17px; }
+body.text-xlarge .tagline                        { font-size: 23px; }
+
+body.text-xlarge .achievement-toast .toast-title { font-size: 17px; }
+body.text-xlarge .achievement-toast .toast-desc  { font-size: 15px; }
+body.text-xlarge .overlay-card p                 { font-size: 17px; }

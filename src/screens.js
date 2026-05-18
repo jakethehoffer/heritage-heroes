@@ -3654,6 +3654,7 @@ ${recordsHtml || ""}
     const musicOn = state.save && state.save.music;
     const sfxOn   = state.save && state.save.sfx;
     const animSpeed = (state.save && state.save.animSpeed) || "normal";
+    const textSize  = (state.save && state.save.textSize)  || "normal";
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
@@ -3685,6 +3686,19 @@ ${recordsHtml || ""}
               class="settings-radio ${animSpeed === "fast" ? "selected" : ""}">Fast</button>
     </div>
     <p class="settings-help">Slow gives more time between AI turns. Fast cuts wait time roughly in half.</p>
+  </div>
+
+  <div class="settings-group">
+    <h3>Text Size</h3>
+    <div class="settings-radio-group">
+      <button data-action="set-text-size" data-size="normal"
+              class="settings-radio ${textSize === "normal" ? "selected" : ""}">Normal</button>
+      <button data-action="set-text-size" data-size="large"
+              class="settings-radio ${textSize === "large" ? "selected" : ""}">Large</button>
+      <button data-action="set-text-size" data-size="xlarge"
+              class="settings-radio ${textSize === "xlarge" ? "selected" : ""}">Extra Large</button>
+    </div>
+    <p class="settings-help">Larger text is easier to read.</p>
   </div>
 
   ${typeof Main !== "undefined" && Main.isInstallable && Main.isInstallable() ? `

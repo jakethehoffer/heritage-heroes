@@ -391,6 +391,49 @@ test("animSpeed rejects invalid value and falls back to 'normal'", () => {
   assert.strictEqual(reloaded.animSpeed, "normal");
 });
 
+// ── textSize (accessibility) ──────────────────────────────────────────────
+test("textSize defaults to 'normal'", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.textSize, "normal");
+});
+
+test("textSize round-trips 'normal' / 'large' / 'xlarge' via save/load", () => {
+  const s = fakeStore();
+  for (const size of ["normal", "large", "xlarge"]) {
+    const data = Storage.load(s);
+    data.textSize = size;
+    Storage.save(s, data);
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.textSize, size, `${size} should round-trip`);
+  }
+});
+
+test("textSize rejects malformed values and falls back to 'normal'", () => {
+  const malformed = ["huge", "", "LARGE", null, 0, 1, true, false, [], {}];
+  for (const bad of malformed) {
+    const s = fakeStore();
+    // Manually inject the malformed value via raw JSON so we exercise load()'s
+    // validator (not save(), which would JSON-stringify anything).
+    s.setItem("heritageHeroes.save", JSON.stringify({ textSize: bad }));
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.textSize, "normal",
+      `malformed textSize ${JSON.stringify(bad)} should default to "normal"`);
+  }
+});
+
+test("textSize persists alongside other settings (animSpeed, music)", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.textSize  = "xlarge";
+  data.animSpeed = "fast";
+  data.music     = false;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.textSize, "xlarge");
+  assert.strictEqual(reloaded.animSpeed, "fast");
+  assert.strictEqual(reloaded.music, false);
+});
+
 // ── recentMatches / recordMatchHistory ────────────────────────────────────────
 
 test("recentMatches defaults to empty array", () => {

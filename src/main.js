@@ -390,12 +390,24 @@ var Main = (function () {
     });
   }
 
+  // Apply text-size accessibility setting by toggling body classes.
+  // No-op in headless / no-DOM contexts (tests).
+  function applyTextSize(textSize) {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    if (!body) return;
+    body.classList.remove("text-large", "text-xlarge");
+    if (textSize === "large")  body.classList.add("text-large");
+    if (textSize === "xlarge") body.classList.add("text-xlarge");
+  }
+
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
     state.save = Storage.load(store);
     Sfx.setMusicMuted(!state.save.music);
     Sfx.setSfxMuted(!state.save.sfx);
     Sfx.preload();
+    applyTextSize(state.save.textSize);
     // Randomise starting featured hero so each session feels fresh
     state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
@@ -660,6 +672,23 @@ var Main = (function () {
           state.save.animSpeed = speed;
           Storage.save(getStore(), state.save);
         }
+        render();
+        return;
+      }
+
+      case "set-text-size": {
+        const size = target.dataset.size;
+        if (size !== "normal" && size !== "large" && size !== "xlarge") return;
+        const store = getStore();
+        if (store) {
+          const data = Storage.load(store);
+          data.textSize = size;
+          Storage.save(store, data);
+          state.save = Storage.load(store);
+        } else {
+          state.save.textSize = size;
+        }
+        applyTextSize(size);
         render();
         return;
       }

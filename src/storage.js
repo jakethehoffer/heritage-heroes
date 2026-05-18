@@ -17,6 +17,7 @@ var Storage = (function () {
       music: true,
       sfx: true,
       animSpeed: "normal",
+      textSize: "normal",  // "normal" | "large" | "xlarge"
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
@@ -102,6 +103,9 @@ var Storage = (function () {
         }
         if (parsed.animSpeed === "slow" || parsed.animSpeed === "normal" || parsed.animSpeed === "fast") {
           out.animSpeed = parsed.animSpeed;
+        }
+        if (parsed.textSize === "normal" || parsed.textSize === "large" || parsed.textSize === "xlarge") {
+          out.textSize = parsed.textSize;
         }
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;
