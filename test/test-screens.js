@@ -247,3 +247,119 @@ test("renderTitle: Quick Play button appears on a brand-new save (no matches pla
   const quickIdx = html.indexOf('data-action="start-quick-play"');
   assert.ok(beginIdx >= 0 && quickIdx > beginIdx, "Quick Play should appear after BEGIN");
 });
+
+// ── Confetti celebration helper ─────────────────────────────────────────────
+
+test("renderConfetti: default count produces a wrapper with 30 pieces", () => {
+  const html = Screens.renderConfetti();
+  assert.ok(html.includes('class="confetti"'), "expected confetti wrapper");
+  const pieces = html.match(/class="confetti-piece"/g) || [];
+  assert.strictEqual(pieces.length, 30, "default count should be 30");
+});
+
+test("renderConfetti: respects the count option", () => {
+  const html = Screens.renderConfetti({ count: 50 });
+  const pieces = html.match(/class="confetti-piece"/g) || [];
+  assert.strictEqual(pieces.length, 50);
+});
+
+test("renderConfetti: wrapper is aria-hidden so SRs skip the decoration", () => {
+  const html = Screens.renderConfetti({ count: 5 });
+  assert.match(html, /aria-hidden="true"/);
+});
+
+test("renderConfetti: each piece carries the CSS custom properties for x/delay/dur/hue", () => {
+  // One full piece sample is enough — sanity-check the inline-style template.
+  const html = Screens.renderConfetti({ count: 1 });
+  assert.match(html, /--x:/);
+  assert.match(html, /--delay:/);
+  assert.match(html, /--dur:/);
+  assert.match(html, /--hue:/);
+});
+
+test("renderEndlessResult: confetti appears only when isNewBest is true", () => {
+  const baseState = {
+    endless: {
+      heroId: "moses",
+      streak: 7,
+      isNewBest: true,
+      previousBest: 3
+    },
+    save: freshSave()
+  };
+  const withBest = Screens.renderEndlessResult(baseState);
+  assert.ok(withBest.includes('class="confetti"'), "expected confetti on new best run");
+
+  baseState.endless.isNewBest = false;
+  const withoutBest = Screens.renderEndlessResult(baseState);
+  assert.ok(!withoutBest.includes('class="confetti"'), "no confetti on a regular run");
+});
+
+test("renderQuizResult: confetti appears only when quiz.isNewBest && streak > 0", () => {
+  // Build a minimal pool covering Moses' first trivia question so the recap
+  // doesn't crash when it walks back through the answered entries.
+  const moses = Heroes.byId("moses");
+  const triviaLen = (moses.trivia && moses.trivia.length) || 1;
+  const pool = [];
+  for (let i = 0; i < Math.max(triviaLen, 3); i++) {
+    pool.push({ heroId: "moses", qIdx: i % triviaLen });
+  }
+
+  // (A) New personal best with a real streak → confetti expected
+  const withBest = Screens.renderQuizResult({
+    quiz: { pool, currentIndex: 2, streak: 2, finished: true, isNewBest: true, previousBest: 1 },
+    save: freshSave()
+  });
+  assert.ok(withBest.includes('class="confetti"'), "expected confetti on new best quiz streak");
+
+  // (B) New personal best but streak === 0 → no confetti (gated by streak > 0)
+  const zeroStreak = Screens.renderQuizResult({
+    quiz: { pool, currentIndex: 0, streak: 0, finished: true, isNewBest: true, previousBest: 0 },
+    save: freshSave()
+  });
+  assert.ok(!zeroStreak.includes('class="confetti"'), "no confetti when streak is zero even with isNewBest");
+
+  // (C) Not a new best → no confetti
+  const notBest = Screens.renderQuizResult({
+    quiz: { pool, currentIndex: 2, streak: 2, finished: true, isNewBest: false, previousBest: 5 },
+    save: freshSave()
+  });
+  assert.ok(!notBest.includes('class="confetti"'), "no confetti when not a personal best");
+});
+
+test("renderTournamentResult: confetti appears when a champion is crowned", () => {
+  const t = {
+    humanCount: 1,
+    slotControllers: ["human", "ai", "ai", "ai"],
+    slots: ["moses", "david", "esther", "judah"],
+    bracket: {
+      semi1Winner: "moses", semi1WinnerSlot: 0,
+      semi2Winner: "esther", semi2WinnerSlot: 2,
+      semi2Log: null,
+      finalWinner: "moses", finalWinnerSlot: 0
+    },
+    currentMatch: "final"
+  };
+  const html = Screens.renderTournamentResult({ tournament: t, save: freshSave() });
+  assert.ok(html.includes('class="confetti"'), "expected confetti on champion screen");
+  assert.match(html, /TOURNAMENT CHAMPION/);
+});
+
+test("renderTournamentResult: no confetti when a human was eliminated (no finalWinner)", () => {
+  const t = {
+    humanCount: 1,
+    slotControllers: ["human", "ai", "ai", "ai"],
+    slots: ["moses", "david", "esther", "judah"],
+    bracket: {
+      semi1Winner: "david", semi1WinnerSlot: 1,
+      semi2Winner: null, semi2WinnerSlot: null,
+      semi2Log: null,
+      finalWinner: null, finalWinnerSlot: null
+    },
+    eliminatedBy: "david",
+    currentMatch: "semi1"
+  };
+  const html = Screens.renderTournamentResult({ tournament: t, save: freshSave() });
+  assert.ok(!html.includes('class="confetti"'), "no confetti on elimination screen");
+  assert.match(html, /Eliminated/);
+});

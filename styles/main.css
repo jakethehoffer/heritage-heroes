@@ -1606,7 +1606,7 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 .quiz-quit { font-size: 16px; padding: 10px 20px; }
 
 /* ── Heritage Quiz result screen ────────────────────────────────────── */
-.screen-quiz-result { gap: 20px; max-width: 760px; margin: 0 auto; width: 100%; }
+.screen-quiz-result { gap: 20px; max-width: 760px; margin: 0 auto; width: 100%; position: relative; }
 .screen-quiz-result h2 { font-size: 30px; color: var(--navy); text-align: center; margin: 0; }
 
 .quiz-result-banner {
@@ -2983,6 +2983,7 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   gap: 20px;
   padding: 40px 20px;
   text-align: center;
+  position: relative;
 }
 
 .screen-endless-continue h1,
@@ -4098,6 +4099,7 @@ button.danger:hover {
   margin: 0 auto;
   padding: 24px 16px;
   text-align: center;
+  position: relative;
 }
 
 .screen-tournament-result h2 {
@@ -4604,4 +4606,43 @@ button.danger:hover {
 @media (max-width: 600px) {
   .stage-grid { grid-template-columns: 1fr 1fr; }
   .stage-name { font-size: 13px; }
+}
+
+/* ── Confetti celebration (personal-best / champion moments) ────────────── */
+.confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  left: var(--x);
+  width: 10px;
+  height: 14px;
+  background: hsl(var(--hue), 75%, 55%);
+  border-radius: 2px;
+  transform-origin: center;
+  animation: confetti-fall var(--dur) linear var(--delay) forwards;
+  will-change: transform, opacity;
+}
+/* Tint about a third of the pieces with on-palette hues so they don't all
+   feel like random HSL noise: gold, terracotta, olive. */
+.confetti-piece:nth-child(4n)   { background: var(--gold); }
+.confetti-piece:nth-child(4n+1) { background: var(--terracotta); }
+.confetti-piece:nth-child(7n)   { background: var(--olive); }
+.confetti-piece:nth-child(11n)  { background: var(--cream); border: 1px solid var(--ink); }
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg);     opacity: 1; }
+  90%  {                                            opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti,
+  .confetti-piece { animation: none; display: none; }
 }

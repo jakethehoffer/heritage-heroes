@@ -5,6 +5,26 @@ var Screens = (function () {
   const Combat = (typeof require !== "undefined") ? require("./combat.js") : window.Combat;
   const Storage = (typeof require !== "undefined") ? require("./storage.js") : window.Storage;
 
+  // ── Confetti celebration helper ───────────────────────────────────────────
+  // Returns a self-contained absolutely-positioned wrapper full of confetti
+  // pieces. CSS handles all motion; `prefers-reduced-motion` hides them.
+  // Used only on personal-best / champion moments so it stays meaningful.
+  function renderConfetti(opts) {
+    const count = (opts && opts.count) || 30;
+    const range = (opts && opts.durationRange) || [2, 5];
+    const minD = range[0];
+    const maxD = range[1];
+    const pieces = [];
+    for (let i = 0; i < count; i++) {
+      const x = Math.random() * 100;
+      const delay = Math.random() * 1.5;
+      const dur = minD + Math.random() * (maxD - minD);
+      const hue = Math.floor(Math.random() * 360);
+      pieces.push(`<span class="confetti-piece" style="--x:${x}%;--delay:${delay}s;--dur:${dur}s;--hue:${hue}deg"></span>`);
+    }
+    return `<div class="confetti" aria-hidden="true">${pieces.join("")}</div>`;
+  }
+
   function renderTitle(state) {
     const stats = state.save && state.save.arcade ? state.save.arcade : {};
     const totalWins = Object.values(stats).reduce((s, n) => s + (n || 0), 0);
@@ -2785,8 +2805,11 @@ ${recordsHtml || ""}
       ? `<p class="quiz-recap-label">${startIdx > 0 ? `Last ${recapItems.length} questions` : "Your answers"}</p>`
       : "";
 
+    const confetti = (quiz.isNewBest && streak > 0) ? renderConfetti({ count: 35 }) : "";
+
     return `
 <section class="screen screen-quiz-result">
+  ${confetti}
   <h2>Heritage Quiz</h2>
   ${banner}
   ${newBestLine}
@@ -3040,8 +3063,10 @@ ${recordsHtml || ""}
       ? `<div class="new-best-banner">&#x1F3C6; NEW PERSONAL BEST! &#x1F3C6;</div>
          <p class="previous-best">Previous best: ${e.previousBest}</p>`
       : `<p class="previous-best">Your best with ${Render.escapeHtml(heroName)}: ${bestScore}</p>`;
+    const confetti = e.isNewBest ? renderConfetti({ count: 35 }) : "";
     return `
 <section class="screen screen-endless-result">
+  ${confetti}
   <h1>Run ended.</h1>
   <div class="final-streak">Final streak: ${e.streak}</div>
   ${newBestHtml}
@@ -3900,6 +3925,7 @@ ${recordsHtml || ""}
 
       return `
 <section class="screen screen-tournament-result">
+  ${renderConfetti({ count: 50 })}
   <div class="champion-banner">&#x1F3C6; TOURNAMENT CHAMPION! &#x1F3C6;</div>
   <div class="champion-portrait">${portrait}</div>
   <h2 class="champion-name">${winnerHeroName}</h2>
@@ -4049,6 +4075,7 @@ ${recordsHtml || ""}
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,
     ACHIEVEMENT_LIST,
+    renderConfetti,
     _heroSpotlightStats  // exported for tests
   };
 })();
