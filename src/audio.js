@@ -232,10 +232,23 @@ var Sfx = (function () {
       playTone(c, t0, 800, 400, 0.25, "triangle", 0.2);
     },
 
-    // Generic: major-chord arpeggio victory fanfare
+    // Victory: shofar-flavored stinger (Tekiah-Shevarim-Tekiah Gedolah pattern).
+    // Sawtooth gives the rough, reedy character of a shofar's overtones.
     victory(c, t0) {
-      // C5=523, E5=659, G5=784, C6=1047 — each 200ms, staggered 100ms
-      playArpeggio(c, t0, [523, 659, 784, 1047], 0.1, "triangle", 0.4);
+      // 1. Opening Tekiah — short blast on A3 (220 Hz)
+      playTone(c, t0, 220, 220, 0.18, "sawtooth", 0.25, { attackTime: 0.02 });
+      // Add a fifth harmonic to thicken the call
+      playTone(c, t0, 330, 330, 0.18, "triangle", 0.12, { attackTime: 0.02 });
+
+      // 2. Shevarim — three short broken notes on B3 (247 Hz)
+      for (let i = 0; i < 3; i++) {
+        playTone(c, t0 + 0.25 + i * 0.15, 247, 247, 0.12, "sawtooth", 0.22, { attackTime: 0.02 });
+      }
+
+      // 3. Tekiah Gedolah — long ascending sustained blast A3 → E4
+      playTone(c, t0 + 0.95, 220, 330, 1.2, "sawtooth", 0.30, { attackTime: 0.05 });
+      // Octave shimmer up top for the climax
+      playTone(c, t0 + 1.10, 440, 660, 1.05, "triangle", 0.15, { attackTime: 0.08 });
     },
 
     // Generic: low-impact damage thud
@@ -381,404 +394,422 @@ var Sfx = (function () {
     }
   };
 
+  // ── Jewish music helpers ───────────────────────────────────────────────────
+  // Tools for authoring music in characteristic Jewish modes. All MUSIC_RECIPES
+  // below are built from these helpers — author melodies as [degree, beats]
+  // pairs against a named scale instead of raw frequencies.
+
+  // Note frequency from MIDI number (A4 = MIDI 69 = 440 Hz, equal temperament).
+  function noteHz(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  // Scale interval definitions (semitones from tonic).
+  // Each scale is a 1-octave template; degreeToMidi() handles octave wrapping.
+  const SCALES = {
+    freygish:    [0, 1, 4, 5, 7, 8, 10],   // Phrygian dominant — THE klezmer sound
+    miSheberach: [0, 2, 3, 6, 7, 8, 10],   // Ukrainian minor — liturgical / soulful
+    adonai:      [0, 2, 4, 5, 7, 9, 10],   // Mixolydian-ish — pastoral
+    magenAvot:   [0, 2, 3, 5, 7, 8, 11],   // Harmonic minor — Sephardic liturgy
+    hijaz:       [0, 1, 4, 5, 7, 9, 10],   // Middle Eastern — Persian/Sephardic
+    pentaMinor:  [0, 3, 5, 7, 10],         // Pentatonic minor — ancient, harp-like
+    israeliMin:  [0, 2, 3, 5, 7, 8, 10]    // Modern Israeli minor — hora feel
+  };
+
+  // Convert a 1-based scale degree to a MIDI note relative to a root.
+  // Degree 1 = tonic, degree 8 = octave above tonic. Negative degrees go below.
+  function degreeToMidi(scaleName, rootMidi, degree) {
+    const scale = SCALES[scaleName];
+    if (!scale) return rootMidi;
+    const octaveOffset = Math.floor((degree - 1) / scale.length);
+    const idx = ((degree - 1) % scale.length + scale.length) % scale.length;
+    return rootMidi + 12 * octaveOffset + scale[idx];
+  }
+
+  // Schedule a single melodic note with attack / sustain / release envelope.
+  // Pushes the oscillator + gain nodes into `nodes` for later cleanup.
+  function _scheduleNote(c, mg, nodes, t, freq, duration, type, peakGain, attack, release) {
+    type = type || "sine";
+    peakGain = (peakGain == null) ? 0.1 : peakGain;
+    attack = (attack == null) ? 0.02 : attack;
+    release = (release == null) ? 0.15 : release;
+    const osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peakGain, t + attack);
+    // Hold the peak until just before release begins, then ramp to 0.
+    const sustainEnd = t + Math.max(attack, duration - release);
+    g.gain.setValueAtTime(peakGain, sustainEnd);
+    g.gain.linearRampToValueAtTime(0, t + duration);
+    osc.connect(g);
+    g.connect(mg);
+    osc.start(t);
+    osc.stop(t + duration + 0.05);
+    nodes.push(osc, g);
+  }
+
+  // Schedule a sequence of melodic notes as [degree, beats] pairs against a scale.
+  // degree 0 = rest. The full phrase is repeated `loops` times.
+  function _scheduleMelody(c, mg, nodes, t0, scaleName, rootMidi, beatSec, notes, opts) {
+    opts = opts || {};
+    const type = opts.type || "triangle";
+    const peakGain = opts.peakGain != null ? opts.peakGain : 0.1;
+    const loops = opts.loops || 1;
+    const attack = opts.attack || 0.02;
+    const release = opts.release || 0.2;
+    let cursor = t0;
+    for (let loop = 0; loop < loops; loop++) {
+      for (const [degree, beats] of notes) {
+        if (degree !== 0) {
+          const midi = degreeToMidi(scaleName, rootMidi, degree);
+          _scheduleNote(c, mg, nodes, cursor, noteHz(midi), beats * beatSec,
+                        type, peakGain, attack, release);
+        }
+        cursor += beats * beatSec;
+      }
+    }
+  }
+
+  // Schedule a sustained drone of root + fifth (+ optional low octave).
+  // Slow fade-in / fade-out so the drone doesn't click at the boundaries.
+  function _scheduleDrone(c, mg, nodes, t0, duration, rootMidi, opts) {
+    opts = opts || {};
+    const peakGain = opts.peakGain != null ? opts.peakGain : 0.18;
+    const type = opts.type || "sine";
+    const freqs = [noteHz(rootMidi), noteHz(rootMidi + 7)];
+    if (opts.lowOctave) freqs.push(noteHz(rootMidi - 12));
+    for (const f of freqs) {
+      const osc = c.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, t0);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(peakGain, t0 + 1.0);
+      g.gain.setValueAtTime(peakGain, t0 + duration - 1.0);
+      g.gain.linearRampToValueAtTime(0, t0 + duration);
+      osc.connect(g);
+      g.connect(mg);
+      osc.start(t0);
+      osc.stop(t0 + duration + 0.1);
+      nodes.push(osc, g);
+    }
+  }
+
   // ── Music recipes ──────────────────────────────────────────────────────────
-  // Each recipe is (c, mg) where c = AudioContext, mg = musicGain destination node.
-  // Returns an array of oscillator/source nodes for later cleanup.
-  // Uses option 1 for accent scheduling: pre-schedule 60 seconds of accents up-front.
+  // Each recipe is (c, mg) where c = AudioContext, mg = musicGain destination
+  // node. Returns an array of oscillator/source nodes for later cleanup.
+  // Pre-schedules ~60 seconds of music up-front; the playback loop never
+  // mutates these after start, so all timing is deterministic.
 
   const MUSIC_RECIPES = {
 
-    // redsea (Moses) — Aquatic, vast, peaceful
+    // redsea (Moses) — Mi Sheberach, slow ancient prayer.
+    // Vast and chant-like, like a cantor leading a congregation.
+    // ~40 BPM, D minor centered. Drone + sustained melodic phrase, no rhythm.
     redsea(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 50;       // D3 — low and ancient
+      const beatSec  = 1.5;      // ~40 BPM, very slow
 
-      // Drone: sine 80 Hz
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(80, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.3, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Long sustained drone — root, fifth, and low octave for breadth.
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi, {
+        peakGain: 0.16, lowOctave: true, type: "sine"
+      });
 
-      // Pad: A3 (220 Hz) + E4 (330 Hz) — open fifth
-      const padFreqs = [220, 330];
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.15, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Chant-like melody in Mi Sheberach: ascending climb, then resolves down
+      // to the tonic. Final note (degree 1, 4 beats) provides a clean seam.
+      const phrase = [
+        [1, 2], [3, 2], [4, 1], [5, 3],
+        [4, 1], [3, 2], [1, 4],
+        [5, 1], [6, 1], [7, 2],
+        [6, 2], [5, 2], [3, 2], [1, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 2, "miSheberach", rootMidi + 12, beatSec, phrase, {
+        type: "sine", peakGain: 0.11, loops: 2, attack: 0.18, release: 0.5
+      });
 
-      // LFO: 0.2 Hz modulating the pad's frequency ±4 Hz (wave-like vibrato)
-      // Attach to first pad oscillator (220 Hz)
-      const lfo = c.createOscillator();
-      lfo.type = "sine";
-      lfo.frequency.setValueAtTime(0.2, t0);
-      const lfoGain = c.createGain();
-      lfoGain.gain.setValueAtTime(4, t0);
-      lfo.connect(lfoGain);
-      // Connect LFO to frequency of both pad oscs (nodes[2] and nodes[4] are the pad oscs)
-      lfoGain.connect(nodes[2].frequency);
-      lfoGain.connect(nodes[4].frequency);
-      lfo.start(t0);
-      nodes.push(lfo, lfoGain);
-
-      // Sparse accent: bell tone at 880 Hz every 4 seconds, 0.8s duration
-      // Pre-schedule 60 seconds worth (15 bells)
-      for (let i = 0; i < 15; i++) {
-        const bt = t0 + i * 4;
-        const bellOsc = c.createOscillator();
-        bellOsc.type = "sine";
-        bellOsc.frequency.setValueAtTime(880, bt);
-        const bellGain = c.createGain();
-        bellGain.gain.setValueAtTime(0, bt);
-        bellGain.gain.linearRampToValueAtTime(0.1, bt + 0.1);  // slow attack
-        bellGain.gain.linearRampToValueAtTime(0, bt + 0.8);    // long decay
-        bellOsc.connect(bellGain);
-        bellGain.connect(mg);
-        bellOsc.start(bt);
-        bellOsc.stop(bt + 0.85);
-        nodes.push(bellOsc, bellGain);
-      }
+      // Soft upper-octave echo on alternating phrases for added depth.
+      const echo = [
+        [0, 8], [0, 6], [0, 4],
+        [1, 2], [3, 2], [1, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 2, "miSheberach", rootMidi + 24, beatSec, echo, {
+        type: "triangle", peakGain: 0.045, loops: 2, attack: 0.25, release: 0.6
+      });
 
       return nodes;
     },
 
-    // elah (David) — Pastoral, hopeful, major
+    // elah (David) — Pentatonic minor, harp-like and pastoral.
+    // David the Psalmist plays his kinnor on the hills of Judea.
+    // ~75 BPM, A minor pentatonic. Plucked-feel arpeggios over a soft drone.
     elah(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 57;       // A3
+      const beatSec  = 0.8;      // ~75 BPM, walking pace
 
-      // Drone: sine C3 (130.8 Hz)
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(130.8, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.3, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Soft drone — narrower than redsea, no low octave (keep it gentle).
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.13, lowOctave: false, type: "sine"
+      });
 
-      // Pad: C major triad — C4 (261.6), E4 (329.6), G4 (392)
-      const padFreqs = [261.6, 329.6, 392];
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.12, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Harp arpeggio: ascending pentatonic figures, like a kinnor's strings.
+      // Triangle wave with very fast attack gives the plucked character.
+      const arpeggio = [
+        [1, 0.5], [2, 0.5], [3, 0.5], [4, 0.5],
+        [5, 0.5], [4, 0.5], [3, 0.5], [2, 0.5],
+        [1, 0.5], [3, 0.5], [5, 0.5], [6, 0.5],
+        [5, 1], [3, 1], [1, 2]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 1, "pentaMinor", rootMidi + 12, beatSec, arpeggio, {
+        type: "triangle", peakGain: 0.09, loops: 5, attack: 0.005, release: 0.25
+      });
 
-      // Sparse arpeggio: pluck-like at C5/E5/G5/C5 cycling every 6 seconds
-      // 4 notes x 0.4s each = 1.6s of notes per cycle
-      const arpeggioFreqs = [523.25, 659.25, 784, 523.25]; // C5, E5, G5, C5
-      const arpCycle = 6; // seconds between arpeggio starts
-      const arpCount = Math.floor(60 / arpCycle); // ~10 cycles
-      for (let cycle = 0; cycle < arpCount; cycle++) {
-        for (let note = 0; note < arpeggioFreqs.length; note++) {
-          const nt = t0 + cycle * arpCycle + note * 0.4;
-          const arpOsc = c.createOscillator();
-          arpOsc.type = "triangle";
-          arpOsc.frequency.setValueAtTime(arpeggioFreqs[note], nt);
-          const arpGain = c.createGain();
-          arpGain.gain.setValueAtTime(0, nt);
-          arpGain.gain.linearRampToValueAtTime(0.1, nt + 0.02);  // pluck attack
-          arpGain.gain.linearRampToValueAtTime(0, nt + 0.4);
-          arpOsc.connect(arpGain);
-          arpGain.connect(mg);
-          arpOsc.start(nt);
-          arpOsc.stop(nt + 0.42);
-          nodes.push(arpOsc, arpGain);
-        }
-      }
+      // Lyrical counter-melody in the lower octave on offset timing —
+      // suggests a singing voice over the harp.
+      const lyric = [
+        [0, 2], [1, 2], [3, 2], [2, 2],
+        [1, 4], [0, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 5, "pentaMinor", rootMidi, beatSec, lyric, {
+        type: "sine", peakGain: 0.075, loops: 4, attack: 0.15, release: 0.35
+      });
 
       return nodes;
     },
 
-    // throne (Esther) — Royal, mysterious, minor with eastern flavor
+    // throne (Esther) — Hijaz mode, Persian court mystery.
+    // The augmented 2nd (b2 → 3) gives the iconic Middle Eastern flavor.
+    // ~65 BPM, A3 root. Slow, ornamented, with chromatic neighbor flourishes.
     throne(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 57;       // A3
+      const beatSec  = 0.92;     // ~65 BPM
 
-      // Drone: sawtooth A2 (110 Hz) — slightly aggressive timbre
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sawtooth";
-      droneOsc.frequency.setValueAtTime(110, t0);
-      const droneFilt = c.createBiquadFilter();
-      droneFilt.type = "lowpass";
-      droneFilt.frequency.setValueAtTime(800, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.2, t0);
-      droneOsc.connect(droneFilt);
-      droneFilt.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneFilt, droneGain);
+      // Drone with low octave — gives the music a tonic anchor like a tanpura.
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.14, lowOctave: false, type: "sine"
+      });
 
-      // Pad: A3 (220 Hz) + C4 (261.6 Hz) — minor second, tense interval
-      const padFreqs = [220, 261.6];
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.10, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Ornamented Hijaz melody — emphasizes the flat 2nd (Bb) and major 3rd (C#)
+      // that produce the augmented second leap (Bb → C#) characteristic of
+      // Middle Eastern music. Includes grace-note style neighbor descents.
+      const melody = [
+        [1, 2], [2, 0.5], [3, 0.5], [4, 1], [3, 2],
+        [2, 1], [1, 3],
+        [5, 1], [6, 0.5], [5, 0.5], [4, 1], [3, 1],
+        [2, 0.5], [3, 0.5], [2, 1], [1, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 1, "hijaz", rootMidi + 12, beatSec, melody, {
+        type: "triangle", peakGain: 0.10, loops: 3, attack: 0.04, release: 0.3
+      });
 
-      // Slow ascending phrase: every 8 seconds, A4→B4→C5→D5 (0.5s each)
-      const phraseFreqs = [440, 493.88, 523.25, 587.33]; // A4, B4, C5, D5
-      const phraseCycle = 8;
-      const phraseCount = Math.floor(60 / phraseCycle); // ~7 cycles
-      for (let cycle = 0; cycle < phraseCount; cycle++) {
-        for (let note = 0; note < phraseFreqs.length; note++) {
-          const nt = t0 + cycle * phraseCycle + note * 0.5;
-          const pOsc = c.createOscillator();
-          pOsc.type = "triangle";
-          pOsc.frequency.setValueAtTime(phraseFreqs[note], nt);
-          const pGain = c.createGain();
-          pGain.gain.setValueAtTime(0, nt);
-          pGain.gain.linearRampToValueAtTime(0.08, nt + 0.08);
-          pGain.gain.linearRampToValueAtTime(0, nt + 0.5);
-          pOsc.connect(pGain);
-          pGain.connect(mg);
-          pOsc.start(nt);
-          pOsc.stop(nt + 0.52);
-          nodes.push(pOsc, pGain);
-        }
-      }
+      // Chromatic ornaments scheduled as quick grace notes — every 4 seconds,
+      // a brief upper-neighbor scratch (degree 5 → 6 → 5) for an oud-like flourish.
+      const ornament = [
+        [0, 7],
+        [5, 0.25], [6, 0.25], [5, 0.5]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 3, "hijaz", rootMidi + 24, beatSec, ornament, {
+        type: "sawtooth", peakGain: 0.05, loops: 6, attack: 0.01, release: 0.15
+      });
 
       return nodes;
     },
 
-    // temple (Judah) — Solemn, triumphant, open
+    // temple (Judah) — Freygish, heroic Hanukkah march.
+    // The Maccabees retake Jerusalem. ~120 BPM marching tempo, E freygish.
+    // Pulsing bass + bold ascending melody. The freygish scale's b2 over a
+    // major-third tonic chord gives the bittersweet victory feel.
     temple(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 52;       // E3
+      const beatSec  = 0.5;      // 120 BPM marching tempo
 
-      // Drone: sine 110 Hz (A2)
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(110, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.3, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Sustained low drone underneath the march for weight.
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.10, lowOctave: false, type: "sine"
+      });
 
-      // Pad: A3 (220 Hz) + E4 (329.6 Hz) — open fifth
-      const padFreqs = [220, 329.6];
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.15, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Marching bass on tonic and fifth: pulse-pulse-fifth-pulse pattern.
+      const bass = [
+        [1, 1], [1, 1], [5, 1], [1, 1]
+      ];
+      _scheduleMelody(c, mg, nodes, t0, "freygish", rootMidi, beatSec, bass, {
+        type: "triangle", peakGain: 0.13, loops: 30, attack: 0.02, release: 0.12
+      });
 
-      // Bell accents: E6 (1320 Hz) every 5 seconds, exponential-like decay 1s
-      const bellCycle = 5;
-      const bellCount = Math.floor(60 / bellCycle); // 12 bells
-      for (let i = 0; i < bellCount; i++) {
-        const bt = t0 + i * bellCycle;
-        const bellOsc = c.createOscillator();
-        bellOsc.type = "sine";
-        bellOsc.frequency.setValueAtTime(1320, bt);
-        const bellGain = c.createGain();
-        bellGain.gain.setValueAtTime(0, bt);
-        bellGain.gain.linearRampToValueAtTime(0.12, bt + 0.005); // very fast attack
-        bellGain.gain.linearRampToValueAtTime(0, bt + 1.0);      // 1s decay
-        bellOsc.connect(bellGain);
-        bellGain.connect(mg);
-        bellOsc.start(bt);
-        bellOsc.stop(bt + 1.05);
-        nodes.push(bellOsc, bellGain);
-      }
+      // Heroic melody — ascending freygish line, then a higher answering phrase.
+      // The leap from b2 to 3 (degrees 2 → 3) is the augmented second that says
+      // "klezmer" before any other note even sounds.
+      const melody = [
+        [1, 1], [2, 0.5], [3, 0.5], [4, 1], [5, 1],
+        [4, 0.5], [3, 0.5], [2, 1], [1, 2],
+        [5, 1], [6, 0.5], [7, 0.5], [8, 1], [7, 1],
+        [6, 0.5], [5, 0.5], [4, 1], [1, 2]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 0.5, "freygish", rootMidi + 12, beatSec, melody, {
+        type: "sawtooth", peakGain: 0.085, loops: 4, attack: 0.015, release: 0.15
+      });
+
+      // Bright counter-melody an octave up for the second half — adds lift.
+      const counter = [
+        [0, 16],
+        [5, 0.5], [6, 0.5], [5, 0.5], [4, 0.5], [3, 1], [1, 2],
+        [0, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 8, "freygish", rootMidi + 24, beatSec, counter, {
+        type: "triangle", peakGain: 0.055, loops: 3, attack: 0.02, release: 0.2
+      });
 
       return nodes;
     },
 
-    // cordoba (Rambam) — Contemplative, ancient, modal
+    // cordoba (Maimonides) — Sephardic Andalusia, Magen Avot (harmonic minor).
+    // Moorish-Jewish synthesis. Plucked oud feel via sawtooth with fast attack.
+    // ~80 BPM, D root. The leading tone (degree 7 = C#) over a D minor sets
+    // the harmonic-minor / liturgical character.
     cordoba(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 50;       // D3
+      const beatSec  = 0.75;     // ~80 BPM
 
-      // Drone: sine F2 (87.3 Hz)
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(87.3, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.3, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Drone — sustained root + fifth, no octave below (lighter than redsea).
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.13, lowOctave: false, type: "sine"
+      });
 
-      // Pad: F3 (175 Hz) + G#3 (207.7 Hz) + A3 (220 Hz) — Phrygian flavor
-      const padFreqs = [175, 207.7, 220];  // closer spacing = modal tension
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.10, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Oud-flavored melodic phrase — descending then ascending, with a
+      // pluck-and-decay shape (sawtooth + very fast attack). Magen Avot's
+      // raised 7th gives the line its Sephardic liturgical color.
+      const oudPhrase = [
+        [5, 1], [4, 0.5], [3, 0.5], [4, 1], [5, 1],
+        [4, 0.5], [3, 0.5], [2, 0.5], [1, 1.5],
+        [3, 0.5], [4, 0.5], [5, 0.5], [7, 0.5], [8, 1.5],
+        [7, 0.5], [5, 0.5], [4, 0.5], [3, 0.5], [1, 2]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 1, "magenAvot", rootMidi + 12, beatSec, oudPhrase, {
+        type: "sawtooth", peakGain: 0.08, loops: 4, attack: 0.008, release: 0.22
+      });
 
-      // Sparse oud-like notes: every 7 seconds, Bb4 (466 Hz) → G#4 (415 Hz), 0.6s each
-      const oudFreqs = [466, 415]; // Bb4, G#4
-      const oudCycle = 7;
-      const oudCount = Math.floor(60 / oudCycle); // ~8 cycles
-      for (let cycle = 0; cycle < oudCount; cycle++) {
-        for (let note = 0; note < oudFreqs.length; note++) {
-          const nt = t0 + cycle * oudCycle + note * 0.6;
-          const oudOsc = c.createOscillator();
-          oudOsc.type = "triangle";
-          oudOsc.frequency.setValueAtTime(oudFreqs[note], nt);
-          const oudGain = c.createGain();
-          oudGain.gain.setValueAtTime(0, nt);
-          oudGain.gain.linearRampToValueAtTime(0.08, nt + 0.03);
-          oudGain.gain.linearRampToValueAtTime(0, nt + 0.6);
-          oudOsc.connect(oudGain);
-          oudGain.connect(mg);
-          oudOsc.start(nt);
-          oudOsc.stop(nt + 0.62);
-          nodes.push(oudOsc, oudGain);
-        }
-      }
+      // Soft sustained inner voice — triangle, like a vocal line beneath the oud.
+      const inner = [
+        [1, 4], [3, 4], [5, 4], [4, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 2, "magenAvot", rootMidi, beatSec, inner, {
+        type: "triangle", peakGain: 0.06, loops: 4, attack: 0.2, release: 0.4
+      });
 
       return nodes;
     },
 
-    // knesset (Golda) — Determined, modern, minor mode
+    // knesset (Golda) — Israeli minor, hora dance feel.
+    // Modern Israel celebrates around the bonfire. ~130 BPM 4/4 dance tempo
+    // with the classic eighth-note "and-uh, and-uh" hora pulse.
     knesset(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 55;       // G3 — bright but grounded
+      const beatSec  = 0.46;     // ~130 BPM hora tempo
 
-      // Drone: sine A2 (110 Hz)
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(110, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.25, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Light drone — dance music needs space; keep this subtle.
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.09, lowOctave: false, type: "sine"
+      });
 
-      // Pad: A minor triad — A3 (220), C4 (261.6), E4 (329.6)
-      const padFreqs = [220, 261.6, 329.6];
-      for (const f of padFreqs) {
-        const padOsc = c.createOscillator();
-        padOsc.type = "sine";
-        padOsc.frequency.setValueAtTime(f, t0);
-        const padGain = c.createGain();
-        padGain.gain.setValueAtTime(0.10, t0);
-        padOsc.connect(padGain);
-        padGain.connect(mg);
-        padOsc.start(t0);
-        nodes.push(padOsc, padGain);
-      }
+      // Hora bass pulse: classic "boom-CHA, boom-CHA" alternating tonic and fifth
+      // every quarter note — drives the dance.
+      const horaBass = [
+        [1, 1], [5, 1], [1, 1], [5, 1]
+      ];
+      _scheduleMelody(c, mg, nodes, t0, "israeliMin", rootMidi, beatSec, horaBass, {
+        type: "triangle", peakGain: 0.11, loops: 30, attack: 0.01, release: 0.1
+      });
 
-      // Heartbeat pulse: triangle 110 Hz repeating every 2 seconds for 0.2s
-      const pulseCycle = 2;
-      const pulseCount = Math.floor(60 / pulseCycle); // 30 pulses
-      for (let i = 0; i < pulseCount; i++) {
-        const pt = t0 + i * pulseCycle;
-        const pulseOsc = c.createOscillator();
-        pulseOsc.type = "triangle";
-        pulseOsc.frequency.setValueAtTime(110, pt);
-        const pulseGain = c.createGain();
-        pulseGain.gain.setValueAtTime(0, pt);
-        pulseGain.gain.linearRampToValueAtTime(0.12, pt + 0.02);
-        pulseGain.gain.linearRampToValueAtTime(0, pt + 0.2);
-        pulseOsc.connect(pulseGain);
-        pulseGain.connect(mg);
-        pulseOsc.start(pt);
-        pulseOsc.stop(pt + 0.22);
-        nodes.push(pulseOsc, pulseGain);
-      }
+      // Rising hora melody — characteristic of Israeli folk tunes like
+      // "Hava Nagila" rising through the scale and resolving back to tonic.
+      // Israeli minor (= natural minor with raised 7th sometimes) lets us
+      // climb cleanly through degrees 1 → 8.
+      const horaMelody = [
+        [1, 1], [3, 0.5], [2, 0.5], [1, 1], [5, 1],
+        [3, 0.5], [4, 0.5], [5, 1], [3, 2],
+        [5, 1], [6, 0.5], [5, 0.5], [4, 1], [3, 1],
+        [2, 0.5], [1, 0.5], [2, 1], [1, 2]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 0.5, "israeliMin", rootMidi + 12, beatSec, horaMelody, {
+        type: "sawtooth", peakGain: 0.075, loops: 5, attack: 0.02, release: 0.13
+      });
+
+      // Sparkling upper-octave answering phrase every other loop — adds joy.
+      const sparkle = [
+        [0, 9],
+        [8, 0.25], [7, 0.25], [5, 0.5], [3, 0.5], [1, 1]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 6, "israeliMin", rootMidi + 24, beatSec, sparkle, {
+        type: "triangle", peakGain: 0.05, loops: 7, attack: 0.005, release: 0.18
+      });
 
       return nodes;
     },
 
-    // princeton (Einstein) — Cerebral, minimalist, modern
+    // princeton (Einstein) — Wistful klezmer, freygish at moderate tempo.
+    // Diaspora intellectual with European roots — a soulful clarinet line in
+    // freygish, decorated with ornamental grace notes (krechtz). ~90 BPM, D.
     princeton(c, mg) {
       const nodes = [];
       const t0 = c.currentTime;
+      const rootMidi = 50;       // D3
+      const beatSec  = 0.67;     // ~90 BPM moderate
 
-      // Drone: sine C3 (130.8 Hz), very quiet
-      const droneOsc = c.createOscillator();
-      droneOsc.type = "sine";
-      droneOsc.frequency.setValueAtTime(130.8, t0);
-      const droneGain = c.createGain();
-      droneGain.gain.setValueAtTime(0.15, t0);
-      droneOsc.connect(droneGain);
-      droneGain.connect(mg);
-      droneOsc.start(t0);
-      nodes.push(droneOsc, droneGain);
+      // Soft drone — gives the klezmer line something to lean on.
+      _scheduleDrone(c, mg, nodes, t0, 65, rootMidi - 12, {
+        peakGain: 0.10, lowOctave: false, type: "sine"
+      });
 
-      // Mid drone: sine C4 (261.6 Hz)
-      const midOsc = c.createOscillator();
-      midOsc.type = "sine";
-      midOsc.frequency.setValueAtTime(261.6, t0);
-      const midGain = c.createGain();
-      midGain.gain.setValueAtTime(0.10, t0);
-      midOsc.connect(midGain);
-      midGain.connect(mg);
-      midOsc.start(t0);
-      nodes.push(midOsc, midGain);
+      // Walking bass on the off-beats — gentle "oom-pah" rhythm-section feel.
+      const walkBass = [
+        [1, 1], [5, 1], [1, 1], [4, 1]
+      ];
+      _scheduleMelody(c, mg, nodes, t0, "freygish", rootMidi, beatSec, walkBass, {
+        type: "triangle", peakGain: 0.08, loops: 22, attack: 0.02, release: 0.18
+      });
 
-      // Sparse high notes: triangle from C5/D5/E5/G5/A5, every 4-6 seconds (alternating 4/6)
-      const highFreqs = [523.25, 587.33, 659.25, 784, 880]; // C5, D5, E5, G5, A5
-      let elapsed = 0;
-      let freqIdx = 0;
-      while (elapsed < 60) {
-        const nt = t0 + elapsed;
-        const noteFreq = highFreqs[freqIdx % highFreqs.length];
-        const interval = (freqIdx % 2 === 0) ? 4 : 6; // alternate 4s and 6s
+      // Main klezmer melody — bittersweet ascending phrases with the freygish
+      // b2 → 3 augmented-second leap. Triangle for a soft, clarinet-like body.
+      // Grace notes are scheduled as separate eighth-note "krechtz" approaches.
+      const melody = [
+        // Phrase 1: rising plea
+        [3, 0.5], [2, 0.5],      // grace approach
+        [1, 2],
+        [3, 1], [4, 1], [5, 2],
+        // Phrase 2: ornament + descent
+        [6, 0.5], [5, 0.5], [4, 1], [3, 2],
+        // Phrase 3: climb and resolve
+        [4, 0.5], [5, 0.5], [6, 1], [5, 1], [4, 1],
+        [3, 0.5], [2, 0.5], [1, 4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 1, "freygish", rootMidi + 12, beatSec, melody, {
+        type: "triangle", peakGain: 0.09, loops: 4, attack: 0.04, release: 0.25
+      });
 
-        const hOsc = c.createOscillator();
-        hOsc.type = "triangle";
-        hOsc.frequency.setValueAtTime(noteFreq, nt);
-        const hGain = c.createGain();
-        hGain.gain.setValueAtTime(0, nt);
-        hGain.gain.linearRampToValueAtTime(0.10, nt + 0.4);  // slow attack
-        hGain.gain.linearRampToValueAtTime(0, nt + 1.0);     // slow decay
-        hOsc.connect(hGain);
-        hGain.connect(mg);
-        hOsc.start(nt);
-        hOsc.stop(nt + 1.05);
-        nodes.push(hOsc, hGain);
-
-        elapsed += interval;
-        freqIdx++;
-      }
+      // Ornamental grace notes (krechtz): brief upper-neighbor sighs that drift
+      // in and out, sawtooth gives the reedy clarinet bite. Schedule sparingly.
+      const krechtz = [
+        [0, 5],
+        [5, 0.2], [6, 0.2], [5, 0.4],
+        [0, 7],
+        [3, 0.2], [4, 0.2], [3, 0.4]
+      ];
+      _scheduleMelody(c, mg, nodes, t0 + 4, "freygish", rootMidi + 24, beatSec, krechtz, {
+        type: "sawtooth", peakGain: 0.045, loops: 5, attack: 0.01, release: 0.2
+      });
 
       return nodes;
     }
