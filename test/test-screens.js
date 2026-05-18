@@ -2645,3 +2645,116 @@ test("renderStageInfoOverlay output contains the close-stage-info action", () =>
   const html = Screens.renderStageInfoOverlay({ viewingStageId: "throne" });
   assert.match(html, /data-action="close-stage-info"/);
 });
+
+// ── Player name personalization ──────────────────────────────────────────
+test("renderSettings includes the player-name input field", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /class="settings-name-input"/);
+  assert.match(html, /data-action="set-player-name"/);
+  assert.match(html, /maxlength="24"/);
+  assert.match(html, /Your name/);
+});
+
+test("renderSettings name input value reflects state.save.playerName", () => {
+  const save = freshSave();
+  save.playerName = "Grandpa";
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /value="Grandpa"/);
+});
+
+test("renderSettings name input is empty when playerName is blank", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /value=""/);
+});
+
+test("renderSettings escapes playerName to prevent HTML injection", () => {
+  const save = freshSave();
+  save.playerName = '"><script>alert(1)</script>';
+  const html = Screens.renderSettings({ save });
+  // The value attribute must not contain a raw <script tag.
+  assert.doesNotMatch(html, /<script>alert/);
+  // Quote must be escaped so it can't break out of the attribute.
+  assert.match(html, /&quot;/);
+});
+
+test("renderTitle shows personalized greeting when playerName is set", () => {
+  const save = freshSave();
+  save.playerName = "Grandpa";
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /Welcome back, Grandpa!/);
+  assert.doesNotMatch(html, /A turn-based duel through history/);
+});
+
+test("renderTitle shows default tagline when playerName is empty", () => {
+  const save = freshSave();
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /A turn-based duel through history/);
+  assert.doesNotMatch(html, /Welcome back,/);
+});
+
+test("renderTitle escapes playerName in the greeting (XSS)", () => {
+  const save = freshSave();
+  save.playerName = "<script>x</script>";
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /<script>x<\/script>/);
+  assert.match(html, /&lt;script&gt;/);
+});
+
+test("renderWhatsNew greets by name when playerName is set", () => {
+  const cl = [{
+    version: 1, title: "v1",
+    changes: [{ icon: "*", title: "T", description: "D" }]
+  }];
+  const save = freshSave();
+  save.playerName = "Sarah";
+  const html = Screens.renderWhatsNew({ changelog: cl, save });
+  assert.match(html, /Welcome back, Sarah!/);
+});
+
+test("renderWhatsNew uses default greeting when playerName is empty", () => {
+  const cl = [{
+    version: 1, title: "v1",
+    changes: [{ icon: "*", title: "T", description: "D" }]
+  }];
+  const save = freshSave();
+  const html = Screens.renderWhatsNew({ changelog: cl, save });
+  assert.match(html, /Welcome back! Here's what's new/);
+  assert.doesNotMatch(html, /Welcome back, /);
+});
+
+test("renderWhatsNew escapes playerName in the subtitle (XSS)", () => {
+  const cl = [{
+    version: 1, title: "v1",
+    changes: [{ icon: "*", title: "T", description: "D" }]
+  }];
+  const save = freshSave();
+  save.playerName = "<img onerror=x>";
+  const html = Screens.renderWhatsNew({ changelog: cl, save });
+  assert.doesNotMatch(html, /<img onerror=x>/);
+  assert.match(html, /&lt;img onerror=x&gt;/);
+});
+
+test("renderVictoryCardSvg includes 'Played by [Name]' when playerName is set", () => {
+  const state = _resultState({ heroA: "moses", heroB: "david", winner: 0 });
+  state.save.playerName = "Grandpa";
+  const svg = Screens.renderVictoryCardSvg(state);
+  assert.match(svg, /Played by Grandpa/);
+});
+
+test("renderVictoryCardSvg omits player attribution when playerName is empty", () => {
+  const state = _resultState({ heroA: "moses", heroB: "david", winner: 0 });
+  // playerName defaults to ""
+  const svg = Screens.renderVictoryCardSvg(state);
+  assert.doesNotMatch(svg, /Played by/);
+});
+
+test("renderVictoryCardSvg escapes playerName in the share card (XSS)", () => {
+  const state = _resultState({ heroA: "moses", heroB: "david", winner: 0 });
+  state.save.playerName = '"><script>alert(1)</script>';
+  const svg = Screens.renderVictoryCardSvg(state);
+  assert.doesNotMatch(svg, /<script>alert\(1\)<\/script>/);
+  // escapeXml turns < into &lt;
+  assert.match(svg, /&lt;script&gt;/);
+});

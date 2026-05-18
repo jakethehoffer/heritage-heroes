@@ -49,6 +49,7 @@ var Storage = (function () {
       textSize: "normal",  // "normal" | "large" | "xlarge"
       theme: "default",  // "default" | "high-contrast"
       strategyHints: "on",  // "on" | "off" — show contextual battle tips during the player's turn
+      playerName: "",  // optional display name; "" means anonymous (current behavior)
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
@@ -164,6 +165,14 @@ var Storage = (function () {
         }
         if (parsed.strategyHints === "on" || parsed.strategyHints === "off") {
           out.strategyHints = parsed.strategyHints;
+        }
+        // playerName — optional display name. Sanitize defensively (trim,
+        // strip control chars, cap length) in case the save was hand-edited
+        // or corrupted between sessions.
+        if (typeof parsed.playerName === "string") {
+          let cleaned = parsed.playerName.trim().replace(/[\x00-\x1F\x7F]/g, "");
+          if (cleaned.length > 24) cleaned = cleaned.substring(0, 24);
+          out.playerName = cleaned;
         }
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;
@@ -576,6 +585,18 @@ var Storage = (function () {
     save(store, data);
   }
 
+  // Persist the player's optional display name. Sanitizes input: trims
+  // whitespace, strips ASCII control characters, caps at 24 characters.
+  // Non-string inputs are ignored (no-op).
+  function setPlayerName(store, name) {
+    if (typeof name !== "string") return;
+    const data = load(store);
+    let cleaned = name.trim().replace(/[\x00-\x1F\x7F]/g, "");
+    if (cleaned.length > 24) cleaned = cleaned.substring(0, 24);
+    data.playerName = cleaned;
+    save(store, data);
+  }
+
   // Record a per-matchup result. playerHeroId is slot 0's hero; opponentHeroId is slot 1's hero.
   // won is a boolean: true if player (slot 0) won.
   function recordMatchup(store, playerHeroId, opponentHeroId, won) {
@@ -877,7 +898,7 @@ var Storage = (function () {
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, recordQuizRun, resetAll,
            recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
-           recordTournamentWin, recordMatchup, setLastSeenVersion, recordLastSession,
+           recordTournamentWin, recordMatchup, setLastSeenVersion, setPlayerName, recordLastSession,
            generateDailyQuests, refreshDailyQuests, recordQuestProgress };
 })();
 

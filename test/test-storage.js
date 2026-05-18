@@ -1762,3 +1762,112 @@ test("strategyHints rejects malformed values and falls back to 'on'", () => {
       `malformed strategyHints ${JSON.stringify(bad)} should default to "on"`);
   }
 });
+
+// ── playerName / setPlayerName ───────────────────────────────────────────
+test("playerName defaults to empty string", () => {
+  const data = Storage.defaults();
+  assert.strictEqual(data.playerName, "");
+  const loaded = Storage.load(fakeStore());
+  assert.strictEqual(loaded.playerName, "");
+});
+
+test("setPlayerName persists a valid name", () => {
+  const s = fakeStore();
+  Storage.setPlayerName(s, "Grandpa");
+  assert.strictEqual(Storage.load(s).playerName, "Grandpa");
+});
+
+test("setPlayerName trims surrounding whitespace", () => {
+  const s = fakeStore();
+  Storage.setPlayerName(s, "   Sarah   ");
+  assert.strictEqual(Storage.load(s).playerName, "Sarah");
+});
+
+test("setPlayerName caps length at 24 characters", () => {
+  const s = fakeStore();
+  const longName = "A".repeat(50);
+  Storage.setPlayerName(s, longName);
+  const loaded = Storage.load(s);
+  assert.strictEqual(loaded.playerName.length, 24);
+  assert.strictEqual(loaded.playerName, "A".repeat(24));
+});
+
+test("setPlayerName strips ASCII control characters", () => {
+  const s = fakeStore();
+  // Mix in NUL, BEL, BACKSPACE, ESC, and DEL among normal letters.
+  const dirty = "Hi\x00\x07\x08there\x1B\x7F";
+  Storage.setPlayerName(s, dirty);
+  assert.strictEqual(Storage.load(s).playerName, "Hithere");
+});
+
+test("setPlayerName accepts emoji up to the length cap", () => {
+  const s = fakeStore();
+  // Note: JS .length counts UTF-16 code units, so a single emoji is 2 units.
+  Storage.setPlayerName(s, "Grandpa \u{1F60E}");  // smiling face with sunglasses
+  const loaded = Storage.load(s);
+  assert.strictEqual(loaded.playerName, "Grandpa \u{1F60E}");
+  assert.ok(loaded.playerName.length <= 24);
+});
+
+test("setPlayerName ignores non-string arguments (no-op)", () => {
+  const s = fakeStore();
+  Storage.setPlayerName(s, "Original");
+  for (const bad of [null, undefined, 123, true, [], {}]) {
+    Storage.setPlayerName(s, bad);
+  }
+  assert.strictEqual(Storage.load(s).playerName, "Original");
+});
+
+test("load rejects malformed playerName values and falls back to empty string", () => {
+  const malformed = [null, undefined, 0, 1, true, false, [], {}, 42];
+  for (const bad of malformed) {
+    const s = fakeStore();
+    s.setItem("heritageHeroes.save", JSON.stringify({ playerName: bad }));
+    const loaded = Storage.load(s);
+    assert.strictEqual(loaded.playerName, "",
+      `malformed playerName ${JSON.stringify(bad)} should default to ""`);
+  }
+});
+
+test("load truncates overly-long playerName from a hand-edited save", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ playerName: "X".repeat(200) }));
+  const loaded = Storage.load(s);
+  assert.strictEqual(loaded.playerName.length, 24);
+  assert.strictEqual(loaded.playerName, "X".repeat(24));
+});
+
+test("load sanitizes playerName from a corrupt save (trim + strip controls)", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ playerName: "  Bad\x00Name  " }));
+  const loaded = Storage.load(s);
+  assert.strictEqual(loaded.playerName, "BadName");
+});
+
+test("playerName round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.playerName = "Esther";
+  Storage.save(s, data);
+  assert.strictEqual(Storage.load(s).playerName, "Esther");
+});
+
+test("setPlayerName accepts an empty string (clearing the name)", () => {
+  const s = fakeStore();
+  Storage.setPlayerName(s, "Grandpa");
+  Storage.setPlayerName(s, "");
+  assert.strictEqual(Storage.load(s).playerName, "");
+});
+
+test("setPlayerName preserves other save fields", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.arcade.moses = 5;
+  data.tutorialSeen = true;
+  Storage.save(s, data);
+  Storage.setPlayerName(s, "Sarah");
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.playerName, "Sarah");
+  assert.strictEqual(reloaded.arcade.moses, 5);
+  assert.strictEqual(reloaded.tutorialSeen, true);
+});

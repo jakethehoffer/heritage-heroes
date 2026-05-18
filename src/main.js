@@ -570,6 +570,15 @@ var Main = (function () {
         handleAction("set-volume", t, ev);
       }
     });
+    // Text inputs (e.g. the optional player-name field in Settings) use the
+    // `change` event so we persist on blur rather than spamming localStorage
+    // on every keystroke. Parallel to the `input` listener above.
+    document.addEventListener("change", function (ev) {
+      const t = ev.target;
+      if (t && t.dataset && t.dataset.action === "set-player-name") {
+        handleAction("set-player-name", t, ev);
+      }
+    });
     render();
     registerServiceWorker();
   }
@@ -974,6 +983,25 @@ var Main = (function () {
         Storage.save(getStore(), state.save);
         render();
         return;
+
+      case "set-player-name": {
+        const store = getStore();
+        const raw = (target && typeof target.value === "string") ? target.value : "";
+        const trimmed = raw.substring(0, 24);
+        if (store) {
+          Storage.setPlayerName(store, trimmed);
+          state.save = Storage.load(store);
+        } else {
+          // In-memory only: replicate the sanitization the helper applies.
+          let cleaned = trimmed.trim().replace(/[\x00-\x1F\x7F]/g, "");
+          if (cleaned.length > 24) cleaned = cleaned.substring(0, 24);
+          state.save.playerName = cleaned;
+        }
+        // No re-render: settings stays visible and the input already shows
+        // the user's typing. The next render (when the user navigates away)
+        // will pick up the persisted value naturally.
+        return;
+      }
 
       case "set-volume": {
         const type = target.dataset.type;  // "master" | "music" | "sfx"

@@ -268,12 +268,17 @@ var Screens = (function () {
 </div>`;
     }
 
+    const playerName = (state.save && typeof state.save.playerName === "string") ? state.save.playerName : "";
+    const taglineHtml = playerName
+      ? `<p class="tagline">Welcome back, ${Render.escapeHtml(playerName)}!</p>`
+      : `<p class="tagline">A turn-based duel through history.</p>`;
+
     return `
 <section class="screen screen-title">
   ${sparkles}
   ${state.incomingChallenge ? renderChallengeBanner(state.incomingChallenge) : ""}
   <h1>Heritage Heroes</h1>
-  <p class="tagline">A turn-based duel through history.</p>
+  ${taglineHtml}
   ${featuredPanel}
   <div class="title-buttons">
     <button data-action="goto-mode">BEGIN</button>${continueButton}
@@ -3077,6 +3082,10 @@ ${recordsHtml || ""}
           </div>
         </li>`;
     }).join("");
+    const playerName = (state && state.save && typeof state.save.playerName === "string") ? state.save.playerName : "";
+    const subtitle = playerName
+      ? `Welcome back, ${Render.escapeHtml(playerName)}! Here's what's new since you last played:`
+      : `Welcome back! Here's what's new since you last played:`;
     return `
 <div class="overlay">
   <div class="overlay-card whats-new-card">
@@ -3084,7 +3093,7 @@ ${recordsHtml || ""}
       <span class="whats-new-badge">NEW</span>
       <h3>${Render.escapeHtml(latest.title || "")}</h3>
     </div>
-    <p class="whats-new-subtitle">Welcome back! Here's what's new since you last played:</p>
+    <p class="whats-new-subtitle">${subtitle}</p>
     <ul class="whats-new-list">${changesHtml}</ul>
     <div class="overlay-buttons">
       <button data-action="dismiss-whats-new">Got it!</button>
@@ -4377,9 +4386,21 @@ ${recordsHtml || ""}
     const masterVol = (state.save && Number.isInteger(state.save.masterVolume)) ? state.save.masterVolume : 100;
     const musicVol  = (state.save && Number.isInteger(state.save.musicVolume))  ? state.save.musicVolume  : 100;
     const sfxVol    = (state.save && Number.isInteger(state.save.sfxVolume))    ? state.save.sfxVolume    : 100;
+    const playerName = (state.save && typeof state.save.playerName === "string") ? state.save.playerName : "";
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
+
+  <div class="settings-group">
+    <h3>Your name</h3>
+    <p class="settings-help">Optional &mdash; appears in greetings and on your shareable result cards.</p>
+    <input type="text" class="settings-name-input"
+           data-action="set-player-name"
+           maxlength="24"
+           value="${Render.escapeHtml(playerName)}"
+           placeholder="e.g. Grandpa, Sarah, etc."
+           aria-label="Your display name" />
+  </div>
 
   <div class="settings-group">
     <h3>Music</h3>
@@ -5082,6 +5103,13 @@ ${recordsHtml || ""}
 
     const escape = (s) => Render.escapeXml(s);
 
+    // Optional player attribution — appears below the branding when the
+    // player has set a display name in Settings.
+    const playerName = (state && state.save && typeof state.save.playerName === "string") ? state.save.playerName : "";
+    const playerLine = playerName
+      ? `<text x="${W / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="#1a2a4f" opacity="0.6" font-style="italic">Played by ${escape(playerName)}</text>`
+      : "";
+
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Georgia, serif">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -5139,6 +5167,7 @@ ${recordsHtml || ""}
   <text x="${W / 2}" y="${H - 30}" text-anchor="middle" font-size="14" fill="#1a2a4f" opacity="0.7" font-style="italic">
     Heritage Heroes
   </text>
+  ${playerLine}
 </svg>`;
   }
 
