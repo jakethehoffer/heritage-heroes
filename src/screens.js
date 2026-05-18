@@ -209,6 +209,57 @@ var Screens = (function () {
 </section>`;
   }
 
+  // Build the compact Spotlight Stats block for a hero card.
+  // Returns a `<div class="hero-stats">…</div>` HTML string.
+  //
+  // Always shown when nonzero:
+  //   🏆 W/L: X-Y (Z%) — when played > 0
+  //   ★ MASTERED      — when save.mastered[heroId] is true
+  // Mode-specific:
+  //   endless  → 🔥 Best run: N      when endlessHighScore[heroId] > 0
+  //   arcade   → 👑 Arcade wins: N   when arcade[heroId] > 0
+  // Empty-state: no data at all → "✨ New — never played" (italic muted)
+  //
+  // Safe-default everything: any missing object/field is treated as 0/false.
+  function _heroSpotlightStats(save, heroId, mode) {
+    const s = save || {};
+    const ph = (s.stats && s.stats.perHero && s.stats.perHero[heroId])
+      ? s.stats.perHero[heroId]
+      : { played: 0, won: 0, triviaCorrect: 0, triviaTotal: 0 };
+    const played = Number.isInteger(ph.played) ? ph.played : 0;
+    const won = Number.isInteger(ph.won) ? ph.won : 0;
+    const isMastered = !!(s.mastered && s.mastered[heroId]);
+    const endlessBest = (s.endlessHighScore && Number.isInteger(s.endlessHighScore[heroId]))
+      ? s.endlessHighScore[heroId] : 0;
+    const arcadeWins = (s.arcade && Number.isInteger(s.arcade[heroId]))
+      ? s.arcade[heroId] : 0;
+
+    const chips = [];
+
+    if (played > 0) {
+      const losses = Math.max(0, played - won);
+      const pct = Math.round((won / played) * 100);
+      chips.push(`<span class="hero-stat">&#x1F3C6; ${won}-${losses} (${pct}%)</span>`);
+    }
+
+    if (isMastered) {
+      chips.push(`<span class="hero-stat">&#x2605; MASTERED</span>`);
+    }
+
+    if (mode === "endless" && endlessBest > 0) {
+      chips.push(`<span class="hero-stat">&#x1F525; Best run: ${endlessBest}</span>`);
+    }
+
+    if (mode === "arcade" && arcadeWins > 0) {
+      chips.push(`<span class="hero-stat">&#x1F451; Arcade wins: ${arcadeWins}</span>`);
+    }
+
+    if (chips.length === 0) {
+      return `<div class="hero-stats empty"><span class="hero-stat-empty">&#x2728; New &mdash; never played</span></div>`;
+    }
+    return `<div class="hero-stats">${chips.join("")}</div>`;
+  }
+
   function renderCharSelect(state) {
     const heading = state.mode === "arcade"
       ? "Pick your hero for the Arcade Ladder"
@@ -227,6 +278,7 @@ var Screens = (function () {
     const cards = Heroes.list.map(h => {
       const specialLine = `<strong>${Render.escapeHtml(h.moves.special.name)}</strong> — Special: ${Render.escapeHtml(h.moves.special.description)}`;
       const masteredStar = (state.mode === "study" && mastered[h.id]) ? "&#x1F31F; " : "";
+      const spotlight = _heroSpotlightStats(state.save, h.id, state.mode);
       return `
       <div class="hero-card-wrap">
         <button class="hero-card" data-action="pick-hero" data-hero="${h.id}">
@@ -235,6 +287,7 @@ var Screens = (function () {
             <h3>${masteredStar}${Render.escapeHtml(h.name)}</h3>
             <span class="era">${Render.escapeHtml(h.era)}</span>
             <p class="bio">${Render.escapeHtml(h.bio)}</p>
+            ${spotlight}
             <ul class="moves">
               <li><strong>${Render.escapeHtml(h.moves.attack.name)}</strong> — Basic Attack (${h.moves.attack.damage})</li>
               <li><strong>${Render.escapeHtml(h.moves.defend.name)}</strong> — Defend (halves next hit)</li>
@@ -3951,7 +4004,8 @@ ${recordsHtml || ""}
     animateAction, flashHit, showDamageNumber, playAttackFx, playDefendFx,
     showCallout, playSpecialFx, playChargeFx,
     queueAchievementToast, showAchievementToast, showToast,
-    ACHIEVEMENT_LIST
+    ACHIEVEMENT_LIST,
+    _heroSpotlightStats  // exported for tests
   };
 })();
 
