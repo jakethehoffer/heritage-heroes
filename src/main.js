@@ -1,4 +1,27 @@
 var Main = (function () {
+  // ── Game version & changelog ──────────────────────────────────────────────
+  // Bump GAME_VERSION when appending a new entry to CHANGELOG. Returning
+  // players whose save.lastSeenVersion < GAME_VERSION will see the latest
+  // CHANGELOG entry once in the "What's New" overlay. Brand-new players
+  // (no matches played) are quietly bumped to the current version and skip
+  // the overlay.
+  const GAME_VERSION = 1;
+  const CHANGELOG = [
+    {
+      version: 1,
+      title: "v1 — The Polish Update",
+      date: "2026-05-17",
+      changes: [
+        { icon: "🎲", title: "Quick Play",            description: "One-click random match from the title screen — pick your moment to just play." },
+        { icon: "⚔️", title: "VS Intro Screen",       description: "Every match opens with an animated fighter intro before the battle begins." },
+        { icon: "🎉", title: "Confetti Celebrations", description: "Personal bests and tournament wins now get the celebration they deserve." },
+        { icon: "🧠", title: "Heritage Quiz",         description: "New survival trivia mode — answer questions from all 7 heroes; one wrong ends the run." },
+        { icon: "📅", title: "Daily Streak Calendar", description: "See your daily challenge consistency as a 5-week visual grid in Stats." },
+        { icon: "⭐", title: "Hero Spotlight Stats",   description: "Character select now shows your W/L record, mastery, and best runs per hero." }
+      ]
+    }
+  ];
+
   // ── PWA install prompt capture ────────────────────────────────────────────
   // Capture beforeinstallprompt so the Settings page can show an "Install App"
   // button on browsers that support it (Chrome/Edge desktop & Android).
@@ -381,6 +404,22 @@ var Main = (function () {
     if (state.incomingChallenge && window.history && window.history.replaceState) {
       window.history.replaceState({}, "", window.location.pathname);
     }
+    // "What's New" overlay: show to returning players after a version bump.
+    // Skip if: (a) tutorial is showing for first-time users,
+    //          (b) an incoming URL challenge is queued (let them accept/dismiss first),
+    //          (c) the user is brand-new (no save / no matches) — they don't need to see
+    //              "what's new" since everything is new to them; quietly bump them instead.
+    if (state.save && (state.save.lastSeenVersion || 0) < GAME_VERSION) {
+      const stats = state.save.stats || {};
+      const isBrandNew = state.save.lastSeenVersion === 0
+        && (!stats.matchesPlayed || stats.matchesPlayed === 0);
+      if (isBrandNew) {
+        Storage.setLastSeenVersion(store, GAME_VERSION);
+        state.save.lastSeenVersion = GAME_VERSION;
+      } else if (!state.overlay && !state.incomingChallenge) {
+        state.overlay = "whats-new";
+      }
+    }
     document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKey);
     render();
@@ -393,6 +432,10 @@ var Main = (function () {
 
   function render() {
     const root = document.getElementById("root");
+
+    // Expose game version metadata to render-layer code (read by renderWhatsNew).
+    state.gameVersion = GAME_VERSION;
+    state.changelog = CHANGELOG;
 
     // Clear featured hero timer when leaving the title screen
     if (state.screen !== "title" && state.titleFeaturedTimer) {
@@ -468,6 +511,7 @@ var Main = (function () {
     if (state.overlay === "daily-already-done") overlay = Screens.renderDailyAlreadyDone(state);
     if (state.overlay === "pause")        overlay = Screens.renderPauseOverlay(state);
     if (state.overlay === "battle-log")   overlay = Screens.renderBattleLog(state);
+    if (state.overlay === "whats-new")    overlay = Screens.renderWhatsNew(state);
 
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
@@ -882,6 +926,19 @@ var Main = (function () {
         startQuiz();
         return;
 
+      case "dismiss-whats-new": {
+        const store = getStore();
+        if (store) {
+          Storage.setLastSeenVersion(store, GAME_VERSION);
+          state.save = Storage.load(store);
+        } else {
+          // Headless / no-storage path: at least keep in-memory save in sync.
+          if (state.save) state.save.lastSeenVersion = GAME_VERSION;
+        }
+        state.overlay = null;
+        render();
+        return;
+      }
       case "accept-challenge": acceptChallenge(); return;
       case "dismiss-challenge":
         state.incomingChallenge = null;

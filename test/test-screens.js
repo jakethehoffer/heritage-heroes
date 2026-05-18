@@ -363,3 +363,91 @@ test("renderTournamentResult: no confetti when a human was eliminated (no finalW
   assert.ok(!html.includes('class="confetti"'), "no confetti on elimination screen");
   assert.match(html, /Eliminated/);
 });
+
+// ── renderWhatsNew ───────────────────────────────────────────────────────
+
+function sampleChangelog() {
+  return [
+    {
+      version: 1,
+      title: "v1 — The Polish Update",
+      date: "2026-05-17",
+      changes: [
+        { icon: "X", title: "Old Feature", description: "Old description." }
+      ]
+    },
+    {
+      version: 2,
+      title: "v2 — The Sequel",
+      date: "2026-06-01",
+      changes: [
+        { icon: "Y", title: "Latest Feature", description: "Brand new thing." },
+        { icon: "Z", title: "Another Latest", description: "Also new." }
+      ]
+    }
+  ];
+}
+
+test("renderWhatsNew returns markup when state.changelog has at least one entry", () => {
+  const html = Screens.renderWhatsNew({ changelog: sampleChangelog() });
+  assert.notStrictEqual(html, "");
+  assert.match(html, /class="overlay"/);
+  assert.match(html, /whats-new-card/);
+});
+
+test("renderWhatsNew renders the LATEST changelog entry (last one in the array)", () => {
+  const html = Screens.renderWhatsNew({ changelog: sampleChangelog() });
+  // Latest entry's title appears
+  assert.match(html, /v2 &mdash; The Sequel|v2 — The Sequel/);
+  // Latest entry's change items appear
+  assert.match(html, /Latest Feature/);
+  assert.match(html, /Brand new thing\./);
+  assert.match(html, /Another Latest/);
+  // Older entry's content does NOT appear
+  assert.doesNotMatch(html, /Old Feature/);
+  assert.doesNotMatch(html, /Old description/);
+});
+
+test("renderWhatsNew returns empty string when state.changelog is missing", () => {
+  assert.strictEqual(Screens.renderWhatsNew({}), "");
+  assert.strictEqual(Screens.renderWhatsNew({ changelog: null }), "");
+  assert.strictEqual(Screens.renderWhatsNew({ changelog: undefined }), "");
+});
+
+test("renderWhatsNew returns empty string when state.changelog is empty", () => {
+  assert.strictEqual(Screens.renderWhatsNew({ changelog: [] }), "");
+});
+
+test("renderWhatsNew returns empty string when latest entry has no changes", () => {
+  const cl = [{ version: 1, title: "Empty", date: "2026-01-01", changes: [] }];
+  assert.strictEqual(Screens.renderWhatsNew({ changelog: cl }), "");
+});
+
+test("renderWhatsNew output contains the 'dismiss-whats-new' action button", () => {
+  const html = Screens.renderWhatsNew({ changelog: sampleChangelog() });
+  assert.match(html, /data-action="dismiss-whats-new"/);
+});
+
+test("renderWhatsNew shows the NEW badge and welcome subtitle", () => {
+  const html = Screens.renderWhatsNew({ changelog: sampleChangelog() });
+  assert.match(html, /whats-new-badge/);
+  assert.match(html, /NEW/);
+  assert.match(html, /Welcome back/);
+});
+
+test("renderWhatsNew escapes title and description text to prevent XSS", () => {
+  const cl = [{
+    version: 1, title: "Safe", date: "2026-01-01",
+    changes: [{ icon: "!", title: "<script>", description: "evil & <b>bold</b>" }]
+  }];
+  const html = Screens.renderWhatsNew({ changelog: cl });
+  // Raw script tag must not appear
+  assert.doesNotMatch(html, /<script>/);
+  // Ampersand should be escaped
+  assert.match(html, /&amp;/);
+});
+
+test("renderWhatsNew handles missing state argument gracefully (no throw)", () => {
+  assert.doesNotThrow(() => Screens.renderWhatsNew());
+  assert.strictEqual(Screens.renderWhatsNew(), "");
+});

@@ -508,6 +508,33 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
 .overlay-progress { margin-top: 16px; font-size: 13px; color: var(--ink); opacity: 0.6; text-align: center; }
 .help-list { list-style: disc inside; line-height: 1.7; margin-bottom: 20px; }
 
+/* ── "What's New" overlay ─────────────────────────────────────────────── */
+.whats-new-card { max-width: 540px; }
+.whats-new-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.whats-new-badge {
+  background: var(--terracotta); color: var(--cream);
+  padding: 2px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+}
+.whats-new-subtitle { color: var(--navy); opacity: 0.75; margin: 4px 0 16px; font-size: 14px; }
+.whats-new-list { list-style: none; padding: 0; margin: 0 0 16px; }
+.whats-new-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(26, 42, 79, 0.08);
+}
+.whats-new-item:last-child { border-bottom: none; }
+.whats-new-icon { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.whats-new-text strong { display: block; font-size: 15px; color: var(--navy); margin-bottom: 2px; }
+.whats-new-text p { font-size: 13px; color: var(--ink); opacity: 0.85; margin: 0; line-height: 1.4; }
+
+@media (max-width: 600px) {
+  .whats-new-card { max-width: 95%; }
+  .whats-new-icon { font-size: 20px; }
+  .whats-new-text strong { font-size: 14px; }
+  .whats-new-text p { font-size: 12px; }
+}
+
 .help-button {
   position: fixed;
   top: 16px; right: 16px;

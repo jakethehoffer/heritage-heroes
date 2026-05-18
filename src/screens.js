@@ -2492,6 +2492,44 @@ ${recordsHtml || ""}
     return `<button class="help-button" data-action="show-help" title="How to Play">?</button>`;
   }
 
+  // ── "What's New" overlay ──────────────────────────────────────────────────
+  // Reads state.changelog (provided by main.js) and renders the LATEST entry
+  // (last item in the array) as a celebratory list. Returns "" when the
+  // changelog is missing or empty so callers can safely concatenate the result.
+  function renderWhatsNew(state) {
+    const cl = (state && Array.isArray(state.changelog)) ? state.changelog : [];
+    if (cl.length === 0) return "";
+    const latest = cl[cl.length - 1];
+    if (!latest || !Array.isArray(latest.changes) || latest.changes.length === 0) return "";
+    const changesHtml = latest.changes.map(function (c) {
+      const icon = c && c.icon ? c.icon : "";
+      const title = c && c.title ? c.title : "";
+      const desc = c && c.description ? c.description : "";
+      return `
+        <li class="whats-new-item">
+          <span class="whats-new-icon">${icon}</span>
+          <div class="whats-new-text">
+            <strong>${Render.escapeHtml(title)}</strong>
+            <p>${Render.escapeHtml(desc)}</p>
+          </div>
+        </li>`;
+    }).join("");
+    return `
+<div class="overlay">
+  <div class="overlay-card whats-new-card">
+    <div class="whats-new-header">
+      <span class="whats-new-badge">NEW</span>
+      <h3>${Render.escapeHtml(latest.title || "")}</h3>
+    </div>
+    <p class="whats-new-subtitle">Welcome back! Here's what's new since you last played:</p>
+    <ul class="whats-new-list">${changesHtml}</ul>
+    <div class="overlay-buttons">
+      <button data-action="dismiss-whats-new">Got it!</button>
+    </div>
+  </div>
+</div>`;
+  }
+
   function renderQuitConfirm(state) {
     // In arcade, "pick new heroes" restarts the ladder; in quick, it returns to char select.
     const charSelectLabel = state.mode === "arcade" ? "Pick a different hero" : "Pick new heroes";
@@ -4067,6 +4105,7 @@ ${recordsHtml || ""}
     renderPauseOverlay, renderBattleLog,
     renderHistory, renderMatchDetail,
     renderDailyAlreadyDone,
+    renderWhatsNew,
     renderTimeline,
     renderTournamentSetup, renderTournamentBracket, renderTournamentResult,
     renderTrophyRoom,

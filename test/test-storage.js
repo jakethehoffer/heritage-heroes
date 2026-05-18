@@ -995,3 +995,89 @@ test("unlockAchievement sets quizStreak5 and leaves others unchanged", () => {
   assert.strictEqual(data.achievements.quizStreak20, false);
   assert.strictEqual(data.achievements.firstWin,     false);
 });
+
+// ── lastSeenVersion / setLastSeenVersion ─────────────────────────────────
+
+test("lastSeenVersion defaults to 0", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.lastSeenVersion, 0);
+});
+
+test("defaults() exposes lastSeenVersion=0", () => {
+  const d = Storage.defaults();
+  assert.strictEqual(d.lastSeenVersion, 0);
+});
+
+test("setLastSeenVersion writes the value and persists across reload", () => {
+  const s = fakeStore();
+  Storage.setLastSeenVersion(s, 3);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.lastSeenVersion, 3);
+});
+
+test("setLastSeenVersion can be called repeatedly (idempotent for same value)", () => {
+  const s = fakeStore();
+  Storage.setLastSeenVersion(s, 2);
+  Storage.setLastSeenVersion(s, 2);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.lastSeenVersion, 2);
+});
+
+test("setLastSeenVersion preserves other save fields", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.arcade.moses = 5;
+  data.quizBestStreak = 9;
+  Storage.save(s, data);
+  Storage.setLastSeenVersion(s, 4);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.lastSeenVersion, 4);
+  assert.strictEqual(reloaded.arcade.moses, 5);
+  assert.strictEqual(reloaded.quizBestStreak, 9);
+});
+
+test("load handles missing lastSeenVersion gracefully (defaults to 0)", () => {
+  const s = fakeStore();
+  // Persist a save object missing lastSeenVersion entirely
+  const partial = Storage.defaults();
+  delete partial.lastSeenVersion;
+  s.setItem("heritageHeroes.save", JSON.stringify(partial));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSeenVersion, 0);
+});
+
+test("load rejects malformed lastSeenVersion (string) -> defaults to 0", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSeenVersion = "5";
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSeenVersion, 0);
+});
+
+test("load rejects malformed lastSeenVersion (null) -> defaults to 0", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSeenVersion = null;
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSeenVersion, 0);
+});
+
+test("load rejects malformed lastSeenVersion (-1) -> defaults to 0", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSeenVersion = -1;
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSeenVersion, 0);
+});
+
+test("load rejects malformed lastSeenVersion (float 2.5) -> defaults to 0", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSeenVersion = 2.5;
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSeenVersion, 0);
+});

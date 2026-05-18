@@ -58,6 +58,7 @@ var Storage = (function () {
       },
       tournamentsWon: 0,
       quizBestStreak: 0,
+      lastSeenVersion: 0,  // bumped by user dismissing the What's New overlay
       recentMatches: [],  // ring buffer; newest first, max 10 entries
       daily: {
         completedDates: [],     // array of ISO date strings, sorted oldest-first
@@ -164,6 +165,9 @@ var Storage = (function () {
         }
         if (Number.isInteger(parsed.quizBestStreak) && parsed.quizBestStreak >= 0) {
           out.quizBestStreak = parsed.quizBestStreak;
+        }
+        if (Number.isInteger(parsed.lastSeenVersion) && parsed.lastSeenVersion >= 0) {
+          out.lastSeenVersion = parsed.lastSeenVersion;
         }
         // matchups — validate key format and integer fields
         if (parsed.matchups && typeof parsed.matchups === "object" && !Array.isArray(parsed.matchups)) {
@@ -428,6 +432,14 @@ var Storage = (function () {
     return data;
   }
 
+  // Persist the highest game version this user has acknowledged via the
+  // What's New overlay. Idempotent; safe to call with the current value.
+  function setLastSeenVersion(store, version) {
+    const data = load(store);
+    data.lastSeenVersion = version;
+    save(store, data);
+  }
+
   // Record a per-matchup result. playerHeroId is slot 0's hero; opponentHeroId is slot 1's hero.
   // won is a boolean: true if player (slot 0) won.
   function recordMatchup(store, playerHeroId, opponentHeroId, won) {
@@ -446,7 +458,7 @@ var Storage = (function () {
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, recordQuizRun, resetAll,
            recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
-           recordTournamentWin, recordMatchup };
+           recordTournamentWin, recordMatchup, setLastSeenVersion };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;
