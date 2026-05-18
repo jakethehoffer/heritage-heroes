@@ -376,6 +376,10 @@ var Screens = (function () {
       <h3>Heritage Quiz</h3>
       <p>Answer questions from all 7 heroes. One wrong answer ends your run. How far can you go?</p>
     </button>
+    <button data-action="start-practice" class="mode-card">
+      <h3>Practice</h3>
+      <p>Pick any matchup and just play. Nothing tracked &mdash; no stats, no achievements, no quests. Just learn the heroes.</p>
+    </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
 </section>`;
@@ -461,6 +465,8 @@ var Screens = (function () {
       ? `Player ${state.selecting}, pick your hero for the Tournament`
       : state.mode === "spectator"
       ? (state.selecting === 1 ? "Spectator: pick Hero A" : "Spectator: pick Hero B")
+      : state.mode === "practice"
+      ? (state.selecting === 1 ? "Practice — pick Hero 1" : "Practice — pick Hero 2")
       : (state.selecting === 1 ? "Player 1, pick your hero" : "Player 2, pick your hero");
 
     const mastered = state.save && state.save.mastered ? state.save.mastered : {};
@@ -611,6 +617,13 @@ var Screens = (function () {
       ? renderArcadeRoadmap(state, "compact")
       : "";
 
+    // Practice mode reminder chip — sits above the HP bars so it's always in
+    // view during the match. Tracking is suppressed for every recording site
+    // in main.js; this badge is the on-screen confirmation.
+    const practiceBadge = state.mode === "practice"
+      ? `<div class="practice-badge">PRACTICE &mdash; nothing tracked</div>`
+      : "";
+
     // Strategy hint banner: only on human turns, only when hints not disabled,
     // never while the active player is mid-charge (one-button state). Picks
     // the highest-priority hint via `battleStrategyHint`.
@@ -637,7 +650,7 @@ var Screens = (function () {
 
     return `
 <section class="screen screen-battle">
-  ${arcadeRoadmapBanner}${hintBanner}
+  ${arcadeRoadmapBanner}${practiceBadge}${hintBanner}
   <div class="hp-bars">
     <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: label0, side: "left", rawLabel: true })}</div>
     <div class="vs-label">vs</div>
@@ -878,6 +891,23 @@ ${recordsHtml || ""}
     // h0/h1 always reflect slot order (for specials count display)
     const h0 = Heroes.byId(match.players[0].heroId);
     const h1 = Heroes.byId(match.players[1].heroId);
+
+    // Practice mode: stripped-down result screen. No recap, no Personal
+    // Records, no Did You Know, no share button — nothing was recorded so
+    // there's nothing to celebrate or compare against.
+    if (state.mode === "practice") {
+      return `
+<section class="screen screen-result screen-result-practice">
+  <h2>${Render.escapeHtml(winnerHero.name)} wins!</h2>
+  <p class="tagline">${Render.escapeHtml(winnerHero.name)} defeats ${Render.escapeHtml(loserHero.name)}.</p>
+  <p class="practice-note">Practice match &mdash; nothing was recorded.</p>
+  <div class="result-buttons">
+    <button data-action="rematch">Rematch (same heroes)</button>
+    <button data-action="practice-pick-new" class="secondary">Different Matchup</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+    }
 
     if (state.mode === "arcade") {
       const playerHeroId = state.arcade.playerHeroId;

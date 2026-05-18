@@ -381,6 +381,10 @@ var Main = (function () {
   function _applyQuestEvent(eventType, eventData) {
     const store = getStore();
     if (!store) return;
+    // Practice mode is a consequence-free sandbox: never count toward quests.
+    // Defense-in-depth — most callers already gate, but a missed callsite here
+    // would silently leak progress, so guard at the entry point too.
+    if (isPracticeMode()) return;
     const result = Storage.recordQuestProgress(store, eventType, eventData);
     if (result && result.newlyCompleted && result.newlyCompleted.length > 0) {
       state.save = Storage.load(store);
@@ -402,6 +406,9 @@ var Main = (function () {
   function applyAchievements(keys) {
     const store = getStore();
     if (!store) return;
+    // Practice mode: no achievement unlocks. Defense-in-depth so a missed
+    // caller can't silently grant achievements during a sandbox match.
+    if (isPracticeMode()) return;
     for (const key of keys) {
       Storage.unlockAchievement(store, key);
       state.save.achievements[key] = Date.now();
@@ -887,14 +894,20 @@ var Main = (function () {
           }
         }
 
-        // Record trivia stat and update streak
+        // Record trivia stat and update streak — Practice mode skips all
+        // persistence (no trivia stats, no quest progress, no achievement
+        // unlocks). The in-memory streak/SFX still play so the gameplay
+        // feels identical.
         const tStore = getStore();
-        if (tStore) {
+        if (tStore && !isPracticeMode()) {
           Storage.recordTrivia(tStore, state.trivia.heroId, isCorrect);
           state.save = Storage.load(tStore);
         }
-        // Daily quest progress for trivia answers (any mode).
-        _applyQuestEvent("triviaAnswer", { wasCorrect: isCorrect });
+        // Daily quest progress for trivia answers (any mode). Practice mode is
+        // a consequence-free sandbox — nothing counts toward quests.
+        if (!isPracticeMode()) {
+          _applyQuestEvent("triviaAnswer", { wasCorrect: isCorrect });
+        }
         if (isCorrect) {
           state.triviaStreak += 1;
           Sfx.play("triviaCorrect");
@@ -903,9 +916,11 @@ var Main = (function () {
           Sfx.play("triviaWrong");
         }
 
-        // Check achievements after trivia
-        const triviaAch = checkAchievements();
-        applyAchievements(triviaAch);
+        // Check achievements after trivia (skip in Practice — no unlocks).
+        if (!isPracticeMode()) {
+          const triviaAch = checkAchievements();
+          applyAchievements(triviaAch);
+        }
 
         render();
         return;
@@ -940,6 +955,8 @@ var Main = (function () {
       }
 
       case "start-spectator": startSpectator(); return;
+      case "start-practice": startPractice(); return;
+      case "practice-pick-new": startPractice(); return;
       case "start-tournament": startTournament(); return;
       case "tournament-set-humans": tournamentSetHumans(parseInt(target.dataset.humans, 10)); return;
       case "begin-tournament": beginTournament(); return;
@@ -1438,6 +1455,28 @@ var Main = (function () {
     render();
   }
 
+  // Practice Mode: consequence-free sandbox. Player picks BOTH heroes (slot 1
+  // and slot 2), then a stage. Nothing is recorded — no stats, no
+  // achievements, no quests, no matchup history, no last-session. The match
+  // itself plays out identically to other modes (same combat, AI, trivia,
+  // animations) — only the persistence is suppressed. See `isPracticeMode`
+  // and the gates throughout main.js.
+  function startPractice() {
+    state.mode = "practice";
+    // Both slots are "human" so the player picks both heroes themselves
+    // (matches the existing two-human flow for Spectator-like dual-pick).
+    state.controllers = ["human", "human"];
+    state.selecting = 1;
+    state.picks = { 1: null, 2: null };
+    state.screen = "charselect";
+    render();
+  }
+
+  // Single source of truth for the "skip every recording site" gate.
+  function isPracticeMode() {
+    return state.mode === "practice";
+  }
+
   function beginTournament() {
     const t = state.tournament;
     t.currentMatch = "semi1";
@@ -1561,6 +1600,21 @@ var Main = (function () {
       // Spectator: skip the VS intro (user just wants to watch). Schedule the
       // first AI move (both controllers are AI).
       goToBattle({ aiFirstStep: state.controllers[0] === "ai", skipIntro: true });
+      return;
+    }
+
+    if (state.mode === "practice") {
+      if (state.selecting === 1) {
+        state.selecting = 2;
+        render();
+        return;
+      }
+      // Both picked — route to stage select before starting the match.
+      // pickStage is mode-agnostic and will create the match from
+      // state.picks[1]/[2] + the chosen stage.
+      state.selectedStageId = null;
+      state.screen = "stage-select";
+      render();
       return;
     }
 
@@ -1958,6 +2012,18 @@ var Main = (function () {
     // Skip the VICTORY/DEFEAT splash for spectator (just watching, no ceremony needed).
     if (state.mode === "spectator") {
       goToResult({ skipSplash: true });
+      return;
+    }
+
+    // Practice mode: consequence-free sandbox. No stats, no achievements,
+    // no matchup recording, no quest progress, no last-session, no
+    // confetti/personal-best detection. Still show the VICTORY/DEFEAT splash
+    // so the human-vs-human ceremony plays — match-end-splash naturally
+    // handles ["human","human"] with the PLAYER 1/2 WINS title.
+    if (isPracticeMode()) {
+      // Reset per-match low-HP flags for next match (in-memory only).
+      state.currentMatchLowHp = { 0: false, 1: false };
+      goToResult();
       return;
     }
 

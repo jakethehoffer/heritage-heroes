@@ -1446,3 +1446,80 @@ test("renderBattle does NOT include hint banner when no tactical hint applies", 
   const html = Screens.renderBattle(state);
   assert.doesNotMatch(html, /battle-hint-banner/);
 });
+
+// ── Practice Mode ─────────────────────────────────────────────────────────
+
+test("renderModeSelect includes the Practice mode card", () => {
+  const html = Screens.renderModeSelect({ save: freshSave() });
+  assert.match(html, /<h3>Practice<\/h3>/);
+  assert.match(html, /Nothing tracked/);
+});
+
+test("renderModeSelect Practice card uses data-action=\"start-practice\"", () => {
+  const html = Screens.renderModeSelect({ save: freshSave() });
+  assert.match(html, /data-action="start-practice"/);
+});
+
+test("renderCharSelect heading says \"Practice — pick Hero 1\" when state.mode is practice and selecting is 1", () => {
+  const html = Screens.renderCharSelect({ mode: "practice", selecting: 1, save: freshSave() });
+  assert.match(html, /Practice &mdash; pick Hero 1|Practice — pick Hero 1/);
+});
+
+test("renderCharSelect heading says \"Practice — pick Hero 2\" when state.mode is practice and selecting is 2", () => {
+  const html = Screens.renderCharSelect({ mode: "practice", selecting: 2, save: freshSave() });
+  assert.match(html, /Practice &mdash; pick Hero 2|Practice — pick Hero 2/);
+});
+
+test("renderBattle shows .practice-badge when state.mode is practice", () => {
+  const state = _battleState({ mode: "practice", controllers: ["human", "human"] });
+  const html = Screens.renderBattle(state);
+  assert.match(html, /class="practice-badge"/);
+  assert.match(html, /PRACTICE/);
+  assert.match(html, /nothing tracked/);
+});
+
+test("renderBattle does NOT show .practice-badge in other modes", () => {
+  for (const mode of ["quick", "arcade", "endless", "daily", "tournament", "spectator", "study"]) {
+    const state = _battleState({ mode });
+    const html = Screens.renderBattle(state);
+    assert.doesNotMatch(html, /class="practice-badge"/, `mode "${mode}" must not show practice-badge`);
+  }
+});
+
+test("renderResult returns the Practice-specific variant when state.mode is practice", () => {
+  const match = Combat.createMatch("moses", "david");
+  match.winner = 0;  // moses wins
+  const state = {
+    mode: "practice",
+    controllers: ["human", "human"],
+    match,
+    save: freshSave(),
+    matchStats: null
+  };
+  const html = Screens.renderResult(state);
+  assert.match(html, /screen-result-practice/);
+  assert.match(html, /Practice match/);
+  assert.match(html, /nothing was recorded/);
+  // No recap blocks / personal records / DYK / share button.
+  assert.doesNotMatch(html, /match-summary/);
+  assert.doesNotMatch(html, /match-records/);
+  assert.doesNotMatch(html, /did-you-know/);
+  assert.doesNotMatch(html, /share-btn/);
+});
+
+test("renderResult Practice variant exposes the practice-pick-new action", () => {
+  const match = Combat.createMatch("esther", "judah");
+  match.winner = 1;  // judah wins
+  const state = {
+    mode: "practice",
+    controllers: ["human", "human"],
+    match,
+    save: freshSave(),
+    matchStats: null
+  };
+  const html = Screens.renderResult(state);
+  assert.match(html, /data-action="practice-pick-new"/);
+  // Rematch and Main Menu are still available.
+  assert.match(html, /data-action="rematch"/);
+  assert.match(html, /data-action="goto-title"/);
+});

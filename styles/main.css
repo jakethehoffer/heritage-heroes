@@ -5384,3 +5384,35 @@ body.text-xlarge .tagline                        { font-size: 23px; }
 body.text-xlarge .achievement-toast .toast-title { font-size: 17px; }
 body.text-xlarge .achievement-toast .toast-desc  { font-size: 15px; }
 body.text-xlarge .overlay-card p                 { font-size: 17px; }
+
+/* ── Practice Mode ─────────────────────────────────────────────────────────
+   Battle-screen chip + result-screen note. Practice is a consequence-free
+   sandbox; these surfaces remind the player nothing is being recorded. */
+.practice-badge {
+  display: inline-block;
+  margin: 0 auto 10px;
+  padding: 4px 12px;
+  background: rgba(193, 70, 45, 0.15);
+  border: 2px solid var(--terracotta);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--terracotta);
+  text-transform: uppercase;
+}
+
+.practice-note {
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  opacity: 0.7;
+  margin: 8px 0 16px;
+}
+
+body.theme-high-contrast .practice-badge {
+  background: rgba(255, 122, 89, 0.15);
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
