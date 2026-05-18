@@ -1070,6 +1070,46 @@ ${recordsHtml || ""}
     einstein: "E=mc² charges in 1 turn instead of 2"
   };
 
+  // ── Canonical hero rivalries / matchup flavor tags ──────────────────────
+  // Brief thematic characterizations for specific hero pairings — NOT
+  // historical claims. Surfaced as quiet flavor on the VS Intro and Hero
+  // Compare screens. Symmetric: RIVALRIES[a][b] === RIVALRIES[b][a] via the
+  // dual-lookup in _rivalryFor below. Pairs not listed return null (most
+  // matchups don't need a tag — selectivity is the point).
+  const RIVALRIES = {
+    // Warriors of Israel — both literal military leaders
+    "david|judah":     { tag: "Warriors of Israel",        icon: "⚔️" },
+    // Royal women across millennia
+    "esther|golda":    { tag: "Queens of their people",    icon: "\u{1F451}" },
+    // Lawgiver vs Psalmist — the foundations of Jewish text
+    "moses|david":     { tag: "Lawgiver meets Psalmist",   icon: "\u{1F4DC}" },
+    // Two giants of Jewish thought — separated by 700 years
+    "rambam|einstein": { tag: "Giants of Jewish thought",  icon: "\u{1F4AD}" },
+    // Founders and defenders of the Jewish nation
+    "moses|golda":     { tag: "Builders of the nation",    icon: "\u{1F3DB}️" },
+    // Ancient law meets modern physics — bookends of Jewish wisdom
+    "moses|einstein":  { tag: "Ancient and modern minds",  icon: "✨" },
+    // Two defenders of Jewish sovereignty — millennia apart
+    "judah|golda":     { tag: "Defenders of sovereignty",  icon: "\u{1F6E1}️" },
+    // Royalty in exile — both navigated diaspora politics
+    "esther|rambam":   { tag: "Wisdom in exile",           icon: "\u{1F319}" },
+    // Both led their people in moments of existential threat
+    "moses|judah":     { tag: "Liberators of Israel",      icon: "\u{1F525}" },
+    // Two leaders of ancient Israelite royalty
+    "david|esther":    { tag: "Royal lineage",             icon: "\u{1F451}" }
+  };
+
+  // Returns { tag, icon } | null for the matchup. Symmetric in argument order
+  // (handles both "a|b" and "b|a" key orderings). Returns null for mirror
+  // matches (heroA === heroB), invalid ids, and unlisted pairings.
+  function _rivalryFor(heroIdA, heroIdB) {
+    if (typeof heroIdA !== "string" || typeof heroIdB !== "string") return null;
+    if (heroIdA === heroIdB) return null;  // mirror matches don't get rivalries
+    const k1 = heroIdA + "|" + heroIdB;
+    const k2 = heroIdB + "|" + heroIdA;
+    return RIVALRIES[k1] || RIVALRIES[k2] || null;
+  }
+
   // ── VS Intro screen ──────────────────────────────────────────────────────
   // Brief pre-battle fighter intro: hero portraits swoop in, big "VS" text,
   // stage name announced. Adds a beat of anticipation before each match.
@@ -1128,10 +1168,23 @@ ${recordsHtml || ""}
   </div>`;
     }
 
+    // Rivalry flavor badge (canonical hero pairings only — most matchups
+    // get nothing). Quiet thematic tag; shown on every mode/controller combo
+    // since it's purely educational and ID-driven (not record-driven).
+    let rivalryBadge = "";
+    const rivalry = _rivalryFor(p0HeroId, p1HeroId);
+    if (rivalry) {
+      rivalryBadge = `
+  <div class="vs-intro-rivalry">
+    <span class="vs-intro-rivalry-icon">${rivalry.icon}</span>
+    <span class="vs-intro-rivalry-tag">${Render.escapeHtml(rivalry.tag)}</span>
+  </div>`;
+    }
+
     return `
 <section class="screen screen-vs-intro" data-action="vs-skip" data-stage="${Render.escapeHtml(stageId)}">
   <div class="vs-intro-bg" data-stage="${Render.escapeHtml(stageId)}">${stageBackdrop}</div>
-  <div class="vs-intro-stage-name">&#x1F4CD; ${Render.escapeHtml(stageName)}</div>${matchupBadge}
+  <div class="vs-intro-stage-name">&#x1F4CD; ${Render.escapeHtml(stageName)}</div>${rivalryBadge}${matchupBadge}
   <div class="vs-intro-fighters">
     <div class="vs-intro-fighter left">
       <div class="vs-intro-portrait left">${portrait0}</div>
@@ -3449,6 +3502,13 @@ ${recordsHtml || ""}
 
     const portrait = (id) => Render.renderHero({ heroId: id, pose: "idle", facing: "right" });
 
+    // Canonical rivalry flavor — reinforces the educational thread next to
+    // the era-gap line. Most pairings return null (no line rendered).
+    const compareRivalry = _rivalryFor(hA.id, hB.id);
+    const rivalryLine = compareRivalry
+      ? `<p class="compare-rivalry">${compareRivalry.icon} <strong>${Render.escapeHtml(compareRivalry.tag)}</strong></p>`
+      : "";
+
     const h2hTotal = aVsB.wins + aVsB.losses + bVsA.wins + bVsA.losses;
     const h2hBlock = h2hTotal > 0
       ? `<div class="compare-h2h">
@@ -3495,6 +3555,7 @@ ${recordsHtml || ""}
   </div>
 
   ${yearGap ? `<p class="compare-eragap">&#x1F4DC; <strong>${yearGap}</strong></p>` : ""}
+  ${rivalryLine}
 
   ${h2hBlock}
 
@@ -4953,7 +5014,8 @@ ${recordsHtml || ""}
     renderConfetti,
     battleStrategyHint,
     _heroSpotlightStats,  // exported for tests
-    _vsIntroMatchupSummary  // exported for tests
+    _vsIntroMatchupSummary,  // exported for tests
+    _rivalryFor  // exported for tests
   };
 })();
 

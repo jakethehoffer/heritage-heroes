@@ -2143,3 +2143,106 @@ test("renderEndlessResult does NOT include the download button when state.match 
   const html = Screens.renderEndlessResult(state);
   assert.doesNotMatch(html, /data-action="download-result-card"/);
 });
+
+// ── Canonical Hero Rivalries (VS Intro + Compare flavor tags) ───────────────
+
+test("_rivalryFor returns null for unknown pairings not listed in RIVALRIES", () => {
+  // david + einstein is intentionally NOT in the canonical 10 pairings —
+  // sanity check that unlisted pairs return null in both orderings.
+  assert.strictEqual(Screens._rivalryFor("david", "einstein"), null);
+  assert.strictEqual(Screens._rivalryFor("einstein", "david"), null);
+  // Spot-check a second unlisted pair to make sure it's not a fluke.
+  assert.strictEqual(Screens._rivalryFor("judah", "einstein"), null);
+});
+
+test("_rivalryFor is symmetric: same value regardless of argument order", () => {
+  const ab = Screens._rivalryFor("david", "judah");
+  const ba = Screens._rivalryFor("judah", "david");
+  assert.ok(ab && ab.tag, "expected a rivalry object for david/judah");
+  assert.deepStrictEqual(ab, ba, "rivalry should be symmetric");
+});
+
+test("_rivalryFor returns null for mirror matches (heroA === heroB)", () => {
+  assert.strictEqual(Screens._rivalryFor("moses", "moses"), null);
+  assert.strictEqual(Screens._rivalryFor("einstein", "einstein"), null);
+});
+
+test("_rivalryFor returns null for invalid hero ids (non-string, null, undefined)", () => {
+  assert.strictEqual(Screens._rivalryFor(null, "moses"), null);
+  assert.strictEqual(Screens._rivalryFor("moses", null), null);
+  assert.strictEqual(Screens._rivalryFor(undefined, "moses"), null);
+  assert.strictEqual(Screens._rivalryFor("moses", undefined), null);
+  assert.strictEqual(Screens._rivalryFor(42, "moses"), null);
+  assert.strictEqual(Screens._rivalryFor("moses", {}), null);
+  assert.strictEqual(Screens._rivalryFor(null, null), null);
+});
+
+test("_rivalryFor returns expected tags for canonical pairings", () => {
+  const warriors = Screens._rivalryFor("david", "judah");
+  assert.ok(warriors && warriors.tag, "david/judah should have a rivalry");
+  assert.strictEqual(warriors.tag, "Warriors of Israel");
+  assert.ok(typeof warriors.icon === "string" && warriors.icon.length > 0);
+
+  const queens = Screens._rivalryFor("esther", "golda");
+  assert.ok(queens && queens.tag, "esther/golda should have a rivalry");
+  assert.strictEqual(queens.tag, "Queens of their people");
+
+  const thinkers = Screens._rivalryFor("rambam", "einstein");
+  assert.ok(thinkers && thinkers.tag, "rambam/einstein should have a rivalry");
+  assert.strictEqual(thinkers.tag, "Giants of Jewish thought");
+});
+
+test("renderVsIntro includes the rivalry badge when a canonical pairing is set", () => {
+  const match = Combat.createMatch("david", "judah");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save: freshSave()
+  });
+  assert.match(html, /vs-intro-rivalry/);
+  assert.match(html, /Warriors of Israel/);
+});
+
+test("renderVsIntro does NOT include the rivalry badge for non-canonical pairings", () => {
+  // david + einstein is not in RIVALRIES.
+  const match = Combat.createMatch("david", "einstein");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save: freshSave()
+  });
+  assert.doesNotMatch(html, /vs-intro-rivalry/);
+});
+
+test("renderVsIntro does NOT include the rivalry badge for mirror matches", () => {
+  const match = Combat.createMatch("moses", "moses");
+  const html = Screens.renderVsIntro({
+    match,
+    controllers: ["human", "ai"],
+    mode: "quick",
+    save: freshSave()
+  });
+  assert.doesNotMatch(html, /vs-intro-rivalry/);
+});
+
+test("renderCompare includes the rivalry line when a canonical pairing is selected", () => {
+  const state = {
+    compare: { picks: { 1: "rambam", 2: "einstein" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /compare-rivalry/);
+  assert.match(html, /Giants of Jewish thought/);
+});
+
+test("renderCompare does NOT include the rivalry line for non-canonical pairings", () => {
+  // david + einstein is not in RIVALRIES.
+  const state = {
+    compare: { picks: { 1: "david", 2: "einstein" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.doesNotMatch(html, /compare-rivalry/);
+});

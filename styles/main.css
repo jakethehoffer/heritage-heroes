@@ -2738,6 +2738,55 @@ body.theme-high-contrast .battle-hint-banner {
   .vs-intro-matchup-icon { font-size: 14px; }
 }
 
+/* ── VS Intro: rivalry flavor badge ─────────────────────────────────────
+   Thematic tag for canonical hero pairings ("Warriors of Israel",
+   "Giants of Jewish thought", etc.). Only fires on specific pairs in
+   the RIVALRIES map in screens.js — most matchups get no badge. The
+   0.6s delay places it after the stage name has dropped (500ms+400ms)
+   but slightly before the matchup-prediction chip (0.7s delay). */
+.vs-intro-rivalry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  margin: 4px auto;
+  background: linear-gradient(135deg, rgba(193, 70, 45, 0.15), rgba(212, 165, 116, 0.15));
+  border: 2px solid var(--terracotta);
+  border-radius: 16px;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--terracotta);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  animation: vs-intro-rivalry-pop 0.5s ease-out 0.6s backwards;
+  z-index: 2;
+  position: relative;
+}
+.vs-intro-rivalry-icon { font-size: 16px; line-height: 1; }
+.vs-intro-rivalry-tag { line-height: 1.2; }
+
+@keyframes vs-intro-rivalry-pop {
+  0%   { opacity: 0; transform: scale(0.7) rotate(-2deg); }
+  60%  { opacity: 1; transform: scale(1.1) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-intro-rivalry { animation: none; }
+}
+
+@media (max-width: 600px) {
+  .vs-intro-rivalry { font-size: 12px; padding: 4px 10px; }
+  .vs-intro-rivalry-icon { font-size: 14px; }
+}
+
+body.theme-high-contrast .vs-intro-rivalry {
+  background: rgba(255, 122, 89, 0.15);
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
+
 /* ── Match-End VICTORY / DEFEAT splash ──────────────────────────────────
    Symmetric bookend to the VS Intro shown briefly between the final
    combat tick and the result screen. Auto-advances on a timer (driven
@@ -5588,6 +5637,17 @@ body.theme-high-contrast .practice-badge {
   color: var(--terracotta);
   font-weight: 700;
   margin: 8px 0 0;
+}
+
+.compare-rivalry {
+  text-align: center;
+  font-size: 14px;
+  color: var(--terracotta);
+  font-weight: 700;
+  font-family: var(--font-heading);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 4px 0 0;
 }
 
 .compare-h2h {
