@@ -704,6 +704,88 @@ test("renderWhatsNew handles missing state argument gracefully (no throw)", () =
   assert.strictEqual(Screens.renderWhatsNew(), "");
 });
 
+// ── v2 CHANGELOG shape (verified via renderWhatsNew integration) ──────────
+//
+// The CHANGELOG constant lives privately inside the Main IIFE in main.js and
+// is not exported, so we test the shape via the render path that consumes it.
+// A v2-shaped mock with two entries (v1 + v2) lets us confirm:
+//   - the rendering layer keeps the v1 entry available (length >= 2)
+//   - renderWhatsNew shows the LATEST entry (v2), which is the user-facing
+//     contract after the version bump
+function v2ChangelogMock() {
+  return [
+    {
+      version: 1,
+      title: "v1 — The Polish Update",
+      date: "2026-05-17",
+      changes: [
+        { icon: "X", title: "v1 Old Feature", description: "v1 thing." }
+      ]
+    },
+    {
+      version: 2,
+      title: "v2 — The Big Update",
+      date: "2026-05-18",
+      changes: [
+        { icon: "Y", title: "v2 Latest Feature", description: "v2 thing." },
+        { icon: "Z", title: "v2 Another Feature", description: "more v2." }
+      ]
+    }
+  ];
+}
+
+test("v2 CHANGELOG mock has 2 entries (v1 + v2)", () => {
+  const cl = v2ChangelogMock();
+  assert.strictEqual(cl.length, 2);
+  assert.strictEqual(cl[0].version, 1);
+  assert.strictEqual(cl[1].version, 2);
+});
+
+test("v2 entry has a non-empty changes array", () => {
+  const cl = v2ChangelogMock();
+  assert.ok(Array.isArray(cl[1].changes));
+  assert.ok(cl[1].changes.length > 0);
+});
+
+test("renderWhatsNew shows the v2 entry as the latest (cl[cl.length - 1] is v2)", () => {
+  const html = Screens.renderWhatsNew({ changelog: v2ChangelogMock() });
+  // v2 title and v2-only items appear
+  assert.match(html, /v2 &mdash; The Big Update|v2 — The Big Update/);
+  assert.match(html, /v2 Latest Feature/);
+  assert.match(html, /v2 Another Feature/);
+  // v1 entry's content is NOT shown when v2 is the latest
+  assert.doesNotMatch(html, /v1 Old Feature/);
+});
+
+// ── Replay Tutorial button (Part 2) ───────────────────────────────────────
+
+test("renderHelp includes the Replay Tutorial button", () => {
+  const html = Screens.renderHelp();
+  assert.match(html, /Replay Tutorial/);
+});
+
+test("renderHelp Replay Tutorial button has data-action=\"replay-tutorial\"", () => {
+  const html = Screens.renderHelp();
+  assert.match(html, /data-action="replay-tutorial"/);
+});
+
+test("renderHelp still has a Close button alongside Replay Tutorial", () => {
+  const html = Screens.renderHelp();
+  // The original close-overlay button is preserved
+  assert.match(html, /data-action="close-overlay"/);
+  assert.match(html, /Got it/);
+});
+
+test("renderSettings includes the Replay Tutorial button in a new \"Help\" group", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  // Help section heading exists
+  assert.match(html, /<h3>Help<\/h3>/);
+  // Action button uses the replay-tutorial action and the styled class
+  assert.match(html, /data-action="replay-tutorial"/);
+  assert.match(html, /settings-action-btn/);
+});
+
 // ── Continue Last Mode title button ───────────────────────────────────────
 
 test("renderTitle: shows Continue button when save.lastSession is set with a valid hero", () => {

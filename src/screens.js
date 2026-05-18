@@ -2916,7 +2916,8 @@ ${recordsHtml || ""}
       <li>First player to reach 0 HP loses.</li>
       <li>Click your move when it's your turn. There is no timer.</li>
     </ul>
-    <div class="overlay-buttons">
+    <div class="overlay-buttons help-actions">
+      <button data-action="replay-tutorial" class="secondary">&#x1F4D6; Replay Tutorial</button>
       <button data-action="close-overlay">Got it</button>
     </div>
   </div>
@@ -4344,6 +4345,12 @@ ${recordsHtml || ""}
       <button data-action="set-strategy-hints" data-value="off"
               class="settings-radio ${strategyHints === "off" ? "selected" : ""}">Off</button>
     </div>
+  </div>
+
+  <div class="settings-group">
+    <h3>Help</h3>
+    <p class="settings-help">Walk through the tutorial again any time.</p>
+    <button data-action="replay-tutorial" class="settings-action-btn">&#x1F4D6; Replay Tutorial</button>
   </div>
 
   ${typeof Main !== "undefined" && Main.isInstallable && Main.isInstallable() ? `

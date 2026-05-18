@@ -5,7 +5,7 @@ var Main = (function () {
   // CHANGELOG entry once in the "What's New" overlay. Brand-new players
   // (no matches played) are quietly bumped to the current version and skip
   // the overlay.
-  const GAME_VERSION = 1;
+  const GAME_VERSION = 2;
   const CHANGELOG = [
     {
       version: 1,
@@ -18,6 +18,21 @@ var Main = (function () {
         { icon: "🧠", title: "Heritage Quiz",         description: "New survival trivia mode — answer questions from all 7 heroes; one wrong ends the run." },
         { icon: "📅", title: "Daily Streak Calendar", description: "See your daily challenge consistency as a 5-week visual grid in Stats." },
         { icon: "⭐", title: "Hero Spotlight Stats",   description: "Character select now shows your W/L record, mastery, and best runs per hero." }
+      ]
+    },
+    {
+      version: 2,
+      title: "v2 — The Big Update",
+      date: "2026-05-18",
+      changes: [
+        { icon: "🥋", title: "Practice Mode",          description: "New 9th mode — pick any two heroes and any stage with nothing tracked. Pure sandbox for learning matchups." },
+        { icon: "📜", title: "Daily Quests",           description: "Two deterministic objectives per day, completable across any mode. Streak-tracked with 3 new achievements." },
+        { icon: "📅", title: "On This Day",            description: "Title-screen panel surfaces real Jewish historical events that happened on today's date." },
+        { icon: "⚖️", title: "Hero Comparison",        description: "New screen from the Hall of Heroes — two heroes side-by-side with stats, era gap, and head-to-head record." },
+        { icon: "📸", title: "Victory Share Cards",    description: "Download a stylized 1200×630 SVG of every match result — shareable as an image anywhere." },
+        { icon: "💡", title: "Battle Strategy Hints",  description: "Context-aware tactical tips during your turn — \"Defend, opponent is charging!\" Default on, toggle in Settings." },
+        { icon: "🎚️", title: "Volume Sliders",         description: "Three sliders (master / music / SFX) replace the binary mute toggles for finer audio control." },
+        { icon: "♿", title: "Accessibility Settings", description: "Text Size (normal / large / xlarge) and a High-Contrast theme — both compose. Real grandpa-first wins." }
       ]
     }
   ];
@@ -749,6 +764,15 @@ var Main = (function () {
         return;
       case "show-help":    state.overlay = "help"; render(); return;
       case "close-overlay": state.overlay = null; render(); return;
+      case "replay-tutorial": {
+        // Manual tutorial replay from Help overlay or Settings.
+        // Does NOT touch save.tutorialSeen — the flag only controls the
+        // first-time auto-show on boot; replay is purely a render trigger.
+        state.overlay = "tutorial";
+        state.tutorialStep = 0;
+        render();
+        return;
+      }
       case "tutorial-next": state.tutorialStep += 1; render(); return;
       case "tutorial-prev": state.tutorialStep = Math.max(0, state.tutorialStep - 1); render(); return;
       case "tutorial-skip":

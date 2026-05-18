@@ -3949,6 +3949,30 @@ body.theme-high-contrast .match-end-splash-title.defeat  { color: var(--terracot
   background: #991a00;
 }
 
+/* Generic settings action button — secondary-style for non-toggle actions
+   like "Replay Tutorial". Used in the Settings "Help" group. */
+.settings-action-btn {
+  align-self: flex-start;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.settings-action-btn:hover { background: var(--gold); transform: translateY(-1px); }
+
+body.theme-high-contrast .settings-action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  border-color: var(--gold);
+}
+body.theme-high-contrast .settings-action-btn:hover { background: rgba(255, 213, 79, 0.2); }
+
 /* Generic danger button (used in confirm overlay) */
 button.danger {
   background: #cc2200;
