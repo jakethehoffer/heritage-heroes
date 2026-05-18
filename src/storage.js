@@ -222,15 +222,40 @@ var Storage = (function () {
             }
           }
         }
-        // recentMatches ring buffer — validate and limit to 10
+        // recentMatches ring buffer — validate and limit to 10.
+        // Each entry is shape-checked; the optional `moves` array (added with
+        // the Match Replay feature) is normalized in place: invalid entries
+        // are dropped silently, the array is capped at 200, and legacy
+        // entries with no `moves` field round-trip as-is (replay button is
+        // hidden for them in the match-detail overlay).
         if (Array.isArray(parsed.recentMatches)) {
-          out.recentMatches = parsed.recentMatches.filter(function (e) {
-            return e && typeof e === "object" &&
+          const cleanedMatches = [];
+          for (const e of parsed.recentMatches) {
+            const ok = e && typeof e === "object" &&
               typeof e.hero0Id === "string" && e.hero0Id.length > 0 &&
               typeof e.hero1Id === "string" && e.hero1Id.length > 0 &&
               Number.isInteger(e.winnerSlot) &&
               Number.isInteger(e.turns);
-          }).slice(0, 10);
+            if (!ok) continue;
+            // If `moves` is present, validate each entry; drop bad ones
+            // silently. If absent, leave the entry alone (no moves field).
+            if (Array.isArray(e.moves)) {
+              const cleanedMoves = [];
+              const cap = Math.min(e.moves.length, 200);
+              for (let i = 0; i < cap; i++) {
+                const m = e.moves[i];
+                if (m && typeof m === "object"
+                    && (m.actor === 0 || m.actor === 1)
+                    && (m.move === "attack" || m.move === "defend" || m.move === "special" || m.move === "charge")) {
+                  cleanedMoves.push({ actor: m.actor, move: m.move });
+                }
+              }
+              e.moves = cleanedMoves;
+            }
+            cleanedMatches.push(e);
+            if (cleanedMatches.length >= 10) break;
+          }
+          out.recentMatches = cleanedMatches;
         }
         if (Number.isInteger(parsed.tournamentsWon) && parsed.tournamentsWon >= 0) {
           out.tournamentsWon = parsed.tournamentsWon;

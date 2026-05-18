@@ -2911,3 +2911,199 @@ test("renderHall includes the tier badge next to hero names when tier is non-nul
   assert.match(html, /title="Sage"/);
   assert.match(html, /title="Master"/);
 });
+
+// ── Match Replay — battle screen banner ──────────────────────────────────
+
+function _replayState(overrides) {
+  // Build the same shape the live replay code sets up: mode="replay",
+  // both controllers "replay", a state.replay object with entry+index+playing.
+  const match = Combat.createMatch("moses", "david");
+  const entry = {
+    id: 123,
+    hero0Id: "moses",
+    hero1Id: "david",
+    winnerSlot: 0,
+    turns: 3,
+    moves: [
+      { actor: 0, move: "attack" },
+      { actor: 1, move: "defend" },
+      { actor: 0, move: "attack" },
+      { actor: 1, move: "attack" },
+      { actor: 0, move: "special" }
+    ]
+  };
+  const state = {
+    mode: "replay",
+    controllers: ["replay", "replay"],
+    match,
+    save: freshSave(),
+    arcade: null,
+    matchStats: null,
+    replay: { entry, index: 2, playing: false, timeoutId: null }
+  };
+  if (overrides) {
+    if (overrides.match)   Object.assign(state.match, overrides.match);
+    if (overrides.replay)  Object.assign(state.replay, overrides.replay);
+    if (overrides.entry)   Object.assign(state.replay.entry, overrides.entry);
+    if (overrides.save)    state.save = Object.assign(freshSave(), overrides.save);
+  }
+  return state;
+}
+
+test("renderBattle includes .replay-banner when state.mode is \"replay\"", () => {
+  const state = _replayState();
+  const html = Screens.renderBattle(state);
+  assert.match(html, /class="replay-banner"/);
+  assert.match(html, /REPLAY MODE/);
+});
+
+test("renderBattle replay banner shows \"Move X of Y\" with correct numbers", () => {
+  const state = _replayState({ replay: { index: 2 } });   // 5 total moves in fixture
+  const html = Screens.renderBattle(state);
+  assert.match(html, /Move 2 of 5/);
+});
+
+test("renderBattle replay banner shows Play+Step buttons when not playing", () => {
+  const state = _replayState({ replay: { playing: false } });
+  const html = Screens.renderBattle(state);
+  assert.match(html, /data-action="replay-play"/);
+  assert.match(html, /data-action="replay-step"/);
+  assert.doesNotMatch(html, /data-action="replay-pause"/);
+  // End button is always available alongside Play+Step.
+  assert.match(html, /data-action="replay-end"/);
+});
+
+test("renderBattle replay banner shows Pause+Step buttons when playing", () => {
+  const state = _replayState({ replay: { playing: true } });
+  const html = Screens.renderBattle(state);
+  assert.match(html, /data-action="replay-pause"/);
+  assert.match(html, /data-action="replay-step"/);
+  assert.doesNotMatch(html, /data-action="replay-play"/);
+});
+
+test("renderBattle replay banner shows Restart+End when match.winner is set", () => {
+  const state = _replayState();
+  state.match.winner = 0;   // replay reached its recorded conclusion
+  const html = Screens.renderBattle(state);
+  assert.match(html, /data-action="replay-restart"/);
+  assert.match(html, /data-action="replay-end"/);
+  // No Play/Pause/Step controls once the replay is over — only Restart/End.
+  assert.doesNotMatch(html, /data-action="replay-play"/);
+  assert.doesNotMatch(html, /data-action="replay-pause"/);
+  assert.doesNotMatch(html, /data-action="replay-step"/);
+});
+
+test("renderBattle does NOT include the player move buttons during replay", () => {
+  const state = _replayState();
+  const html = Screens.renderBattle(state);
+  // The standard human move buttons emit data-action="player-move"; replay
+  // suppresses them entirely (no human input drives the screen).
+  assert.doesNotMatch(html, /data-action="player-move"/);
+  // The "Computer is thinking…" fallback is also suppressed (no AI either).
+  assert.doesNotMatch(html, /Computer is thinking/);
+});
+
+test("renderBattle does NOT include the Pause/Quit bottom buttons during replay", () => {
+  // Replay controls live in the banner; the standard Pause / Quit match flow
+  // doesn't apply (those map to combat-pause overlay and quit-confirm,
+  // neither of which is meaningful during a replay).
+  const state = _replayState();
+  const html = Screens.renderBattle(state);
+  assert.doesNotMatch(html, /data-action="pause-battle"/);
+  assert.doesNotMatch(html, /data-action="confirm-quit"/);
+});
+
+test("renderBattle does NOT show .replay-banner in non-replay modes", () => {
+  for (const mode of ["quick", "arcade", "endless", "daily", "tournament", "spectator", "study", "practice"]) {
+    const match = Combat.createMatch("moses", "david");
+    const state = {
+      match,
+      mode,
+      controllers: mode === "practice" || mode === "spectator" ? ["human", "human"] : ["human", "ai"],
+      save: freshSave(),
+      arcade: null
+    };
+    const html = Screens.renderBattle(state);
+    assert.doesNotMatch(html, /class="replay-banner"/,
+      `mode "${mode}" must not render the replay banner`);
+  }
+});
+
+// ── Match Replay — match-detail overlay Replay button ────────────────────
+
+test("renderMatchDetail shows the Replay button when entry.moves has entries", () => {
+  const save = freshSave();
+  save.recentMatches = [{
+    id: 42,
+    date: "2026-05-17T12:00:00.000Z",
+    mode: "quick",
+    hero0Id: "moses",
+    hero1Id: "david",
+    winnerSlot: 0,
+    turns: 5,
+    biggestHit: null,
+    specialsUsed: [1, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    log: [],
+    moves: [
+      { actor: 0, move: "attack" },
+      { actor: 1, move: "defend" },
+      { actor: 0, move: "special" }
+    ]
+  }];
+  const state = { save, viewingMatchId: 42 };
+  const html = Screens.renderMatchDetail(state);
+  assert.match(html, /data-action="start-replay"/);
+  assert.match(html, /data-match-id="42"/);
+  assert.match(html, /Replay this match/);
+});
+
+test("renderMatchDetail HIDES the Replay button when entry has no moves (legacy)", () => {
+  // Older entries written before the Match Replay feature shipped have no
+  // `moves` field. The overlay must still render fine, just without Replay.
+  const save = freshSave();
+  save.recentMatches = [{
+    id: 7,
+    date: "2026-05-17T12:00:00.000Z",
+    mode: "quick",
+    hero0Id: "esther",
+    hero1Id: "judah",
+    winnerSlot: 1,
+    turns: 5,
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    log: ["Esther attacks.", "Judah counters."]
+  }];
+  const state = { save, viewingMatchId: 7 };
+  const html = Screens.renderMatchDetail(state);
+  assert.doesNotMatch(html, /data-action="start-replay"/);
+  assert.doesNotMatch(html, /Replay this match/);
+  // Overlay still renders the match details and Close button.
+  assert.match(html, /data-action="close-match-detail"/);
+  assert.match(html, /Move Log/);
+});
+
+test("renderMatchDetail HIDES the Replay button when entry.moves is an empty array", () => {
+  const save = freshSave();
+  save.recentMatches = [{
+    id: 8,
+    date: "2026-05-17T12:00:00.000Z",
+    mode: "quick",
+    hero0Id: "moses",
+    hero1Id: "david",
+    winnerSlot: 0,
+    turns: 3,
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    log: [],
+    moves: []
+  }];
+  const state = { save, viewingMatchId: 8 };
+  const html = Screens.renderMatchDetail(state);
+  assert.doesNotMatch(html, /data-action="start-replay"/);
+});

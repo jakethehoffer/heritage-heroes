@@ -1871,3 +1871,131 @@ test("setPlayerName preserves other save fields", () => {
   assert.strictEqual(reloaded.arcade.moses, 5);
   assert.strictEqual(reloaded.tutorialSeen, true);
 });
+
+// ── recentMatches.moves (Match Replay feature) ─────────────────────────────
+
+// Shared helper — minimal valid history entry shape, callers can layer
+// `moves` (or any other field) on top. Mirrors what main.js _buildHistoryEntry
+// writes, but trimmed to the fields the load() validator looks at.
+function _historyEntry(overrides) {
+  return Object.assign({
+    id: 42,
+    date: "2026-05-17T12:00:00.000Z",
+    mode: "quick",
+    hero0Id: "moses",
+    hero1Id: "david",
+    winnerSlot: 0,
+    turns: 7,
+    biggestHit: null,
+    specialsUsed: [0, 0],
+    triviaCorrect: 0,
+    triviaTotal: 0,
+    log: []
+  }, overrides || {});
+}
+
+test("recordMatchHistory accepts moves array and persists it", () => {
+  const s = fakeStore();
+  const entry = _historyEntry({
+    moves: [
+      { actor: 0, move: "attack" },
+      { actor: 1, move: "defend" },
+      { actor: 0, move: "special" }
+    ]
+  });
+  Storage.recordMatchHistory(s, entry);
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 1);
+  assert.ok(Array.isArray(data.recentMatches[0].moves));
+  assert.strictEqual(data.recentMatches[0].moves.length, 3);
+});
+
+test("load round-trips moves array intact", () => {
+  const s = fakeStore();
+  const moves = [
+    { actor: 0, move: "attack" },
+    { actor: 1, move: "charge" },
+    { actor: 0, move: "defend" },
+    { actor: 1, move: "special" }
+  ];
+  Storage.recordMatchHistory(s, _historyEntry({ moves }));
+  const reloaded = Storage.load(s);
+  assert.deepStrictEqual(reloaded.recentMatches[0].moves, moves);
+});
+
+test("load drops invalid move entries silently (bad actor, bad move type, non-objects)", () => {
+  const s = fakeStore();
+  const entry = _historyEntry({
+    moves: [
+      { actor: 0, move: "attack" },       // valid
+      { actor: 2, move: "attack" },       // bad actor (not 0|1)
+      { actor: 0, move: "fireball" },     // bad move type
+      { actor: 1, move: "defend" },       // valid
+      null,                                // not an object
+      "string",                            // not an object
+      { actor: "0", move: "attack" },     // string actor — bad
+      { actor: 1, move: "special" },      // valid
+      { move: "attack" },                  // missing actor
+      { actor: 0 }                         // missing move
+    ]
+  });
+  Storage.recordMatchHistory(s, entry);
+  const data = Storage.load(s);
+  assert.deepStrictEqual(data.recentMatches[0].moves, [
+    { actor: 0, move: "attack" },
+    { actor: 1, move: "defend" },
+    { actor: 1, move: "special" }
+  ]);
+});
+
+test("load handles legacy entries without moves field gracefully", () => {
+  const s = fakeStore();
+  // Simulate a history entry written before the Match Replay feature shipped.
+  Storage.recordMatchHistory(s, _historyEntry({}));  // no `moves` field
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 1);
+  // Either undefined or empty array is acceptable per the spec — the UI
+  // checks Array.isArray(...) && length > 0 either way.
+  const m = data.recentMatches[0].moves;
+  assert.ok(m === undefined || (Array.isArray(m) && m.length === 0),
+    "legacy entry should have undefined or empty moves");
+});
+
+test("load caps moves array at 200 entries to prevent unbounded growth", () => {
+  const s = fakeStore();
+  const bigMoves = [];
+  for (let i = 0; i < 500; i++) {
+    bigMoves.push({ actor: i % 2 === 0 ? 0 : 1, move: "attack" });
+  }
+  Storage.recordMatchHistory(s, _historyEntry({ moves: bigMoves }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches[0].moves.length, 200);
+});
+
+test("recordMatchHistory accepts entry without moves field (practice/legacy)", () => {
+  const s = fakeStore();
+  // Write an entry with no `moves` field — common for legacy/practice paths.
+  const entry = _historyEntry({});
+  delete entry.moves;
+  assert.doesNotThrow(function () { Storage.recordMatchHistory(s, entry); });
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 1);
+  assert.strictEqual(data.recentMatches[0].id, 42);
+});
+
+test("load drops moves entirely when source is not an array (e.g. string, object)", () => {
+  // Corrupt save — moves field is the wrong type. Don't crash; either omit
+  // or leave as the original non-array (validator just skips it).
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({
+    recentMatches: [_historyEntry({ moves: "not-an-array" })]
+  }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.recentMatches.length, 1);
+  // moves remains the non-array string OR is dropped — the only invariant
+  // is Array.isArray(moves) && moves.length > 0 must be false for replay
+  // gating. Both shapes satisfy that.
+  const m = data.recentMatches[0].moves;
+  assert.ok(!(Array.isArray(m) && m.length > 0),
+    "non-array moves must not be treated as a valid replay source");
+});

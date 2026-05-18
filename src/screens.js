@@ -628,6 +628,11 @@ var Screens = (function () {
     const charging = Combat.isCharging(match, match.activePlayer);
     const isHumanTurn = state.controllers[match.activePlayer] === "human";
     const isSpectator = state.mode === "spectator";
+    // Replay mode reuses the battle screen but with the recorded move
+    // sequence driving combat. Player input is suppressed (no move buttons,
+    // no Pause/Quit), a REPLAY MODE banner provides Play/Pause/Step/End
+    // controls, and the bottom move-log + HP bars still update naturally.
+    const isReplay = state.mode === "replay";
     const moveButtons = charging
       ? `<button data-action="ai-step" data-move="charge">${Render.escapeHtml(activeHero.name)} is charging&hellip; (click to continue)</button>`
       : renderMoveButtons(activeHero, active);
@@ -703,9 +708,65 @@ var Screens = (function () {
     <span class="battle-hud-timer">${elapsed}</span>
   </div>`;
 
+    // Replay banner — only shown when state.mode === "replay". Controls
+    // mirror a typical media player: Play/Pause toggles auto-step, Step
+    // advances one move at a time, End tears down the replay. When the
+    // recorded match reaches its winner we swap to Restart/End so the
+    // user can re-watch or bail out.
+    let replayBanner = "";
+    if (isReplay && state.replay) {
+      const totalMoves   = (state.replay.entry && Array.isArray(state.replay.entry.moves))
+        ? state.replay.entry.moves.length : 0;
+      const currentMove  = state.replay.index || 0;
+      const playing      = !!state.replay.playing;
+      const matchOver    = match.winner !== null && match.winner !== undefined;
+      let controls;
+      if (matchOver) {
+        controls = `
+    <button data-action="replay-restart" class="replay-btn">&#x21BA; Restart</button>
+    <button data-action="replay-end" class="replay-btn secondary">End Replay</button>`;
+      } else if (playing) {
+        controls = `
+    <button data-action="replay-pause" class="replay-btn">&#x23F8; Pause</button>
+    <button data-action="replay-step" class="replay-btn replay-btn-step">Step &#x25B6;</button>
+    <button data-action="replay-end" class="replay-btn secondary">End</button>`;
+      } else {
+        controls = `
+    <button data-action="replay-play" class="replay-btn">&#x25B6; Play</button>
+    <button data-action="replay-step" class="replay-btn replay-btn-step">Step &#x25B6;</button>
+    <button data-action="replay-end" class="replay-btn secondary">End</button>`;
+      }
+      replayBanner = `
+<div class="replay-banner">
+  <div class="replay-banner-title">&#x25B6; REPLAY MODE &mdash; Move ${currentMove} of ${totalMoves}</div>
+  <div class="replay-banner-controls">${controls}
+  </div>
+</div>`;
+    }
+
+    // Moves row content. Replay suppresses move buttons entirely (no player
+    // input during playback). Spectator shows its watching-indicator; humans
+    // see their move buttons; AI turns show the click-to-continue prompt.
+    const movesRowContent = isReplay
+      ? ""
+      : isSpectator
+        ? `<div class="spectator-indicator"><span class="spectator-icon">&#x1F440;</span><span>Spectating &mdash; AI is playing both sides</span></div>`
+        : (isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`);
+
+    // Bottom buttons. Replay swaps out Pause/Quit (which would route to the
+    // standard combat pause/quit-confirm flows that don't apply to replays);
+    // the replay banner is the source of truth for replay controls instead.
+    const bottomButtons = isReplay
+      ? ""
+      : `
+  <div class="battle-bottom-buttons">
+    <button data-action="pause-battle" class="back">&#x23F8; Pause</button>
+    <button data-action="confirm-quit" class="back">Quit match</button>
+  </div>`;
+
     return `
 <section class="screen screen-battle">
-  ${arcadeRoadmapBanner}${battleHud}${practiceBadge}${hintBanner}
+  ${replayBanner}${arcadeRoadmapBanner}${battleHud}${practiceBadge}${hintBanner}
   <div class="hp-bars">
     <div class="hp-cell">${Render.hpBar({ hp: p0.hp, max: p0.maxHp, label: label0, side: "left", rawLabel: true })}</div>
     <div class="vs-label">vs</div>
@@ -723,14 +784,8 @@ var Screens = (function () {
     </div>
   </div>
   <div class="turn-banner">${Render.escapeHtml(turnLabel)}</div>
-  <div class="moves-row">${isSpectator
-    ? `<div class="spectator-indicator"><span class="spectator-icon">&#x1F440;</span><span>Spectating &mdash; AI is playing both sides</span></div>`
-    : (isHumanTurn ? moveButtons : `<button data-action="ai-step">Computer is thinking&hellip; (click)</button>`)}</div>
-  <div class="move-log">${match.log.slice(-5).map(l => `<div>${Render.escapeHtml(l)}</div>`).join("")}</div>
-  <div class="battle-bottom-buttons">
-    <button data-action="pause-battle" class="back">&#x23F8; Pause</button>
-    <button data-action="confirm-quit" class="back">Quit match</button>
-  </div>
+  <div class="moves-row">${movesRowContent}</div>
+  <div class="move-log">${match.log.slice(-5).map(l => `<div>${Render.escapeHtml(l)}</div>`).join("")}</div>${bottomButtons}
 </section>`;
   }
 
@@ -4721,6 +4776,14 @@ ${recordsHtml || ""}
     const logLines = (entry.log || []).map(function (line, i) {
       return `<div class="detail-log-line"><span class="log-num">${i + 1}.</span> ${Render.escapeHtml(line)}</div>`;
     }).join("");
+    // Replay button only renders when the entry actually has a recorded
+    // move sequence. Legacy entries written before the Match Replay feature
+    // shipped have no `moves` field, and we gracefully hide the button
+    // rather than offering a Replay that would dead-end.
+    const hasMoves = Array.isArray(entry.moves) && entry.moves.length > 0;
+    const replayButton = hasMoves
+      ? `<button data-action="start-replay" data-match-id="${Render.escapeHtml(String(entry.id))}" class="match-detail-replay-btn">&#x25B6; Replay this match</button>`
+      : "";
     return `
 <div class="overlay">
   <div class="overlay-card overlay-card-wide">
@@ -4738,6 +4801,7 @@ ${recordsHtml || ""}
       ${logLines || "<p>No moves recorded.</p>"}
     </div>
     <div class="overlay-buttons">
+      ${replayButton}
       <button data-action="close-match-detail">Close</button>
     </div>
   </div>

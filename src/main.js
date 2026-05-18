@@ -92,7 +92,12 @@ var Main = (function () {
     // Stage Select (Quick Match vs AI only)
     selectedStageId: null,       // populated when player picks a stage in Quick Match vs AI
     // Hero Comparison Tool (Hall of Heroes -> Compare Heroes flow)
-    compare: null                // { picks: { 1: heroId, 2: heroId }, selecting: 1 | 2 } when active
+    compare: null,               // { picks: { 1: heroId, 2: heroId }, selecting: 1 | 2 } when active
+    // Match Replay — repurposes the battle screen with a REPLAY MODE overlay.
+    // Set on "start-replay"; cleared on "replay-end". When non-null, state.mode
+    // is "replay" and state.controllers is ["replay","replay"] so neither human
+    // input nor AI scheduling fires; moves come from entry.moves[index].
+    replay: null                 // { entry, index, playing, timeoutId } | null
   };
 
   function _freshMatchStats() {
@@ -120,7 +125,14 @@ var Main = (function () {
       // by onMatchEnd. The recap reads (endedAt - startedAt) for total time;
       // the battle HUD reads (Date.now() - startedAt) for the live counter.
       startedAt: (typeof Date !== "undefined") ? Date.now() : 0,
-      endedAt: null
+      endedAt: null,
+      // Move sequence powering the Match Replay feature. Each entry is
+      // { actor: 0|1, move: "attack"|"defend"|"special"|"charge" }; appended
+      // by resolveMove after Combat.applyMove succeeds. Persisted on match
+      // end via _buildHistoryEntry (capped at 200 by storage validation).
+      // Practice mode still appends here in memory; recordMatchHistory is
+      // skipped for that mode so the moves never get persisted.
+      moves: []
     };
   }
 
@@ -449,9 +461,11 @@ var Main = (function () {
     const store = getStore();
     if (!store) return;
     // Practice mode is a consequence-free sandbox: never count toward quests.
-    // Defense-in-depth — most callers already gate, but a missed callsite here
-    // would silently leak progress, so guard at the entry point too.
-    if (isPracticeMode()) return;
+    // Replay mode shares the same gate — re-watching a saved match must not
+    // grant fresh quest progress. Defense-in-depth — most callers already
+    // gate, but a missed callsite here would silently leak progress, so
+    // guard at the entry point too.
+    if (isPracticeMode() || isReplayMode()) return;
     const result = Storage.recordQuestProgress(store, eventType, eventData);
     if (result && result.newlyCompleted && result.newlyCompleted.length > 0) {
       state.save = Storage.load(store);
@@ -475,7 +489,9 @@ var Main = (function () {
     if (!store) return;
     // Practice mode: no achievement unlocks. Defense-in-depth so a missed
     // caller can't silently grant achievements during a sandbox match.
-    if (isPracticeMode()) return;
+    // Replay mode shares the same gate — re-watching a saved match must
+    // not retroactively unlock achievements.
+    if (isPracticeMode() || isReplayMode()) return;
     for (const key of keys) {
       Storage.unlockAchievement(store, key);
       state.save.achievements[key] = Date.now();
@@ -766,6 +782,30 @@ var Main = (function () {
         state.viewingMatchId = null;
         render();
         return;
+      // ── Match Replay actions ─────────────────────────────────────────────
+      // start-replay is triggered from the match-detail overlay's Replay
+      // button; target.dataset.matchId is the entry id (Number). We find the
+      // entry and hand it to _initReplay, which validates moves and sets up
+      // the replay state. The match-detail overlay only renders the Replay
+      // button when entry.moves exists, so the missing-moves branch in
+      // _initReplay is purely defensive (race / corruption).
+      case "start-replay": {
+        const id = parseInt(target.dataset.matchId, 10);
+        const matches = (state.save && state.save.recentMatches) || [];
+        const entry = matches.find(function (m) { return m.id === id; });
+        state.overlay = null;
+        state.viewingMatchId = null;
+        _initReplay(entry);
+        return;
+      }
+      case "replay-step":    _replayStep();  return;
+      case "replay-play":    _replayPlay();  return;
+      case "replay-pause":   _replayPause(); return;
+      case "replay-restart": {
+        if (state.replay && state.replay.entry) _initReplay(state.replay.entry);
+        return;
+      }
+      case "replay-end":     _endReplay();   return;
       case "view-profile": {
         e.stopPropagation();
         state.profileHeroId = target.dataset.hero;
@@ -1676,6 +1716,15 @@ var Main = (function () {
     return state.mode === "practice";
   }
 
+  // Replay mode shares the same "skip every recording site" gate as Practice
+  // — the user is re-watching a finished match, so no stats, achievements,
+  // quest progress, matchup history, or last-session writes should fire.
+  // Combat.applyMove is still called directly from _replayStep, so animations
+  // and combo/big-hit callouts play normally for the viewer.
+  function isReplayMode() {
+    return state.mode === "replay";
+  }
+
   function beginTournament() {
     const t = state.tournament;
     t.currentMatch = "semi1";
@@ -1869,6 +1918,118 @@ var Main = (function () {
     goToBattle({ aiFirstStep: false });
   }
 
+  // ── Match Replay ──────────────────────────────────────────────────────────
+  // Re-runs a saved match move-by-move on a fresh battle state. We recreate
+  // the match from the two hero ids and feed it the recorded moves via
+  // resolveMove (so animations, combo callouts, BIG HIT! etc. fire just like
+  // a live match). Every recording site is gated by isReplayMode() so the
+  // re-run doesn't bump stats, unlock achievements, advance quests, or write
+  // a fresh history entry. Replay end is handled by onMatchEnd's replay
+  // early-return: the battle screen stays up with Restart/End buttons in the
+  // replay banner once match.winner is set.
+  function _initReplay(entry) {
+    if (!entry || !Array.isArray(entry.moves) || entry.moves.length === 0) {
+      if (typeof Screens !== "undefined" && Screens.showToast) {
+        Screens.showToast("Replay not available for this match");
+      }
+      return;
+    }
+    // Cancel any lingering combat timeouts before tearing down state. This
+    // matters mostly when a previous replay's last step is still queued.
+    if (state.pendingVsIntroTimeout) { clearTimeout(state.pendingVsIntroTimeout); state.pendingVsIntroTimeout = null; }
+    if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
+    if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
+    if (state.pendingMatchEndSplashTimeout) { clearTimeout(state.pendingMatchEndSplashTimeout); state.pendingMatchEndSplashTimeout = null; }
+    if (state.replay && state.replay.timeoutId) {
+      clearTimeout(state.replay.timeoutId);
+    }
+    state.replay = { entry: entry, index: 0, playing: false, timeoutId: null };
+    state.mode = "replay";
+    // Both slots are "replay" controllers so neither the AI scheduler at the
+    // bottom of resolveMove ("ai" check) nor the human move buttons (gated
+    // in the battle screen on state.mode === "replay") will fire.
+    state.controllers = ["replay", "replay"];
+    state.match = Combat.createMatch(entry.hero0Id, entry.hero1Id);
+    state.matchStats = _freshMatchStats();
+    _pushHpSnapshot();
+    state.bossIntroShown = true;
+    state.currentMatchLowHp = { 0: false, 1: false };
+    state.overlay = null;
+    state.screen = "battle";
+    render();
+  }
+
+  function _replayStep() {
+    if (!state.replay || !state.match) return;
+    // Match already ended — replay reached the recorded conclusion. Stop
+    // any scheduled auto-play and let the banner show Restart/End.
+    if (state.match.winner !== null && state.match.winner !== undefined) {
+      state.replay.playing = false;
+      if (state.replay.timeoutId) { clearTimeout(state.replay.timeoutId); state.replay.timeoutId = null; }
+      render();
+      return;
+    }
+    const nextMove = state.replay.entry.moves[state.replay.index];
+    if (!nextMove) {
+      // No more recorded moves but no winner yet (truncated history?). Pause
+      // gracefully so the user can End the replay without a stuck state.
+      state.replay.playing = false;
+      if (state.replay.timeoutId) { clearTimeout(state.replay.timeoutId); state.replay.timeoutId = null; }
+      render();
+      return;
+    }
+    state.replay.index += 1;
+    // resolveMove handles animations, combo/big-hit callouts, HP snapshots
+    // and (via match.winner) onMatchEnd scheduling — onMatchEnd early-returns
+    // for replay so no result-screen routing fires.
+    resolveMove(nextMove.move);
+    // Auto-play scheduling: queue the next step if still playing. We re-check
+    // state.replay because onMatchEnd may have flipped playing to false.
+    if (state.replay && state.replay.playing
+        && state.match && state.match.winner === null
+        && typeof window !== "undefined") {
+      if (state.replay.timeoutId) clearTimeout(state.replay.timeoutId);
+      state.replay.timeoutId = window.setTimeout(_replayStep, scaledDelay(1100));
+    }
+  }
+
+  function _replayPlay() {
+    if (!state.replay) return;
+    state.replay.playing = true;
+    // Step immediately so the user sees instant feedback after clicking Play;
+    // _replayStep schedules the next iteration if still playing.
+    _replayStep();
+  }
+
+  function _replayPause() {
+    if (!state.replay) return;
+    state.replay.playing = false;
+    if (state.replay.timeoutId) {
+      clearTimeout(state.replay.timeoutId);
+      state.replay.timeoutId = null;
+    }
+    render();
+  }
+
+  function _endReplay() {
+    if (state.replay && state.replay.timeoutId) {
+      clearTimeout(state.replay.timeoutId);
+    }
+    // Also clear any combat-side timeouts the replay scheduled.
+    if (state.pendingMatchEndTimeout) {
+      clearTimeout(state.pendingMatchEndTimeout);
+      state.pendingMatchEndTimeout = null;
+    }
+    state.replay = null;
+    state.mode = null;
+    state.match = null;
+    state.matchStats = null;
+    state.controllers = ["human", "ai"];
+    state.screen = "title";
+    state.overlay = null;
+    render();
+  }
+
   function startNextArcadeMatch() {
     const isBossFight = state.arcade.remaining.length === 1;
     // Show boss intro screen once per run, before the final fight
@@ -2048,6 +2209,15 @@ var Main = (function () {
       return;
     }
 
+    // Record the move into matchStats for the Match Replay feature. We
+    // append after applyMove succeeds (so failed/rejected moves never make
+    // it into the recording). `idx` is the slot that took the action,
+    // captured at function entry before activePlayer flipped. Storage caps
+    // the persisted array at 200; matches rarely exceed 50 turns.
+    if (state.matchStats && state.matchStats.moves) {
+      state.matchStats.moves.push({ actor: idx, move: move });
+    }
+
     // Update combo state AFTER a successful move. Rules:
     //   • charge (mid-charge or wind-up) breaks rhythm → reset.
     //   • same move type as last → extend the streak; fire callout at 2+.
@@ -2223,11 +2393,35 @@ var Main = (function () {
       specialsUsed: state.matchStats ? state.matchStats.specialsUsed.slice() : [0, 0],
       triviaCorrect: state.matchStats ? state.matchStats.triviaCorrect : 0,
       triviaTotal: state.matchStats ? state.matchStats.triviaTotal : 0,
-      log: state.match.log.slice()
+      log: state.match.log.slice(),
+      // Move sequence for the Match Replay feature. Empty array (rather than
+      // omitted) so the field always round-trips through storage validation;
+      // the storage layer also caps at 200. Legacy entries written before
+      // this feature shipped have no `moves` field — the match-detail
+      // overlay hides the Replay button when the array is missing or empty.
+      moves: (state.matchStats && Array.isArray(state.matchStats.moves))
+        ? state.matchStats.moves.slice()
+        : []
     };
   }
 
   function onMatchEnd() {
+    // Replay mode: the winner was reached while re-watching a saved match.
+    // The replay owns its own end-state UI (the banner shows Restart/End
+    // buttons once match.winner is set), so we suppress every persistence
+    // path, the victory SFX, and the result-screen routing here. Schedule
+    // a final render so the battle screen reflects the terminal HP/turn
+    // state before the user clicks Restart or End.
+    if (state.replay) {
+      state.replay.playing = false;
+      if (state.replay.timeoutId) {
+        clearTimeout(state.replay.timeoutId);
+        state.replay.timeoutId = null;
+      }
+      render();
+      return;
+    }
+
     Sfx.play("victory");
     // Seal the match-elapsed clock. The recap reads endedAt - startedAt for
     // total time, and the battle HUD timer (which polls Date.now() while
@@ -2558,6 +2752,11 @@ var Main = (function () {
     if (state.pendingAiTimeout)      { clearTimeout(state.pendingAiTimeout);      state.pendingAiTimeout = null; }
     if (state.pendingMatchEndTimeout){ clearTimeout(state.pendingMatchEndTimeout);state.pendingMatchEndTimeout = null; }
     if (state.pendingMatchEndSplashTimeout) { clearTimeout(state.pendingMatchEndSplashTimeout); state.pendingMatchEndSplashTimeout = null; }
+    // Tear down any in-flight replay so its scheduled step doesn't fire
+    // post-quit. _endReplay would also do this but quitToTitle has other
+    // callers (Confirm Quit overlay) we want to keep working independently.
+    if (state.replay && state.replay.timeoutId) { clearTimeout(state.replay.timeoutId); }
+    state.replay = null;
     state._pendingAiFirstStep = false;
     state.overlay = null;
     state.match = null;
