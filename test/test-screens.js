@@ -1523,3 +1523,203 @@ test("renderResult Practice variant exposes the practice-pick-new action", () =>
   assert.match(html, /data-action="rematch"/);
   assert.match(html, /data-action="goto-title"/);
 });
+
+// ── Hero Comparison Tool ──────────────────────────────────────────────────
+
+test("_midpointYear parses '1879-1955' (Einstein) to 1917", () => {
+  assert.strictEqual(Screens._midpointYear("1879-1955"), 1917);
+});
+
+test("_midpointYear parses 'c. 1391-1271 BCE' (Moses) to a negative year", () => {
+  const y = Screens._midpointYear("c. 1391-1271 BCE");
+  assert.ok(y < 0, `expected negative BCE year, got ${y}`);
+  assert.strictEqual(y, -1331);  // midpoint of -1391 and -1271
+});
+
+test("_midpointYear handles the en-dash separator used in heroes.js", () => {
+  // The actual data uses U+2013 EN DASH in dates strings.
+  assert.strictEqual(Screens._midpointYear("1898–1978"), 1938);    // Golda
+  assert.strictEqual(Screens._midpointYear("1138–1204"), 1171);    // Rambam
+});
+
+test("_midpointYear parses single-year 'd. 160 BCE' to -160", () => {
+  assert.strictEqual(Screens._midpointYear("d. 160 BCE"), -160);
+});
+
+test("_midpointYear parses '5th century BCE' (Esther) to a negative midpoint", () => {
+  const y = Screens._midpointYear("5th century BCE");
+  // 5th c. BCE midpoint is approx -450
+  assert.strictEqual(y, -450);
+});
+
+test("_midpointYear returns null on missing/malformed input", () => {
+  assert.strictEqual(Screens._midpointYear(undefined), null);
+  assert.strictEqual(Screens._midpointYear(null), null);
+  assert.strictEqual(Screens._midpointYear(""), null);
+  assert.strictEqual(Screens._midpointYear("not a date string at all"), null);
+});
+
+test("_eraYearGap returns 'Same year' for identical heroes", () => {
+  const moses = Heroes.byId("moses");
+  assert.strictEqual(Screens._eraYearGap(moses, moses), "Same year");
+});
+
+test("_eraYearGap returns 'About X years apart' for distant pairs (Moses vs Einstein)", () => {
+  const moses = Heroes.byId("moses");
+  const einstein = Heroes.byId("einstein");
+  const gap = Screens._eraYearGap(moses, einstein);
+  assert.match(gap, /About [\d,]+ years apart/);
+  // Sanity: Moses (-1331) -> Einstein (1917) ~= 3248 -> rounded to 3,200.
+  assert.match(gap, /3,200/);
+});
+
+test("_eraYearGap returns null when either dates field can't be parsed", () => {
+  const moses = Heroes.byId("moses");
+  const fake = { profile: { dates: "totally unparseable" } };
+  assert.strictEqual(Screens._eraYearGap(moses, fake), null);
+  assert.strictEqual(Screens._eraYearGap(fake, moses), null);
+  assert.strictEqual(Screens._eraYearGap({}, {}), null);
+});
+
+test("_eraYearGap parses all 7 heroes' dates without returning null", () => {
+  // Cross-product sanity: every pair of canonical heroes parses to a real gap.
+  for (const a of Heroes.list) {
+    for (const b of Heroes.list) {
+      if (a === b) continue;
+      const gap = Screens._eraYearGap(a, b);
+      assert.ok(typeof gap === "string" && gap.length > 0,
+        `${a.id} vs ${b.id} should parse; got ${gap}`);
+    }
+  }
+});
+
+test("renderComparePick shows all 7 hero cards", () => {
+  const state = { compare: { picks: { 1: null, 2: null }, selecting: 1 } };
+  const html = Screens.renderComparePick(state);
+  for (const h of Heroes.list) {
+    assert.match(html, new RegExp(`data-hero="${h.id}"`), `expected ${h.id} card`);
+  }
+  // 7 pick cards total.
+  const cardCount = (html.match(/data-action="compare-pick-hero"/g) || []).length;
+  assert.strictEqual(cardCount, 7);
+});
+
+test("renderComparePick heading matches selecting state (1 vs 2)", () => {
+  const state1 = { compare: { picks: { 1: null, 2: null }, selecting: 1 } };
+  const html1 = Screens.renderComparePick(state1);
+  assert.match(html1, /pick Hero A/);
+  assert.doesNotMatch(html1, /pick Hero B/);
+
+  const state2 = { compare: { picks: { 1: "moses", 2: null }, selecting: 2 } };
+  const html2 = Screens.renderComparePick(state2);
+  assert.match(html2, /pick Hero B/);
+  assert.doesNotMatch(html2, /pick Hero A/);
+});
+
+test("renderComparePick exposes the back-to-hall action", () => {
+  const state = { compare: { picks: { 1: null, 2: null }, selecting: 1 } };
+  const html = Screens.renderComparePick(state);
+  assert.match(html, /data-action="compare-back-to-hall"/);
+});
+
+test("renderCompare renders side-by-side panels with both hero names", () => {
+  const state = {
+    compare: { picks: { 1: "moses", 2: "einstein" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /class="compare-grid"/);
+  assert.match(html, /class="compare-col compare-col-a"/);
+  assert.match(html, /class="compare-col compare-col-b"/);
+  assert.match(html, /Moses/);
+  assert.match(html, /Einstein/);
+});
+
+test("renderCompare renders the stats table", () => {
+  const state = {
+    compare: { picks: { 1: "moses", 2: "david" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /class="compare-table"/);
+  // Each canonical row label is present.
+  for (const label of ["HP", "Attack", "Defend", "Special", "Your matches", "Endless best", "Arcade wins"]) {
+    assert.match(html, new RegExp(`>${label}<`), `expected ${label} row`);
+  }
+});
+
+test("renderCompare shows era gap line when both heroes have parseable dates", () => {
+  const state = {
+    compare: { picks: { 1: "moses", 2: "einstein" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /class="compare-eragap"/);
+  assert.match(html, /years apart/);
+});
+
+test("renderCompare shows head-to-head record when matchups exist", () => {
+  const save = freshSave();
+  save.matchups = save.matchups || {};
+  save.matchups["moses|david"] = { wins: 3, losses: 1 };
+  save.matchups["david|moses"] = { wins: 1, losses: 3 };
+  const state = {
+    compare: { picks: { 1: "moses", 2: "david" }, selecting: 2 },
+    save
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /class="compare-h2h"/);
+  assert.match(html, /3-1/);
+  assert.match(html, /1-3/);
+  assert.doesNotMatch(html, /compare-h2h-empty/);
+});
+
+test("renderCompare shows 'no head-to-head' empty state when no matchups", () => {
+  const state = {
+    compare: { picks: { 1: "moses", 2: "david" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /compare-h2h-empty/);
+  assert.match(html, /No head-to-head matches yet/);
+});
+
+test("renderCompare exposes restart and back-to-hall actions", () => {
+  const state = {
+    compare: { picks: { 1: "moses", 2: "david" }, selecting: 2 },
+    save: freshSave()
+  };
+  const html = Screens.renderCompare(state);
+  assert.match(html, /data-action="compare-restart"/);
+  assert.match(html, /data-action="compare-back-to-hall"/);
+});
+
+test("renderCompare returns empty string when compare state is missing or incomplete", () => {
+  assert.strictEqual(Screens.renderCompare({}), "");
+  assert.strictEqual(Screens.renderCompare({ compare: null }), "");
+  assert.strictEqual(Screens.renderCompare({ compare: { picks: { 1: null, 2: null } } }), "");
+  assert.strictEqual(Screens.renderCompare({ compare: { picks: { 1: "moses", 2: null } } }), "");
+});
+
+test("renderCompare shows mastery star next to mastered hero name", () => {
+  const save = freshSave();
+  save.mastered.moses = true;
+  const state = {
+    compare: { picks: { 1: "moses", 2: "david" }, selecting: 2 },
+    save
+  };
+  const html = Screens.renderCompare(state);
+  // Star entity appears in the compare-name block.
+  assert.match(html, /class="compare-name">Moses &#x2605;/);
+  // King David is NOT mastered -> rendered without the star entity.
+  assert.match(html, /class="compare-name">King David /);
+  assert.doesNotMatch(html, /class="compare-name">King David &#x2605;/);
+});
+
+test("renderHall includes the Compare Heroes CTA button", () => {
+  const state = { save: freshSave() };
+  const html = Screens.renderHall(state);
+  assert.match(html, /data-action="open-compare"/);
+  assert.match(html, /class="compare-cta"/);
+  assert.match(html, /Compare Heroes/);
+});

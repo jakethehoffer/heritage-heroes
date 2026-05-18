@@ -3380,9 +3380,163 @@ ${recordsHtml || ""}
 <section class="screen hall-screen">
   <h2>Hall of Heroes</h2>
   <p class="tagline">Browse each hero and learn their story.</p>
+  <button data-action="open-compare" class="compare-cta">&#x2696;&#xFE0F; Compare Heroes</button>
   <div class="hall-grid">${cards}</div>
   <button data-action="goto-title" class="back">&larr; Back</button>
 </section>`;
+  }
+
+  // ── Hero Comparison Tool ─────────────────────────────────────────────────
+  // Two-step flow off the Hall of Heroes: compare-pick (choose Hero A then B)
+  // then compare (side-by-side stats, bios, era gap, head-to-head record).
+
+  function renderComparePick(state) {
+    const selecting = (state.compare && state.compare.selecting) || 1;
+    const heading = selecting === 1
+      ? "Compare Heroes &mdash; pick Hero A"
+      : "Compare Heroes &mdash; pick Hero B";
+
+    const cards = Heroes.list.map(h => `
+      <button class="compare-pick-card" data-action="compare-pick-hero" data-hero="${h.id}">
+        <div class="compare-pick-portrait">${Render.renderHero({ heroId: h.id, pose: "idle", facing: "right" })}</div>
+        <div class="compare-pick-name">${Render.escapeHtml(h.name)}</div>
+        <div class="compare-pick-era">${Render.escapeHtml(h.era)}</div>
+      </button>
+    `).join("");
+
+    return `
+<section class="screen screen-compare-pick">
+  <h2>${heading}</h2>
+  <div class="compare-pick-grid">${cards}</div>
+  <button data-action="compare-back-to-hall" class="back">&larr; Back to Hall</button>
+</section>`;
+  }
+
+  function renderCompare(state) {
+    const c = state.compare;
+    if (!c || !c.picks[1] || !c.picks[2]) return "";
+    const hA = Heroes.byId(c.picks[1]);
+    const hB = Heroes.byId(c.picks[2]);
+    if (!hA || !hB) return "";
+
+    // Era gap calculation (rough midpoint of profile.dates ranges).
+    const yearGap = _eraYearGap(hA, hB);
+
+    // Head-to-head record (from save.matchups). Keys are "winnerId|loserId".
+    const matchups = (state.save && state.save.matchups) || {};
+    const aVsB = matchups[hA.id + "|" + hB.id] || { wins: 0, losses: 0 };
+    const bVsA = matchups[hB.id + "|" + hA.id] || { wins: 0, losses: 0 };
+
+    // Mastery status (Study Mode mastery stars).
+    const mastered = (state.save && state.save.mastered) || {};
+    const aMastered = !!mastered[hA.id];
+    const bMastered = !!mastered[hB.id];
+
+    // Per-hero stats.
+    const perHero = (state.save && state.save.stats && state.save.stats.perHero) || {};
+    const aStats = perHero[hA.id] || { played: 0, won: 0 };
+    const bStats = perHero[hB.id] || { played: 0, won: 0 };
+
+    // Endless best streak / arcade clear count per hero.
+    const eA = (state.save && state.save.endlessHighScore && state.save.endlessHighScore[hA.id]) || 0;
+    const eB = (state.save && state.save.endlessHighScore && state.save.endlessHighScore[hB.id]) || 0;
+    const arA = (state.save && state.save.arcade && state.save.arcade[hA.id]) || 0;
+    const arB = (state.save && state.save.arcade && state.save.arcade[hB.id]) || 0;
+
+    const portrait = (id) => Render.renderHero({ heroId: id, pose: "idle", facing: "right" });
+
+    const h2hTotal = aVsB.wins + aVsB.losses + bVsA.wins + bVsA.losses;
+    const h2hBlock = h2hTotal > 0
+      ? `<div class="compare-h2h">
+           <p class="compare-h2h-label">Head-to-head when YOU control them:</p>
+           <p class="compare-h2h-records">
+             <span>As ${Render.escapeHtml(hA.name)}: <strong>${aVsB.wins}-${aVsB.losses}</strong> vs ${Render.escapeHtml(hB.name)}</span>
+             <span>As ${Render.escapeHtml(hB.name)}: <strong>${bVsA.wins}-${bVsA.losses}</strong> vs ${Render.escapeHtml(hA.name)}</span>
+           </p>
+         </div>`
+      : `<p class="compare-h2h-empty">No head-to-head matches yet &mdash; try this matchup in Practice!</p>`;
+
+    return `
+<section class="screen screen-compare">
+  <h2>Hero Comparison</h2>
+  <div class="compare-grid">
+    <div class="compare-col compare-col-a">
+      <div class="compare-portrait">${portrait(hA.id)}</div>
+      <h3 class="compare-name">${Render.escapeHtml(hA.name)} ${aMastered ? "&#x2605;" : ""}</h3>
+      <p class="compare-era">${Render.escapeHtml(hA.era)}</p>
+      <p class="compare-dates">${Render.escapeHtml((hA.profile && hA.profile.dates) || "")}</p>
+      <p class="compare-bio">${Render.escapeHtml(hA.bio)}</p>
+    </div>
+    <div class="compare-col compare-col-b">
+      <div class="compare-portrait">${portrait(hB.id)}</div>
+      <h3 class="compare-name">${Render.escapeHtml(hB.name)} ${bMastered ? "&#x2605;" : ""}</h3>
+      <p class="compare-era">${Render.escapeHtml(hB.era)}</p>
+      <p class="compare-dates">${Render.escapeHtml((hB.profile && hB.profile.dates) || "")}</p>
+      <p class="compare-bio">${Render.escapeHtml(hB.bio)}</p>
+    </div>
+  </div>
+
+  <div class="compare-table-wrap">
+    <table class="compare-table">
+      <tbody>
+        <tr><th>HP</th><td>${hA.hp}</td><td>${hB.hp}</td></tr>
+        <tr><th>Attack</th><td>${Render.escapeHtml(hA.moves.attack.name)} (${hA.moves.attack.damage} dmg)</td><td>${Render.escapeHtml(hB.moves.attack.name)} (${hB.moves.attack.damage} dmg)</td></tr>
+        <tr><th>Defend</th><td>${Render.escapeHtml(hA.moves.defend.name)}</td><td>${Render.escapeHtml(hB.moves.defend.name)}</td></tr>
+        <tr><th>Special</th><td>${Render.escapeHtml(hA.moves.special.name)}</td><td>${Render.escapeHtml(hB.moves.special.name)}</td></tr>
+        <tr><th>Your matches</th><td>${aStats.played} (${aStats.won} W)</td><td>${bStats.played} (${bStats.won} W)</td></tr>
+        <tr><th>Endless best</th><td>${eA || "&mdash;"}</td><td>${eB || "&mdash;"}</td></tr>
+        <tr><th>Arcade wins</th><td>${arA || "&mdash;"}</td><td>${arB || "&mdash;"}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  ${yearGap ? `<p class="compare-eragap">&#x1F4DC; <strong>${yearGap}</strong></p>` : ""}
+
+  ${h2hBlock}
+
+  <div class="compare-actions">
+    <button data-action="compare-restart">Compare Different Heroes</button>
+    <button data-action="compare-back-to-hall" class="secondary">Back to Hall</button>
+  </div>
+</section>`;
+  }
+
+  // Parses hero.profile.dates (e.g., "c. 1391-1271 BCE", "1135-1204", "1898-1978",
+  // "1879-1955", "5th century BCE", "d. 160 BCE") into a midpoint year and computes
+  // a human-readable gap. Returns "Same year" / "~50 years apart" /
+  // "About 3,000 years apart" or null if either set of dates can't be parsed.
+  function _eraYearGap(heroA, heroB) {
+    const yA = _midpointYear(heroA && heroA.profile && heroA.profile.dates);
+    const yB = _midpointYear(heroB && heroB.profile && heroB.profile.dates);
+    if (yA === null || yB === null) return null;
+    const diff = Math.abs(yA - yB);
+    if (diff === 0) return "Same year";
+    if (diff < 100) return `~${diff} years apart`;
+    if (diff < 1000) return `About ${Math.round(diff / 10) * 10} years apart`;
+    // Round to nearest 100 for clarity; use thousands-grouped formatting.
+    const rounded = Math.round(diff / 100) * 100;
+    return `About ${rounded.toLocaleString("en-US")} years apart`;
+  }
+
+  function _midpointYear(datesStr) {
+    if (typeof datesStr !== "string") return null;
+    // Detect BCE/B.C.E./BC suffixes (any of: BCE, BC, B.C.E., B.C.).
+    const isBCE = /\bB\.?C\.?E?\.?\b/i.test(datesStr);
+    // "5th century BCE" form: parse the century number into a midpoint year.
+    const centuryMatch = datesStr.match(/(\d{1,2})(?:st|nd|rd|th)\s*century/i);
+    if (centuryMatch) {
+      const c = parseInt(centuryMatch[1], 10);
+      // Midpoint of the Nth century (-50 from its end). E.g. 5th c. = year 450.
+      const mid = (c * 100) - 50;
+      return isBCE ? -mid : mid;
+    }
+    // Otherwise capture up to four-digit numbers (years).
+    const nums = datesStr.match(/\d{1,4}/g);
+    if (!nums || nums.length === 0) return null;
+    let start = parseInt(nums[0], 10);
+    let end = nums.length >= 2 ? parseInt(nums[1], 10) : start;
+    if (isBCE) { start = -start; end = -end; }
+    return Math.round((start + end) / 2);
   }
 
   // ── Hero Profile modal ───────────────────────────────────────────────────
@@ -4519,6 +4673,7 @@ ${recordsHtml || ""}
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
     renderStudySession, renderStudyResult, renderQuiz, renderQuizResult, renderStats, renderResetStatsConfirm,
     renderBossIntro, renderVsIntro, renderMatchEndSplash, renderHall, renderProfile,
+    renderComparePick, renderCompare, _eraYearGap, _midpointYear,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,
     renderPauseOverlay, renderBattleLog,

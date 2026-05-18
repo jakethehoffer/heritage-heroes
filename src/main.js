@@ -36,7 +36,7 @@ var Main = (function () {
     });
   }
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | match-end-splash | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
+    screen: "title",        // title | mode | opponent | charselect | difficulty | vs-intro | battle | match-end-splash | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room | compare-pick | compare
     trophyFilter: "all",   // "all" | "unlocked" | "locked"
     trophySort:   "recent", // "recent" | "category" | "progress"
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
@@ -74,7 +74,9 @@ var Main = (function () {
     pendingVsIntroTimeout: null,  // id of VS-intro auto-advance timeout (clearable on skip/quit)
     pendingMatchEndSplashTimeout: null, // id of match-end VICTORY/DEFEAT splash auto-advance timeout
     // Stage Select (Quick Match vs AI only)
-    selectedStageId: null        // populated when player picks a stage in Quick Match vs AI
+    selectedStageId: null,       // populated when player picks a stage in Quick Match vs AI
+    // Hero Comparison Tool (Hall of Heroes -> Compare Heroes flow)
+    compare: null                // { picks: { 1: heroId, 2: heroId }, selecting: 1 | 2 } when active
   };
 
   function _freshMatchStats() {
@@ -552,6 +554,8 @@ var Main = (function () {
     else if (state.screen === "stats") body = Screens.renderStats(state);
     else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
     else if (state.screen === "hall") body = Screens.renderHall(state);
+    else if (state.screen === "compare-pick") body = Screens.renderComparePick(state);
+    else if (state.screen === "compare")      body = Screens.renderCompare(state);
     else if (state.screen === "endless-continue") body = Screens.renderEndlessContinue(state);
     else if (state.screen === "endless-result")   body = Screens.renderEndlessResult(state);
     else if (state.screen === "settings")         body = Screens.renderSettings(state);
@@ -633,6 +637,34 @@ var Main = (function () {
       case "trophy-filter": state.trophyFilter = target.dataset.filter; render(); return;
       case "trophy-sort":   state.trophySort   = target.dataset.sort;   render(); return;
       case "open-hall":      state.screen = "hall"; render(); return;
+      case "open-compare":
+        state.compare = { picks: { 1: null, 2: null }, selecting: 1 };
+        state.screen = "compare-pick";
+        render();
+        return;
+      case "compare-pick-hero": {
+        const heroId = target.dataset.hero;
+        if (!Heroes.byId(heroId)) return;
+        if (state.compare.selecting === 1) {
+          state.compare.picks[1] = heroId;
+          state.compare.selecting = 2;
+        } else {
+          state.compare.picks[2] = heroId;
+          state.screen = "compare";
+        }
+        render();
+        return;
+      }
+      case "compare-restart":
+        state.compare = { picks: { 1: null, 2: null }, selecting: 1 };
+        state.screen = "compare-pick";
+        render();
+        return;
+      case "compare-back-to-hall":
+        state.compare = null;
+        state.screen = "hall";
+        render();
+        return;
       case "open-timeline":  state.screen = "timeline"; render(); return;
       case "open-history":   state.screen = "history"; render(); return;
       case "view-match-detail": {
