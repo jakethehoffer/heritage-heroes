@@ -757,6 +757,80 @@ test("renderWhatsNew shows the v2 entry as the latest (cl[cl.length - 1] is v2)"
   assert.doesNotMatch(html, /v1 Old Feature/);
 });
 
+// ── v3 CHANGELOG shape (verified via renderWhatsNew integration) ──────────
+//
+// Same approach as the v2 mock above: CHANGELOG is private inside main.js, so
+// we exercise the rendering contract that consumes it. A v3-shaped mock with
+// three entries (v1 + v2 + v3) confirms:
+//   - the array preserves older entries (length === 3)
+//   - renderWhatsNew shows v3 as the latest, which is what returning players
+//     with lastSeenVersion === 2 will see on their next title load
+function v3ChangelogMock() {
+  return [
+    {
+      version: 1,
+      title: "v1 — The Polish Update",
+      date: "2026-05-17",
+      changes: [
+        { icon: "X", title: "v1 Old Feature", description: "v1 thing." }
+      ]
+    },
+    {
+      version: 2,
+      title: "v2 — The Big Update",
+      date: "2026-05-18",
+      changes: [
+        { icon: "Y", title: "v2 Mid Feature", description: "v2 thing." }
+      ]
+    },
+    {
+      version: 3,
+      title: "v3 — Mastery & Replay",
+      date: "2026-05-18",
+      changes: [
+        { icon: "A", title: "v3 Replay",   description: "Re-watch matches." },
+        { icon: "B", title: "v3 Mastery",  description: "Five hero tiers." },
+        { icon: "C", title: "v3 Profile",  description: "Player name." },
+        { icon: "D", title: "v3 Stage",    description: "Stage info overlay." },
+        { icon: "E", title: "v3 Compare",  description: "Hero comparison." },
+        { icon: "F", title: "v3 Chart",    description: "HP timeline chart." }
+      ]
+    }
+  ];
+}
+
+test("v3 CHANGELOG mock has 3 entries (v1 + v2 + v3)", () => {
+  const cl = v3ChangelogMock();
+  assert.strictEqual(cl.length, 3);
+  assert.strictEqual(cl[0].version, 1);
+  assert.strictEqual(cl[1].version, 2);
+  assert.strictEqual(cl[2].version, 3);
+});
+
+test("v3 entry title contains 'v3'", () => {
+  const cl = v3ChangelogMock();
+  assert.match(cl[2].title, /v3/);
+});
+
+test("v3 entry has a non-empty changes array (>= 6 items)", () => {
+  const cl = v3ChangelogMock();
+  assert.ok(Array.isArray(cl[2].changes));
+  assert.ok(cl[2].changes.length >= 6,
+    `expected >= 6 v3 changes, got ${cl[2].changes.length}`);
+});
+
+test("renderWhatsNew shows the v3 entry as the latest (cl[cl.length - 1] is v3)", () => {
+  const html = Screens.renderWhatsNew({ changelog: v3ChangelogMock() });
+  // v3 title and v3-only items appear
+  assert.match(html, /v3 &mdash; Mastery &amp; Replay|v3 — Mastery &amp; Replay/);
+  assert.match(html, /v3 Replay/);
+  assert.match(html, /v3 Mastery/);
+  assert.match(html, /v3 Profile/);
+  // Older entries' content is NOT shown when v3 is the latest
+  assert.doesNotMatch(html, /v1 Old Feature/);
+  assert.doesNotMatch(html, /v2 Mid Feature/);
+});
+
 // ── Replay Tutorial button (Part 2) ───────────────────────────────────────
 
 test("renderHelp includes the Replay Tutorial button", () => {

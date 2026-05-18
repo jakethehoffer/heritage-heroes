@@ -162,6 +162,21 @@ button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 v
   align-items: center;
   padding: 40px 20px;
   gap: 24px;
+  /* Subtle fade-in on every screen mount. The `.screen` class is on every
+     section rendered by main.js's screen dispatcher (renderTitle, renderBattle,
+     renderHall, etc.). When render() replaces root.innerHTML, the new .screen
+     element is newly inserted into the DOM, so the animation fires once per
+     screen change. The slight Y offset reads as a "rise into view" without
+     interfering with nested animations (vs-intro, match-end-splash, confetti)
+     or with overlays (which are .overlay siblings, not .screen descendants). */
+  animation: screen-fade-in 200ms ease-out;
+}
+@keyframes screen-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen { animation: none; }
 }
 .screen-title h1 { font-size: 64px; color: var(--navy); }
 .tagline { font-size: 20px; color: var(--ink); opacity: 0.75; }

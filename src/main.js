@@ -5,7 +5,7 @@ var Main = (function () {
   // CHANGELOG entry once in the "What's New" overlay. Brand-new players
   // (no matches played) are quietly bumped to the current version and skip
   // the overlay.
-  const GAME_VERSION = 2;
+  const GAME_VERSION = 3;
   const CHANGELOG = [
     {
       version: 1,
@@ -33,6 +33,21 @@ var Main = (function () {
         { icon: "💡", title: "Battle Strategy Hints",  description: "Context-aware tactical tips during your turn — \"Defend, opponent is charging!\" Default on, toggle in Settings." },
         { icon: "🎚️", title: "Volume Sliders",         description: "Three sliders (master / music / SFX) replace the binary mute toggles for finer audio control." },
         { icon: "♿", title: "Accessibility Settings", description: "Text Size (normal / large / xlarge) and a High-Contrast theme — both compose. Real grandpa-first wins." }
+      ]
+    },
+    {
+      version: 3,
+      title: "v3 — Mastery & Replay",
+      date: "2026-05-18",
+      changes: [
+        { icon: "▶️", title: "Match Replay",          description: "Re-watch any saved match move-by-move with all the original animations. New ▶ Replay button on every Match Detail." },
+        { icon: "🌟", title: "Hero Mastery Tiers",    description: "Five ranked levels per hero — Apprentice → Adept → Scholar → Sage → Master. Visible everywhere your hero appears." },
+        { icon: "👤", title: "Player Name",           description: "Optional Settings field. Title greets you by name, share cards carry your attribution." },
+        { icon: "📍", title: "Stage Info",            description: "Each of the 7 stages now has an evocative subtitle on its card + tap-to-expand historical context overlay." },
+        { icon: "📈", title: "HP Timeline Chart",     description: "Every result screen now opens with an SVG line chart showing both heroes' HP over the match." },
+        { icon: "⚔️", title: "Hero Rivalries",        description: "Canonical pairing flavor tags on VS Intro — David vs Judah \"Warriors of Israel\", Maimonides vs Einstein \"Giants of Jewish thought\", etc." },
+        { icon: "⏱️", title: "Combat HUD",            description: "Live turn counter and match timer during battle, plus an expanded stats recap covering damage dealt and taken." },
+        { icon: "🎓", title: "Tutorial Replay",        description: "Replay the onboarding walkthrough any time from the Help menu — no save reset required." }
       ]
     }
   ];
