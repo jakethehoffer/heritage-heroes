@@ -18,6 +18,7 @@ var Storage = (function () {
       sfx: true,
       animSpeed: "normal",
       textSize: "normal",  // "normal" | "large" | "xlarge"
+      theme: "default",  // "default" | "high-contrast"
       tutorialSeen: false,
       hardUnlocked: false,
       hardCleared: false,
@@ -106,6 +107,9 @@ var Storage = (function () {
         }
         if (parsed.textSize === "normal" || parsed.textSize === "large" || parsed.textSize === "xlarge") {
           out.textSize = parsed.textSize;
+        }
+        if (parsed.theme === "default" || parsed.theme === "high-contrast") {
+          out.theme = parsed.theme;
         }
         if (typeof parsed.tutorialSeen === "boolean") out.tutorialSeen = parsed.tutorialSeen;
         if (typeof parsed.hardUnlocked === "boolean") out.hardUnlocked = parsed.hardUnlocked;

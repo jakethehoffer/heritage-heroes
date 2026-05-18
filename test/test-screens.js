@@ -842,3 +842,38 @@ test("renderSettings: defaults to 'normal' selected when textSize is missing", (
   assert.match(block[0], /data-size="normal"[^>]*class="settings-radio selected"/);
 });
 
+// ── renderSettings: theme radio group ────────────────────────────────────────
+test("renderSettings: includes the Theme radio group with 2 options", () => {
+  const save = freshSave();
+  const html = Screens.renderSettings({ save });
+  assert.match(html, /<h3>Theme<\/h3>/);
+  assert.match(html, /data-action="set-theme"\s+data-theme="default"/);
+  assert.match(html, /data-action="set-theme"\s+data-theme="high-contrast"/);
+  // Visible button labels
+  assert.match(html, />Default</);
+  assert.match(html, />High Contrast</);
+});
+
+test("renderSettings: marks the correct theme radio 'selected' when theme='high-contrast'", () => {
+  const save = freshSave();
+  save.theme = "high-contrast";
+  const html = Screens.renderSettings({ save });
+  // Pull just the theme radio group (two consecutive set-theme buttons).
+  const block = html.match(/<button[^>]*data-action="set-theme"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-theme"[\s\S]*?<\/button>/);
+  assert.ok(block, "expected two set-theme buttons in a row");
+  const group = block[0];
+  assert.match(group, /data-theme="high-contrast"[^>]*class="settings-radio selected"/);
+  assert.doesNotMatch(group, /data-theme="default"[^>]*class="settings-radio selected"/);
+});
+
+test("renderSettings: defaults to 'default' selected when theme is missing", () => {
+  const save = freshSave();
+  // Force-remove the field to simulate a legacy save with no theme at all.
+  delete save.theme;
+  const html = Screens.renderSettings({ save });
+  const block = html.match(/<button[^>]*data-action="set-theme"[\s\S]*?<\/button>\s*<button[^>]*data-action="set-theme"[\s\S]*?<\/button>/);
+  assert.ok(block, "expected two set-theme buttons");
+  assert.match(block[0], /data-theme="default"[^>]*class="settings-radio selected"/);
+  assert.doesNotMatch(block[0], /data-theme="high-contrast"[^>]*class="settings-radio selected"/);
+});
+

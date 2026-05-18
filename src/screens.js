@@ -3655,6 +3655,7 @@ ${recordsHtml || ""}
     const sfxOn   = state.save && state.save.sfx;
     const animSpeed = (state.save && state.save.animSpeed) || "normal";
     const textSize  = (state.save && state.save.textSize)  || "normal";
+    const theme     = (state.save && state.save.theme)     || "default";
     return `
 <section class="screen screen-settings">
   <h2>Settings</h2>
@@ -3699,6 +3700,17 @@ ${recordsHtml || ""}
               class="settings-radio ${textSize === "xlarge" ? "selected" : ""}">Extra Large</button>
     </div>
     <p class="settings-help">Larger text is easier to read.</p>
+  </div>
+
+  <div class="settings-group">
+    <h3>Theme</h3>
+    <p class="settings-help">High contrast is easier to read in bright light.</p>
+    <div class="settings-radio-group">
+      <button data-action="set-theme" data-theme="default"
+              class="settings-radio ${theme === "default" ? "selected" : ""}">Default</button>
+      <button data-action="set-theme" data-theme="high-contrast"
+              class="settings-radio ${theme === "high-contrast" ? "selected" : ""}">High Contrast</button>
+    </div>
   </div>
 
   ${typeof Main !== "undefined" && Main.isInstallable && Main.isInstallable() ? `

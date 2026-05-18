@@ -434,6 +434,47 @@ test("textSize persists alongside other settings (animSpeed, music)", () => {
   assert.strictEqual(reloaded.music, false);
 });
 
+// ── theme (accessibility) ─────────────────────────────────────────────────
+test("theme defaults to 'default'", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.theme, "default");
+});
+
+test("theme round-trips 'default' and 'high-contrast' via save/load", () => {
+  const s = fakeStore();
+  for (const theme of ["default", "high-contrast"]) {
+    const data = Storage.load(s);
+    data.theme = theme;
+    Storage.save(s, data);
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.theme, theme, `${theme} should round-trip`);
+  }
+});
+
+test("theme rejects malformed values and falls back to 'default'", () => {
+  const malformed = ["dark", "light", "", "DEFAULT", null, 0, 1, true, false, [], {}];
+  for (const bad of malformed) {
+    const s = fakeStore();
+    s.setItem("heritageHeroes.save", JSON.stringify({ theme: bad }));
+    const reloaded = Storage.load(s);
+    assert.strictEqual(reloaded.theme, "default",
+      `malformed theme ${JSON.stringify(bad)} should default to "default"`);
+  }
+});
+
+test("theme persists alongside other settings (textSize, animSpeed)", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.theme     = "high-contrast";
+  data.textSize  = "large";
+  data.animSpeed = "fast";
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.theme, "high-contrast");
+  assert.strictEqual(reloaded.textSize, "large");
+  assert.strictEqual(reloaded.animSpeed, "fast");
+});
+
 // ── recentMatches / recordMatchHistory ────────────────────────────────────────
 
 test("recentMatches defaults to empty array", () => {

@@ -401,6 +401,16 @@ var Main = (function () {
     if (textSize === "xlarge") body.classList.add("text-xlarge");
   }
 
+  // Apply theme accessibility setting by toggling body classes.
+  // No-op in headless / no-DOM contexts (tests).
+  function applyTheme(theme) {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    if (!body) return;
+    body.classList.remove("theme-high-contrast");
+    if (theme === "high-contrast") body.classList.add("theme-high-contrast");
+  }
+
   function boot() {
     const store = (typeof localStorage !== "undefined") ? localStorage : { getItem: () => null, setItem: () => {} };
     state.save = Storage.load(store);
@@ -408,6 +418,7 @@ var Main = (function () {
     Sfx.setSfxMuted(!state.save.sfx);
     Sfx.preload();
     applyTextSize(state.save.textSize);
+    applyTheme(state.save.theme);
     // Randomise starting featured hero so each session feels fresh
     state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
@@ -689,6 +700,23 @@ var Main = (function () {
           state.save.textSize = size;
         }
         applyTextSize(size);
+        render();
+        return;
+      }
+
+      case "set-theme": {
+        const theme = target.dataset.theme;
+        if (theme !== "default" && theme !== "high-contrast") return;
+        const store = getStore();
+        if (store) {
+          const data = Storage.load(store);
+          data.theme = theme;
+          Storage.save(store, data);
+          state.save = Storage.load(store);
+        } else {
+          state.save.theme = theme;
+        }
+        applyTheme(theme);
         render();
         return;
       }
