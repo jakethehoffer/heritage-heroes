@@ -133,6 +133,49 @@ button.quick-play .quick-play-sub {
   font-family: var(--font-body);
   align-self: start;
 }
+
+/* Continue Last Mode — mirrors .quick-play layout but uses a terracotta
+   accent so it reads as a distinct "resume" shortcut (vs Quick Play's
+   gold "random" shortcut). Sits between BEGIN and Quick Play in priority. */
+button.continue-last {
+  background: var(--cream);
+  color: var(--ink);
+  border-left: 10px solid var(--terracotta);
+  padding: 12px 24px 12px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon label"
+    "icon sub";
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  text-align: left;
+  line-height: 1.2;
+}
+button.continue-last .continue-last-icon {
+  grid-area: icon;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--terracotta);
+}
+button.continue-last .continue-last-label {
+  grid-area: label;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--navy);
+  align-self: end;
+}
+button.continue-last .continue-last-sub {
+  grid-area: sub;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink);
+  opacity: 0.7;
+  font-family: var(--font-body);
+  align-self: start;
+}
 button.back { background: var(--cream); color: var(--ink); margin-top: 24px; font-size: 18px; padding: 10px 20px; }
 .stats { font-size: 14px; color: var(--ink); opacity: 0.6; }
 
@@ -2585,6 +2628,15 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   button.quick-play .quick-play-icon { font-size: 26px; }
   button.quick-play .quick-play-label { font-size: 20px; }
   button.quick-play .quick-play-sub   { font-size: 12px; }
+
+  /* Continue Last mobile: match Quick Play scaling */
+  button.continue-last {
+    padding: 10px 16px 10px 14px;
+    border-left-width: 8px;
+  }
+  button.continue-last .continue-last-icon  { font-size: 26px; }
+  button.continue-last .continue-last-label { font-size: 20px; }
+  button.continue-last .continue-last-sub   { font-size: 12px; }
 
   /* ── Mode / Opponent / Difficulty grids ───────────── */
   .mode-grid {

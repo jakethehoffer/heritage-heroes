@@ -107,6 +107,30 @@ var Screens = (function () {
   <span class="sparkle" style="--x:90%;--dur:12s;--delay:5s"></span>
 </div>`;
 
+    // Continue Last Mode — one-click resume of the player's most-recent
+    // completed session. Only renders when a valid lastSession exists AND
+    // the recorded hero is still in the roster.
+    let continueButton = "";
+    if (state.save && state.save.lastSession) {
+      const ls = state.save.lastSession;
+      const heroObj = Heroes.byId(ls.playerHeroId);
+      if (heroObj) {
+        const MODE_LABELS = {
+          quick:   "Quick Match",
+          arcade:  "Arcade Ladder",
+          endless: "Endless Survival",
+          study:   "Study Mode"
+        };
+        const modeLabel = MODE_LABELS[ls.mode] || ls.mode;
+        continueButton = `
+    <button data-action="continue-last" class="continue-last" title="Pick up where you left off">
+      <span class="continue-last-icon" aria-hidden="true">&#x25B6;</span>
+      <span class="continue-last-label">Continue: ${Render.escapeHtml(modeLabel)}</span>
+      <span class="continue-last-sub">as ${Render.escapeHtml(heroObj.name)}</span>
+    </button>`;
+      }
+    }
+
     return `
 <section class="screen screen-title">
   ${sparkles}
@@ -115,7 +139,7 @@ var Screens = (function () {
   <p class="tagline">A turn-based duel through history.</p>
   ${featuredPanel}
   <div class="title-buttons">
-    <button data-action="goto-mode">BEGIN</button>
+    <button data-action="goto-mode">BEGIN</button>${continueButton}
     <button data-action="start-quick-play" class="quick-play" title="Random hero, random stage &mdash; just play.">
       <span class="quick-play-icon" aria-hidden="true">&#x1F3B2;</span>
       <span class="quick-play-label">Quick Play</span>

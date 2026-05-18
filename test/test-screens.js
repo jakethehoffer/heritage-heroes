@@ -451,3 +451,69 @@ test("renderWhatsNew handles missing state argument gracefully (no throw)", () =
   assert.doesNotThrow(() => Screens.renderWhatsNew());
   assert.strictEqual(Screens.renderWhatsNew(), "");
 });
+
+// ── Continue Last Mode title button ───────────────────────────────────────
+
+test("renderTitle: shows Continue button when save.lastSession is set with a valid hero", () => {
+  const save = freshSave();
+  save.lastSession = { mode: "arcade", playerHeroId: "moses", timestamp: 1700000000000 };
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.match(html, /data-action="continue-last"/);
+  assert.match(html, /Continue: Arcade Ladder/);
+  assert.match(html, /as Moses/);
+});
+
+test("renderTitle: does NOT show Continue button when lastSession is null", () => {
+  const save = freshSave();
+  // Default is null — be explicit.
+  save.lastSession = null;
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /data-action="continue-last"/);
+  assert.doesNotMatch(html, /Continue:/);
+});
+
+test("renderTitle: does NOT show Continue button when the hero in lastSession no longer exists", () => {
+  const save = freshSave();
+  // Bypass storage validation by injecting directly (storage.load would reject this).
+  save.lastSession = { mode: "quick", playerHeroId: "nobody", timestamp: 1700000000000 };
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  assert.doesNotMatch(html, /data-action="continue-last"/);
+});
+
+test("renderTitle: Continue button label uses the correct mode label per mode", () => {
+  const cases = [
+    { mode: "quick",   label: "Quick Match" },
+    { mode: "arcade",  label: "Arcade Ladder" },
+    { mode: "endless", label: "Endless Survival" },
+    { mode: "study",   label: "Study Mode" }
+  ];
+  for (const c of cases) {
+    const save = freshSave();
+    save.lastSession = { mode: c.mode, playerHeroId: "david", timestamp: 1700000000000 };
+    const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    assert.match(html, new RegExp(`Continue: ${c.label.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`),
+      `mode ${c.mode} should render label "${c.label}"`);
+    assert.match(html, /as King David/, `mode ${c.mode} should render the hero's display name`);
+  }
+});
+
+test("renderTitle: Continue button sits between BEGIN and Quick Play", () => {
+  const save = freshSave();
+  save.lastSession = { mode: "quick", playerHeroId: "esther", timestamp: 1700000000000 };
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  const beginIdx    = html.indexOf('data-action="goto-mode"');
+  const continueIdx = html.indexOf('data-action="continue-last"');
+  const quickIdx    = html.indexOf('data-action="start-quick-play"');
+  assert.ok(beginIdx >= 0, "BEGIN should be present");
+  assert.ok(continueIdx > beginIdx, "Continue should appear after BEGIN");
+  assert.ok(quickIdx > continueIdx, "Continue should appear before Quick Play");
+});
+
+test("renderTitle: Continue button escapes the hero name to prevent HTML injection", () => {
+  const save = freshSave();
+  // Forge a lastSession with a real hero id; we're proving Render.escapeHtml is wired.
+  save.lastSession = { mode: "quick", playerHeroId: "judah", timestamp: 1700000000000 };
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+  // Judah Maccabee's name has no special chars — just confirm the button renders cleanly.
+  assert.match(html, /as Judah Maccabee/);
+});

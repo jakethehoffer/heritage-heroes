@@ -1081,3 +1081,142 @@ test("load rejects malformed lastSeenVersion (float 2.5) -> defaults to 0", () =
   const data = Storage.load(s);
   assert.strictEqual(data.lastSeenVersion, 0);
 });
+
+// ── lastSession (Continue Last Mode) ──────────────────────────────────────
+
+test("lastSession defaults to null", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.lastSession, null);
+});
+
+test("recordLastSession with valid mode + hero persists across reload", () => {
+  const s = fakeStore();
+  Storage.recordLastSession(s, "arcade", "moses");
+  const data = Storage.load(s);
+  assert.ok(data.lastSession);
+  assert.strictEqual(data.lastSession.mode, "arcade");
+  assert.strictEqual(data.lastSession.playerHeroId, "moses");
+  assert.ok(Number.isInteger(data.lastSession.timestamp));
+  assert.ok(data.lastSession.timestamp > 0);
+});
+
+test("recordLastSession supports all four valid modes", () => {
+  for (const mode of ["quick", "arcade", "endless", "study"]) {
+    const s = fakeStore();
+    Storage.recordLastSession(s, mode, "david");
+    const data = Storage.load(s);
+    assert.ok(data.lastSession, `mode ${mode} should produce a lastSession`);
+    assert.strictEqual(data.lastSession.mode, mode);
+    assert.strictEqual(data.lastSession.playerHeroId, "david");
+  }
+});
+
+test("recordLastSession with unsupported mode is a silent no-op", () => {
+  const s = fakeStore();
+  // Seed a valid session first so we can tell the bad call didn't overwrite.
+  Storage.recordLastSession(s, "quick", "moses");
+  const before = Storage.load(s).lastSession;
+  for (const bad of ["tournament", "spectator", "daily", "quiz", "", "nonsense", null, undefined]) {
+    Storage.recordLastSession(s, bad, "moses");
+    const after = Storage.load(s).lastSession;
+    assert.deepStrictEqual(after, before, `mode ${String(bad)} should not change lastSession`);
+  }
+});
+
+test("recordLastSession with invalid hero id is a silent no-op", () => {
+  const s = fakeStore();
+  Storage.recordLastSession(s, "quick", "moses");
+  const before = Storage.load(s).lastSession;
+  for (const bad of ["nobody", "", null, undefined, 42]) {
+    Storage.recordLastSession(s, "quick", bad);
+    const after = Storage.load(s).lastSession;
+    assert.deepStrictEqual(after, before, `hero ${String(bad)} should not change lastSession`);
+  }
+});
+
+test("load rejects lastSession with invalid mode", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSession = { mode: "tournament", playerHeroId: "moses", timestamp: Date.now() };
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSession, null);
+});
+
+test("load rejects lastSession with invalid hero id", () => {
+  const s = fakeStore();
+  const corrupt = Storage.defaults();
+  corrupt.lastSession = { mode: "quick", playerHeroId: "nobody", timestamp: Date.now() };
+  s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSession, null);
+});
+
+test("load rejects lastSession missing required fields", () => {
+  const cases = [
+    { mode: "quick" },                                     // no hero, no timestamp
+    { mode: "quick", playerHeroId: "moses" },              // no timestamp
+    { playerHeroId: "moses", timestamp: Date.now() },      // no mode
+    { mode: "quick", timestamp: Date.now() }               // no hero
+  ];
+  for (const ls of cases) {
+    const s = fakeStore();
+    const corrupt = Storage.defaults();
+    corrupt.lastSession = ls;
+    s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+    const data = Storage.load(s);
+    assert.strictEqual(data.lastSession, null, `should reject ${JSON.stringify(ls)}`);
+  }
+});
+
+test("load rejects lastSession with wrong field types", () => {
+  const cases = [
+    { mode: 42,       playerHeroId: "moses", timestamp: Date.now() },  // mode not string
+    { mode: "quick",  playerHeroId: 7,       timestamp: Date.now() },  // hero not string
+    { mode: "quick",  playerHeroId: "moses", timestamp: "today" },     // timestamp not int
+    { mode: "quick",  playerHeroId: "moses", timestamp: 0 },           // timestamp zero
+    { mode: "quick",  playerHeroId: "moses", timestamp: -1 },          // timestamp negative
+    { mode: "quick",  playerHeroId: "moses", timestamp: 1.5 }          // timestamp float
+  ];
+  for (const ls of cases) {
+    const s = fakeStore();
+    const corrupt = Storage.defaults();
+    corrupt.lastSession = ls;
+    s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+    const data = Storage.load(s);
+    assert.strictEqual(data.lastSession, null, `should reject ${JSON.stringify(ls)}`);
+  }
+});
+
+test("load rejects lastSession when it's not an object", () => {
+  for (const bad of ["string", 42, true, [1, 2, 3]]) {
+    const s = fakeStore();
+    const corrupt = Storage.defaults();
+    corrupt.lastSession = bad;
+    s.setItem("heritageHeroes.save", JSON.stringify(corrupt));
+    const data = Storage.load(s);
+    assert.strictEqual(data.lastSession, null, `should reject ${JSON.stringify(bad)}`);
+  }
+});
+
+test("load round-trips a valid lastSession", () => {
+  const s = fakeStore();
+  const ts = 1700000000000;
+  const seed = Storage.defaults();
+  seed.lastSession = { mode: "endless", playerHeroId: "esther", timestamp: ts };
+  s.setItem("heritageHeroes.save", JSON.stringify(seed));
+  const data = Storage.load(s);
+  assert.deepStrictEqual(data.lastSession, { mode: "endless", playerHeroId: "esther", timestamp: ts });
+});
+
+test("recordLastSession overwrites the previous session", () => {
+  const s = fakeStore();
+  Storage.recordLastSession(s, "quick", "moses");
+  const firstTs = Storage.load(s).lastSession.timestamp;
+  Storage.recordLastSession(s, "endless", "david");
+  const data = Storage.load(s);
+  assert.strictEqual(data.lastSession.mode, "endless");
+  assert.strictEqual(data.lastSession.playerHeroId, "david");
+  // The new timestamp must be >= the first (Date.now is monotonic-ish).
+  assert.ok(data.lastSession.timestamp >= firstTs);
+});

@@ -585,6 +585,7 @@ var Main = (function () {
       case "start-boss-battle": startBossBattle(); return;
       case "start-quick":  startQuick(); return;
       case "start-quick-play": startQuickPlay(); return;
+      case "continue-last": continueLast(); return;
       case "start-arcade": startArcade(); return;
       case "set-opponent": setOpponent(target.dataset.opp); return;
       case "pick-hero":    pickHero(target.dataset.hero); return;
@@ -867,6 +868,15 @@ var Main = (function () {
           Storage.markMastered(getStore(), state.study.heroId);
           state.save = Storage.load(getStore());
         }
+        // Study Mode never flows through recordMatch, so record here so the
+        // title screen's Continue button picks it up.
+        {
+          const studyStore = getStore();
+          if (studyStore) {
+            Storage.recordLastSession(studyStore, "study", state.study.heroId);
+            state.save = Storage.load(studyStore);
+          }
+        }
         state.screen = "study-result";
         render();
         return;
@@ -1024,6 +1034,85 @@ var Main = (function () {
       Sfx.playMusic(stageId);
     }
     goToBattle({ aiFirstStep: false });
+  }
+
+  // Continue Last Mode: one-click restart of the player's most-recent session
+  // (mode + hero). Mirrors startQuickPlay's "skip the selection tree" shape,
+  // but uses the saved lastSession rather than a fresh random roll.
+  function continueLast() {
+    if (!state.save || !state.save.lastSession) return;
+    const ls = state.save.lastSession;
+    const heroObj = Heroes.byId(ls.playerHeroId);
+    if (!heroObj) return;
+
+    // Reset picks; downstream flows assume slot 1 = player.
+    state.picks = { 1: ls.playerHeroId, 2: null };
+
+    if (ls.mode === "quick") {
+      // Random opponent + random stage, jump straight to battle.
+      const STAGE_IDS = ["redsea", "elah", "throne", "temple", "cordoba", "knesset", "princeton"];
+      const opponentPool = HERO_ORDER.filter(id => id !== ls.playerHeroId);
+      const aiHeroId = opponentPool[Math.floor(Math.random() * opponentPool.length)];
+      const stageId = STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)];
+      state.mode = "quick";
+      state.controllers = ["human", "ai"];
+      state.selecting = 1;
+      state.picks[2] = aiHeroId;
+      state.selectedStageId = stageId;
+      state.currentMatchLowHp = { 0: false, 1: false };
+      state.matchStats = _freshMatchStats();
+      state.bossIntroShown = true;
+      state.difficulty = "normal";
+      state.match = Combat.createMatch(ls.playerHeroId, aiHeroId, { stageId });
+      if (typeof Sfx !== "undefined" && Sfx.playMusic) Sfx.playMusic(stageId);
+      goToBattle({ aiFirstStep: false });
+      return;
+    }
+
+    if (ls.mode === "arcade") {
+      state.mode = "arcade";
+      state.controllers = ["human", "ai"];
+      state.selecting = 1;
+      state.difficulty = "normal";  // intentionally simple — player can choose Hard via normal Arcade flow
+      state.bossIntroShown = false;
+      state.arcade = {
+        playerHeroId: ls.playerHeroId,
+        defeated: [],
+        remaining: Combat.arcadeOrder(ls.playerHeroId).slice()
+      };
+      startNextArcadeMatch();
+      return;
+    }
+
+    if (ls.mode === "endless") {
+      state.mode = "endless";
+      state.controllers = ["human", "ai"];
+      state.selecting = 1;
+      state.endless = {
+        heroId: ls.playerHeroId,
+        streak: 0,
+        lastOpponentId: null
+      };
+      startNextEndlessMatch();
+      return;
+    }
+
+    if (ls.mode === "study") {
+      state.mode = "study";
+      state.controllers = ["human", "human"];
+      state.selecting = 1;
+      state.study = {
+        heroId: ls.playerHeroId,
+        questionOrder: shuffleIndices(20),
+        currentIndex: 0,
+        answers: [],
+        lastChoice: null,
+        justMastered: false
+      };
+      state.screen = "study";
+      render();
+      return;
+    }
   }
 
   function setOpponent(opp) {
@@ -1816,6 +1905,9 @@ var Main = (function () {
       // Record match stats in global storage
       if (store) {
         Storage.recordMatch(store, winnerHero, loserHero);
+        // Record last session so the title screen offers a one-click resume
+        const endlessHeroId = state.picks && state.picks[1];
+        if (endlessHeroId) Storage.recordLastSession(store, "endless", endlessHeroId);
         state.save = Storage.load(store);
       }
 
@@ -1897,6 +1989,12 @@ var Main = (function () {
     // Record match result in stats (winner is the match winner, not necessarily the player)
     if (store) {
       Storage.recordMatch(store, winnerHero, loserHero);
+      // Record last session for the four single-hero modes; helper silently
+      // no-ops on unsupported modes, but we gate explicitly for clarity.
+      if (state.mode === "quick" || state.mode === "arcade") {
+        const playerHeroId = state.picks && state.picks[1];
+        if (playerHeroId) Storage.recordLastSession(store, state.mode, playerHeroId);
+      }
       state.save = Storage.load(store);
     }
 

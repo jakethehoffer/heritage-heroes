@@ -66,7 +66,8 @@ var Storage = (function () {
         bestStreak: 0,          // all-time best consecutive-day streak
         lifetimeCompletions: 0  // total challenges ever completed
       },
-      matchups: {}  // empty object; lazily populated
+      matchups: {},  // empty object; lazily populated
+      lastSession: null  // { mode, playerHeroId, timestamp } | null — drives the "Continue: <mode>" title button
     };
   }
 
@@ -178,6 +179,18 @@ var Storage = (function () {
                 Number.isInteger(v.losses) && v.losses >= 0) {
               out.matchups[k] = { wins: v.wins, losses: v.losses };
             }
+          }
+        }
+        // lastSession — must be a fully-shaped object with a supported mode + valid hero id
+        if (parsed.lastSession && typeof parsed.lastSession === "object" && !Array.isArray(parsed.lastSession)) {
+          const ls = parsed.lastSession;
+          const VALID_MODES = ["quick", "arcade", "endless", "study"];
+          if (
+            typeof ls.mode === "string" && VALID_MODES.includes(ls.mode) &&
+            typeof ls.playerHeroId === "string" && HERO_IDS.includes(ls.playerHeroId) &&
+            Number.isInteger(ls.timestamp) && ls.timestamp > 0
+          ) {
+            out.lastSession = { mode: ls.mode, playerHeroId: ls.playerHeroId, timestamp: ls.timestamp };
           }
         }
         // daily challenge data
@@ -455,10 +468,27 @@ var Storage = (function () {
     return data;
   }
 
+  // Record the player's last completed session so the title screen can show
+  // a "Continue: <mode> as <hero>" shortcut. Only the four single-hero modes
+  // qualify; anything else is a silent no-op (callers can fire freely).
+  function recordLastSession(store, mode, playerHeroId) {
+    const validModes = ["quick", "arcade", "endless", "study"];
+    if (!validModes.includes(mode)) return;
+    if (typeof playerHeroId !== "string" || !HERO_IDS.includes(playerHeroId)) return;
+    const data = load(store);
+    data.lastSession = {
+      mode: mode,
+      playerHeroId: playerHeroId,
+      timestamp: Date.now()
+    };
+    save(store, data);
+    return data;
+  }
+
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
            recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, recordQuizRun, resetAll,
            recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
-           recordTournamentWin, recordMatchup, setLastSeenVersion };
+           recordTournamentWin, recordMatchup, setLastSeenVersion, recordLastSession };
 })();
 
 if (typeof module !== "undefined") module.exports = Storage;
