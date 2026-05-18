@@ -989,3 +989,30 @@ test("ACHIEVEMENT_LIST contains the 3 new quest achievement entries", () => {
   assert.strictEqual(streak7.title, "Quest Champion");
 });
 
+// ── showCallout: variant smoke tests ─────────────────────────────────────
+// In headless node:test runs there is no `document`, so showCallout returns
+// early. These tests pin the contract that the function is exported, accepts
+// an optional second argument, and never throws for any combination — so
+// main.js can call it freely without try/wrap.
+
+test("showCallout is exported on the Screens module", () => {
+  assert.strictEqual(typeof Screens.showCallout, "function");
+});
+
+test("showCallout does not throw with no variant (legacy 1-arg call)", () => {
+  assert.doesNotThrow(() => Screens.showCallout("HELLO"));
+});
+
+test("showCallout does not throw with 'combo' variant", () => {
+  assert.doesNotThrow(() => Screens.showCallout("COMBO x2!", "combo"));
+});
+
+test("showCallout does not throw with 'bighit' variant", () => {
+  assert.doesNotThrow(() => Screens.showCallout("BIG HIT!", "bighit"));
+});
+
+test("showCallout does not throw with undefined/null variant", () => {
+  assert.doesNotThrow(() => Screens.showCallout("X", undefined));
+  assert.doesNotThrow(() => Screens.showCallout("X", null));
+});
+

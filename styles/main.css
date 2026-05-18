@@ -118,6 +118,44 @@ button:disabled { background: #999; cursor: not-allowed; box-shadow: 4px 4px 0 v
   100% { opacity: 0; transform: translate(-50%, -55%) scale(0.95); }
 }
 
+/* Combo callout — energetic, slightly tilted, gold/terracotta gradient.
+   Fires when a player uses the same move type 2+ turns in a row. */
+.callout.combo {
+  background: linear-gradient(135deg, var(--gold), var(--terracotta));
+  color: var(--cream);
+  border: 3px solid var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
+  font-size: 32px;
+  letter-spacing: 1px;
+  animation: callout-pop-combo 1200ms ease-out forwards;
+}
+@keyframes callout-pop-combo {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7)  rotate(-4deg); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(-4deg); }
+  40%  {             transform: translate(-50%, -50%) scale(1)    rotate(-4deg); }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1)    rotate(-4deg); }
+  100% { opacity: 0; transform: translate(-50%, -55%) scale(0.95) rotate(-4deg); }
+}
+
+/* Big Hit callout — bold, impactful, terracotta. Fires when any single
+   damage instance is >= 18. */
+.callout.bighit {
+  background: var(--terracotta);
+  color: var(--cream);
+  border: 3px solid var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
+  font-size: 36px;
+  letter-spacing: 2px;
+  animation: callout-pop-bighit 1200ms ease-out forwards;
+}
+@keyframes callout-pop-bighit {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+  40%  {             transform: translate(-50%, -50%) scale(1.1); }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -55%) scale(1.0); }
+}
+
 .screen {
   display: flex;
   flex-direction: column;

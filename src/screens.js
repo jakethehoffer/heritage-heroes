@@ -2571,14 +2571,17 @@ ${recordsHtml || ""}
     }, 1250);
   }
 
-  function showCallout(text) {
+  function showCallout(text, variant) {
     if (typeof document === "undefined") return;
     const arena = document.querySelector(".arena");
     if (!arena) return;
     const old = arena.querySelector(".callout");
     if (old) old.remove();
     const node = document.createElement("div");
-    node.className = "callout";
+    // Optional variant class (e.g. "combo", "bighit") for styling. Falsy → plain
+    // callout. Variant is whitespace-trimmed and kept simple — only one class
+    // appended after the base.
+    node.className = variant ? `callout ${String(variant).trim()}` : "callout";
     node.textContent = text;
     arena.appendChild(node);
     window.setTimeout(() => { if (node.isConnected) node.remove(); }, 1200);

@@ -43,7 +43,11 @@ var Combat = (function () {
       maxHp: hero.hp,
       specialCooldown: 0,
       statuses: {}, // populated by specials and defend
-      damageMultiplier: 1  // hard mode may set to 1.25
+      damageMultiplier: 1,  // hard mode may set to 1.25
+      // Combo tracking — written by main.js to drive "COMBO xN!" callouts.
+      // Initialised here so consumers can read without optional chaining.
+      lastMoveType: null,
+      comboCount: 0
     };
   }
 

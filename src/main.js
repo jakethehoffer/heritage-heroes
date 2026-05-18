@@ -1753,11 +1753,39 @@ var Main = (function () {
     // Snapshot HP before applying move so we can compute damage deltas
     const hpBefore = state.match.players.map(p => p.hp);
 
+    // ── Combo tracking (per active player) ───────────────────────────────────
+    // Capture the active player's prior streak so we can compare AFTER applyMove
+    // succeeds. We don't write to the player object yet — only on success.
+    const _comboActor   = state.match.players[idx];
+    const _prevMoveType = _comboActor.lastMoveType;
+    const _prevCombo    = _comboActor.comboCount || 0;
+
     try {
       Combat.applyMove(state.match, move);
     } catch (err) {
       console.warn(err);
       return;
+    }
+
+    // Update combo state AFTER a successful move. Rules:
+    //   • charge (mid-charge or wind-up) breaks rhythm → reset.
+    //   • same move type as last → extend the streak; fire callout at 2+.
+    //   • different move type     → restart streak at 1, no callout.
+    // Note: the victim's combo is reset later in the damage loop below.
+    // The actual COMBO callout DOM append happens AFTER render() further down
+    // (render() does innerHTML = ..., which would otherwise wipe it).
+    let _comboCalloutText = null;
+    if (move === "charge") {
+      _comboActor.lastMoveType = null;
+      _comboActor.comboCount = 0;
+    } else if (move === _prevMoveType) {
+      _comboActor.comboCount = _prevCombo + 1;
+      if (_comboActor.comboCount >= 2) {
+        _comboCalloutText = `COMBO x${_comboActor.comboCount}!`;
+      }
+    } else {
+      _comboActor.lastMoveType = move;
+      _comboActor.comboCount = 1;
     }
 
     const lastLog = state.match.log[state.match.log.length - 1] || "";
@@ -1823,6 +1851,16 @@ var Main = (function () {
       Sfx.play("chargeTick");
     }
 
+    // Fire the queued COMBO callout (post-render so innerHTML doesn't wipe it).
+    if (_comboCalloutText) {
+      Screens.showCallout(_comboCalloutText, "combo");
+    }
+
+    // Track whether a BIG HIT callout has already fired this turn — a single
+    // move shouldn't stack multiple BIG HIT! popups (e.g. burn tick + attack
+    // both landing on the same target frame).
+    let _bigHitFired = false;
+
     deltas.forEach((delta, pIdx) => {
       if (delta > 0) {
         // This player took damage
@@ -1833,6 +1871,17 @@ var Main = (function () {
         if (move === "attack") {
           Screens.playAttackFx(pIdx, activeHeroId);
         }
+        // BIG HIT! callout — fires once per turn when any single damage
+        // instance is "noteworthy". Threshold chosen at 18 (normal attacks
+        // do 10-14; specials/boss-buffed attacks exceed this).
+        if (delta >= 18 && !_bigHitFired) {
+          Screens.showCallout("BIG HIT!", "bighit");
+          _bigHitFired = true;
+        }
+        // Taking damage interrupts the victim's combo streak.
+        const victim = state.match.players[pIdx];
+        victim.comboCount = 0;
+        victim.lastMoveType = null;
         // Track low-HP flag for comeback achievement
         const newHp = state.match.players[pIdx].hp;
         if (newHp < 20 && !state.currentMatchLowHp[pIdx]) {

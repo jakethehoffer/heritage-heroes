@@ -25,6 +25,16 @@ test("createMatch initializes each player's special as ready and statuses empty"
   }
 });
 
+test("createMatch initializes lastMoveType=null and comboCount=0 on each player", () => {
+  // The combo callout in main.js relies on these fields being present from
+  // match creation so it can read them without optional chaining.
+  const s = Combat.createMatch("moses", "david");
+  for (const p of s.players) {
+    assert.strictEqual(p.lastMoveType, null, "lastMoveType should start as null");
+    assert.strictEqual(p.comboCount, 0, "comboCount should start at 0");
+  }
+});
+
 test("createMatch throws on unknown hero id", () => {
   assert.throws(() => Combat.createMatch("nobody", "david"));
   assert.throws(() => Combat.createMatch("moses", "nobody"));
