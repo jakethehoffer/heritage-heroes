@@ -13,13 +13,13 @@ var Main = (function () {
     });
   }
   const state = {
-    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | stats | hall | endless-continue | endless-result | settings | trophy-room
+    screen: "title",        // title | mode | opponent | charselect | difficulty | battle | result | study | study-result | quiz | quiz-result | stats | hall | endless-continue | endless-result | settings | trophy-room
     trophyFilter: "all",   // "all" | "unlocked" | "locked"
     trophySort:   "recent", // "recent" | "category" | "progress"
     overlay: null,          // null | 'tutorial' | 'help' | 'quit' | 'trivia' | 'reset-stats' | 'profile' | 'reset-all' | 'daily-already-done'
     profileHeroId: null,
     tutorialStep: 0,
-    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily' | 'tournament' | 'spectator'
+    mode: null,             // 'quick' | 'arcade' | 'study' | 'endless' | 'daily' | 'tournament' | 'spectator' | 'quiz'
     difficulty: "normal",   // 'normal' | 'hard'
     selecting: 1,           // 1 or 2 (which player is picking)
     controllers: ["human", "ai"], // index 0 = P1 controller; index 1 = P2 or AI
@@ -33,6 +33,7 @@ var Main = (function () {
     trivia: null,           // { heroId, question, options, correctIndex, explanation, phase: 'question'|'result', chosenIndex? } when active
     triviaUsed: { moses: [], david: [], esther: [], judah: [], rambam: [], golda: [], einstein: [] },
     study: null,            // { heroId, questionOrder: [], currentIndex, answers: [], lastChoice, justMastered }
+    quiz: null,             // { pool: [{heroId,qIdx}], currentIndex, streak, lastChoice, finished, isNewBest, previousBest } when active
     viewingMatchId: null,    // epoch ms id of match being viewed in detail overlay
     // Achievement tracking (in-memory per session/match)
     triviaStreak: 0,        // consecutive correct trivia answers
@@ -330,6 +331,14 @@ var Main = (function () {
     tryUnlock("tournamentMaster",  (save.tournamentsWon || 0) >= 5);
     tryUnlock("tournamentLegend",  (save.tournamentsWon || 0) >= 20);
 
+    // Heritage Quiz achievements — use best streak so far (live quiz state or saved best)
+    const liveQuizStreak = (state.quiz && Number.isInteger(state.quiz.streak)) ? state.quiz.streak : 0;
+    const savedQuizBest  = Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0;
+    const maxQuizStreak  = Math.max(liveQuizStreak, savedQuizBest);
+    tryUnlock("quizStreak5",  maxQuizStreak >= 5);
+    tryUnlock("quizStreak10", maxQuizStreak >= 10);
+    tryUnlock("quizStreak20", maxQuizStreak >= 20);
+
     return newKeys;
   }
 
@@ -418,6 +427,8 @@ var Main = (function () {
     else if (state.screen === "result") body = Screens.renderResult(state);
     else if (state.screen === "study") body = Screens.renderStudySession(state);
     else if (state.screen === "study-result") body = Screens.renderStudyResult(state);
+    else if (state.screen === "quiz") body = Screens.renderQuiz(state);
+    else if (state.screen === "quiz-result") body = Screens.renderQuizResult(state);
     else if (state.screen === "stats") body = Screens.renderStats(state);
     else if (state.screen === "boss-intro") body = Screens.renderBossIntro(state);
     else if (state.screen === "hall") body = Screens.renderHall(state);
@@ -838,6 +849,37 @@ var Main = (function () {
         render();
         return;
 
+      case "start-quiz":
+        startQuiz();
+        return;
+
+      case "quiz-answer": {
+        if (!state.quiz || state.quiz.finished || state.quiz.lastChoice !== null) return;
+        const chosenIdx = parseInt(target.dataset.index, 10);
+        quizAnswer(chosenIdx);
+        return;
+      }
+
+      case "quiz-continue":
+        quizContinue();
+        return;
+
+      case "quiz-quit":
+        // End the current run and record whatever streak the player achieved.
+        if (!state.quiz || state.quiz.finished) {
+          state.quiz = null;
+          state.mode = null;
+          state.screen = "title";
+          render();
+          return;
+        }
+        quizFinalize();
+        return;
+
+      case "quiz-restart":
+        startQuiz();
+        return;
+
       case "accept-challenge": acceptChallenge(); return;
       case "dismiss-challenge":
         state.incomingChallenge = null;
@@ -926,6 +968,118 @@ var Main = (function () {
     state.picks = { 1: null, 2: null };
     state.endless = null;
     state.screen = "charselect";
+    render();
+  }
+
+  // ── Heritage Quiz (Survival Trivia) ───────────────────────────────────────
+
+  function startQuiz() {
+    // Build pool of all {heroId, qIdx} for every hero's 20 trivia entries.
+    const pool = [];
+    for (const hero of Heroes.list) {
+      const tlen = Array.isArray(hero.trivia) ? hero.trivia.length : 0;
+      for (let i = 0; i < tlen; i++) {
+        pool.push({ heroId: hero.id, qIdx: i });
+      }
+    }
+    // Fisher-Yates shuffle
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    state.mode = "quiz";
+    state.controllers = ["human", "human"];
+    state.quiz = {
+      pool: pool,
+      currentIndex: 0,
+      streak: 0,
+      lastChoice: null,
+      finished: false,
+      isNewBest: false,
+      previousBest: 0
+    };
+    state.screen = "quiz";
+    render();
+  }
+
+  // Returns the current question object: { heroId, hero, trivia } | null
+  function _quizCurrent() {
+    if (!state.quiz) return null;
+    const entry = state.quiz.pool[state.quiz.currentIndex];
+    if (!entry) return null;
+    const hero = Heroes.byId(entry.heroId);
+    if (!hero || !hero.trivia || !hero.trivia[entry.qIdx]) return null;
+    return { heroId: entry.heroId, hero, trivia: hero.trivia[entry.qIdx] };
+  }
+
+  function quizAnswer(chosenIdx) {
+    if (!state.quiz || state.quiz.finished || state.quiz.lastChoice !== null) return;
+    const cur = _quizCurrent();
+    if (!cur) return;
+    const isCorrect = chosenIdx === cur.trivia.correctIndex;
+
+    state.quiz.lastChoice = chosenIdx;
+
+    // Record per-hero trivia stat (matches Study Mode pattern: count both total and correct).
+    const store = getStore();
+    if (store) {
+      Storage.recordTrivia(store, cur.heroId, isCorrect);
+      state.save = Storage.load(store);
+    }
+
+    if (isCorrect) {
+      state.quiz.streak += 1;
+      state.triviaStreak += 1;
+      Sfx.play("triviaCorrect");
+    } else {
+      state.triviaStreak = 0;
+      state.quiz.finished = true;
+      Sfx.play("triviaWrong");
+    }
+
+    // Check trivia/streak achievements now that stats moved.
+    applyAchievements(checkAchievements());
+
+    if (state.quiz.finished) {
+      // Wrong answer ends the run — but stay on the quiz screen so the player
+      // sees the right answer; the feedback panel shows "See Results".
+    }
+    render();
+  }
+
+  function quizContinue() {
+    if (!state.quiz) return;
+    // If the run is over (wrong answer), advance to result.
+    if (state.quiz.finished) {
+      quizFinalize();
+      return;
+    }
+    state.quiz.currentIndex += 1;
+    state.quiz.lastChoice = null;
+    // Pool exhausted = Perfect Quiz!
+    if (state.quiz.currentIndex >= state.quiz.pool.length) {
+      state.quiz.finished = true;
+      quizFinalize();
+      return;
+    }
+    render();
+  }
+
+  function quizFinalize() {
+    if (!state.quiz) return;
+    state.quiz.finished = true;
+    const streak = state.quiz.streak;
+    const store = getStore();
+    if (store) {
+      const result = Storage.recordQuizRun(store, streak);
+      state.quiz.isNewBest = result.isNewBest;
+      state.quiz.previousBest = result.previousBest;
+      state.save = Storage.load(store);
+    }
+    // Check quiz achievements (uses save.quizBestStreak which we just bumped).
+    applyAchievements(checkAchievements());
+    state.screen = "quiz-result";
     render();
   }
 
@@ -1713,6 +1867,7 @@ var Main = (function () {
     state.arcade = null;
     state.endless = null;
     state.study = null;
+    state.quiz = null;
     state.tournament = null;
     state.picks = { 1: null, 2: null };
     state.selecting = 1;

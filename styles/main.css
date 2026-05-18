@@ -1421,6 +1421,248 @@ button.back { background: var(--cream); color: var(--ink); margin-top: 24px; fon
   flex-shrink: 0;
 }
 
+/* ── Heritage Quiz screen ───────────────────────────────────────────── */
+.screen-quiz { gap: 18px; max-width: 760px; margin: 0 auto; width: 100%; }
+
+.quiz-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 760px;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.quiz-portrait {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+.quiz-portrait svg { width: 100%; height: 100%; display: block; }
+.quiz-header-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.quiz-hero-name {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  color: var(--navy);
+  margin: 0;
+}
+.quiz-question-meta {
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0.7;
+  margin: 0;
+}
+
+.quiz-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--terracotta);
+}
+.quiz-streak-flame { font-size: 28px; }
+.quiz-streak-num   { min-width: 1.5ch; text-align: right; }
+
+.quiz-question {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  text-align: center;
+  color: var(--ink);
+  line-height: 1.4;
+  max-width: 680px;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  max-width: 680px;
+}
+
+.quiz-option {
+  font-size: 18px;
+  padding: 20px 16px;
+  text-align: left;
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.3;
+  min-height: 64px;
+}
+.quiz-option:disabled { cursor: not-allowed; opacity: 0.7; }
+.quiz-option.correct-answer { background: #d4edda; border-color: #28a745; color: #155724; }
+.quiz-option.wrong-answer   { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+
+.quiz-feedback {
+  width: 100%;
+  max-width: 680px;
+  border-left: 6px solid #888;
+  border-radius: 6px;
+  padding: 16px 20px;
+  background: var(--cream);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quiz-feedback.correct { border-color: #28a745; }
+.quiz-feedback.wrong   { border-color: #dc3545; }
+
+.quiz-feedback-result {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+}
+.quiz-feedback.correct .quiz-feedback-result { color: #155724; }
+.quiz-feedback.wrong   .quiz-feedback-result { color: #721c24; }
+
+.quiz-explanation {
+  font-size: 15px;
+  font-style: italic;
+  color: var(--navy);
+  border-left: 4px solid var(--gold);
+  padding: 8px 12px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.quiz-next-btn { align-self: flex-end; font-size: 18px; padding: 12px 24px; }
+
+.quiz-quit { font-size: 16px; padding: 10px 20px; }
+
+/* ── Heritage Quiz result screen ────────────────────────────────────── */
+.screen-quiz-result { gap: 20px; max-width: 760px; margin: 0 auto; width: 100%; }
+.screen-quiz-result h2 { font-size: 30px; color: var(--navy); text-align: center; margin: 0; }
+
+.quiz-result-banner {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--terracotta);
+  text-align: center;
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  padding: 16px 24px;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.quiz-result-banner.perfect {
+  color: #fff;
+  background: linear-gradient(135deg, var(--terracotta), var(--gold));
+  border-color: var(--gold);
+  text-shadow: 1px 1px 0 var(--ink);
+  animation: quiz-perfect-pulse 1.6s ease-in-out infinite;
+}
+@keyframes quiz-perfect-pulse {
+  0%, 100% { box-shadow: 4px 4px 0 var(--shadow); }
+  50%      { box-shadow: 6px 6px 0 var(--gold); }
+}
+
+.quiz-new-best {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  text-align: center;
+  background: #fff5d9;
+  border: 2px solid var(--gold);
+  color: var(--navy);
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+
+.quiz-best-line {
+  text-align: center;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.quiz-recap-label {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  color: var(--navy);
+  margin-bottom: 4px;
+  align-self: flex-start;
+}
+
+.quiz-recap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.quiz-recap-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--cream);
+  border-left: 4px solid #888;
+  font-size: 14px;
+}
+.quiz-recap-item.correct { border-left-color: #28a745; background: #f0fff4; }
+.quiz-recap-item.wrong   { border-left-color: #dc3545; background: #fff5f5; }
+
+.quiz-recap-icon { font-size: 18px; font-weight: 700; flex-shrink: 0; min-width: 18px; text-align: center; }
+.quiz-recap-item.correct .quiz-recap-icon { color: #28a745; }
+.quiz-recap-item.wrong   .quiz-recap-icon { color: #dc3545; }
+
+.quiz-recap-hero {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--navy);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.quiz-recap-q { flex: 1; line-height: 1.35; }
+
+.quiz-recap-answer {
+  font-style: italic;
+  color: var(--navy);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Title screen — Heritage Quiz best-streak banner */
+.quiz-title-best {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  color: var(--navy);
+  text-align: center;
+  margin: 4px auto;
+}
+
+@media (max-width: 600px) {
+  .quiz-header {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .quiz-portrait { width: 56px; height: 56px; }
+  .quiz-hero-name { font-size: 20px; }
+  .quiz-streak {
+    grid-column: 1 / -1;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .quiz-options { grid-template-columns: 1fr; }
+  .quiz-question { font-size: 18px; }
+  .quiz-option { font-size: 16px; padding: 16px 12px; min-height: 56px; }
+  .quiz-result-banner { font-size: 22px; padding: 12px 16px; }
+  .quiz-recap-item { flex-wrap: wrap; }
+  .quiz-recap-q { width: 100%; }
+}
+
 /* ── Achievement toast ──────────────────────────────────────────────── */
 @keyframes toast-slide-up {
   from { transform: translateY(120px); opacity: 0; }

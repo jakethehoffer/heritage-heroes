@@ -51,9 +51,13 @@ var Storage = (function () {
         dailyStreak30:    false,
         tournamentWinner: false,
         tournamentMaster: false,
-        tournamentLegend: false
+        tournamentLegend: false,
+        quizStreak5:      false,
+        quizStreak10:     false,
+        quizStreak20:     false
       },
       tournamentsWon: 0,
+      quizBestStreak: 0,
       recentMatches: [],  // ring buffer; newest first, max 10 entries
       daily: {
         completedDates: [],     // array of ISO date strings, sorted oldest-first
@@ -157,6 +161,9 @@ var Storage = (function () {
         }
         if (Number.isInteger(parsed.tournamentsWon) && parsed.tournamentsWon >= 0) {
           out.tournamentsWon = parsed.tournamentsWon;
+        }
+        if (Number.isInteger(parsed.quizBestStreak) && parsed.quizBestStreak >= 0) {
+          out.quizBestStreak = parsed.quizBestStreak;
         }
         // matchups — validate key format and integer fields
         if (parsed.matchups && typeof parsed.matchups === "object" && !Array.isArray(parsed.matchups)) {
@@ -277,6 +284,20 @@ var Storage = (function () {
     if (isNewBest) {
       if (!data.endlessHighScore) data.endlessHighScore = {};
       data.endlessHighScore[heroId] = streak;
+      save(store, data);
+    }
+    return { isNewBest, previousBest };
+  }
+
+  // Record the end of a Heritage Quiz run. streak is the number of correct
+  // answers in a row before the run ended (wrong answer, quit, or perfect 140).
+  // Returns { isNewBest: bool, previousBest: int }.
+  function recordQuizRun(store, streak) {
+    const data = load(store);
+    const previousBest = Number.isInteger(data.quizBestStreak) ? data.quizBestStreak : 0;
+    const isNewBest = streak > previousBest;
+    if (isNewBest) {
+      data.quizBestStreak = streak;
       save(store, data);
     }
     return { isNewBest, previousBest };
@@ -423,7 +444,7 @@ var Storage = (function () {
   }
 
   return { load, save, defaults, incrementArcadeWin, unlockSpecial, markMastered, totalMastered,
-           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, resetAll,
+           recordMatch, recordTrivia, unlockAchievement, recordEndlessRun, recordQuizRun, resetAll,
            recordMatchHistory, recordDailyCompletion, dailyStats, dailyCalendar,
            recordTournamentWin, recordMatchup };
 })();

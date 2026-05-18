@@ -21,6 +21,11 @@ var Screens = (function () {
       const bestHeroName = bestHeroId ? (Heroes.byId(bestHeroId) || { name: bestHeroId }).name : "";
       endlessStreakLine = `<p class="endless-title-best">&#x1F3C6; Best endless streak: ${bestScore} (${Render.escapeHtml(bestHeroName)})</p>`;
     }
+    // Heritage Quiz best streak banner
+    const quizBest = (state.save && Number.isInteger(state.save.quizBestStreak)) ? state.save.quizBestStreak : 0;
+    const quizBestLine = quizBest > 0
+      ? `<p class="quiz-title-best">&#x1F9E0; Best Heritage Quiz streak: ${quizBest}</p>`
+      : "";
     const masteredCount = Object.values(mastered).filter(Boolean).length;
     let masteryLine = "";
     if (masteredCount === 7) {
@@ -102,6 +107,7 @@ var Screens = (function () {
   ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
   ${masteryLine}
   ${endlessStreakLine}
+  ${quizBestLine}
   ${dailyBannerLine}
   ${dailyStripLine}
 </section>`;
@@ -175,6 +181,10 @@ var Screens = (function () {
     <button data-action="start-spectator" class="mode-card">
       <h3>Spectator</h3>
       <p>Pick two heroes and watch them battle. No commitment &mdash; just see how the AI personalities clash.</p>
+    </button>
+    <button data-action="start-quiz" class="mode-card">
+      <h3>Heritage Quiz</h3>
+      <p>Answer questions from all 7 heroes. One wrong answer ends your run. How far can you go?</p>
     </button>
   </div>
   <button data-action="goto-title" class="back">&larr; Back</button>
@@ -2558,6 +2568,141 @@ ${recordsHtml || ""}
 </section>`;
   }
 
+  // ── Heritage Quiz screens ─────────────────────────────────────────────────
+
+  function renderQuiz(state) {
+    const quiz = state.quiz;
+    if (!quiz) return "";
+    const entry = quiz.pool[quiz.currentIndex];
+    if (!entry) return "";
+    const hero = Heroes.byId(entry.heroId);
+    if (!hero) return "";
+    const trivia = hero.trivia[entry.qIdx];
+    if (!trivia) return "";
+
+    const portrait = Render.renderHero({ heroId: hero.id, pose: "idle", facing: "right" });
+
+    const isAnswered = quiz.lastChoice !== null;
+    const optionButtons = trivia.options.map((opt, i) => {
+      let cls = "quiz-option";
+      let disabled = "";
+      if (isAnswered) {
+        disabled = "disabled";
+        if (i === trivia.correctIndex) cls += " correct-answer";
+        else if (i === quiz.lastChoice && i !== trivia.correctIndex) cls += " wrong-answer";
+      }
+      return `<button class="${cls}" data-action="quiz-answer" data-index="${i}" ${disabled}>${Render.escapeHtml(opt)}</button>`;
+    }).join("");
+
+    let feedbackPanel = "";
+    if (isAnswered) {
+      const isCorrect = quiz.lastChoice === trivia.correctIndex;
+      // If wrong, the run ended — button advances to result. If correct, continue.
+      const nextAction = "quiz-continue";
+      const nextLabel = quiz.finished
+        ? "See Results &rarr;"
+        : "Continue &rarr;";
+      const resultClass = isCorrect ? "correct" : "wrong";
+      const resultText = isCorrect
+        ? "Correct!"
+        : `Not quite &mdash; the answer was: ${Render.escapeHtml(trivia.options[trivia.correctIndex])}`;
+      feedbackPanel = `
+<div class="quiz-feedback ${resultClass}">
+  <p class="quiz-feedback-result">${resultText}</p>
+  <p class="quiz-explanation">${Render.escapeHtml(trivia.explanation)}</p>
+  <button data-action="${nextAction}" class="quiz-next-btn">${nextLabel}</button>
+</div>`;
+    }
+
+    const qNum = quiz.currentIndex + 1;
+    const total = quiz.pool.length;
+
+    return `
+<section class="screen screen-quiz">
+  <div class="quiz-header">
+    <div class="quiz-portrait">${portrait}</div>
+    <div class="quiz-header-info">
+      <h2 class="quiz-hero-name">${Render.escapeHtml(hero.name)}</h2>
+      <p class="quiz-question-meta">Question ${qNum} of ${total}</p>
+    </div>
+    <div class="quiz-streak" aria-label="Current streak">
+      <span class="quiz-streak-flame">&#x1F525;</span>
+      <span class="quiz-streak-num">${quiz.streak}</span>
+    </div>
+  </div>
+  <p class="quiz-question">${Render.escapeHtml(trivia.question)}</p>
+  <div class="quiz-options">${optionButtons}</div>
+  ${feedbackPanel}
+  <button data-action="quiz-quit" class="back quiz-quit">Quit Quiz</button>
+</section>`;
+  }
+
+  function renderQuizResult(state) {
+    const quiz = state.quiz;
+    if (!quiz) return "";
+    const streak = quiz.streak;
+    const total = quiz.pool.length;
+    const isPerfect = streak >= total;
+    const save = state.save || {};
+    const best = Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : streak;
+
+    let banner = "";
+    if (isPerfect) {
+      banner = `<div class="quiz-result-banner perfect">&#x1F31F; PERFECT QUIZ! ${streak} / ${total} &#x1F31F;</div>`;
+    } else {
+      banner = `<div class="quiz-result-banner">Streak ended at ${streak}</div>`;
+    }
+
+    const newBestLine = quiz.isNewBest && streak > 0
+      ? `<div class="quiz-new-best">&#x1F3C6; New personal best! Previous: ${quiz.previousBest}</div>`
+      : "";
+
+    const bestLine = `<p class="quiz-best-line">Best ever: <strong>${best}</strong> in a row</p>`;
+
+    // Recap: show the last 10 answered (or fewer). currentIndex is the index where
+    // the wrong answer landed (or pool.length on perfect). Build entries up to and
+    // including that question.
+    const stoppedAt = isPerfect ? quiz.pool.length : quiz.currentIndex + 1;
+    const startIdx = Math.max(0, stoppedAt - 10);
+    const recapItems = [];
+    for (let i = startIdx; i < stoppedAt; i++) {
+      const entry = quiz.pool[i];
+      if (!entry) continue;
+      const hero = Heroes.byId(entry.heroId);
+      if (!hero || !hero.trivia || !hero.trivia[entry.qIdx]) continue;
+      const trivia = hero.trivia[entry.qIdx];
+      const isFinalWrong = !isPerfect && i === quiz.currentIndex;
+      const isCorrect = !isFinalWrong;
+      const icon = isCorrect ? "&#x2713;" : "&#x2717;";
+      const cls = isCorrect ? "quiz-recap-item correct" : "quiz-recap-item wrong";
+      const heroLabel = `<span class="quiz-recap-hero">${Render.escapeHtml(hero.name)}</span>`;
+      const wrongLine = isFinalWrong
+        ? `<span class="quiz-recap-answer">Answer: ${Render.escapeHtml(trivia.options[trivia.correctIndex])}</span>`
+        : "";
+      recapItems.push(`<div class="${cls}"><span class="quiz-recap-icon">${icon}</span>${heroLabel}<span class="quiz-recap-q">${Render.escapeHtml(trivia.question)}</span>${wrongLine}</div>`);
+    }
+    const recapHtml = recapItems.length > 0
+      ? `<div class="quiz-recap-grid">${recapItems.join("")}</div>`
+      : "";
+    const recapLabel = recapItems.length > 0
+      ? `<p class="quiz-recap-label">${startIdx > 0 ? `Last ${recapItems.length} questions` : "Your answers"}</p>`
+      : "";
+
+    return `
+<section class="screen screen-quiz-result">
+  <h2>Heritage Quiz</h2>
+  ${banner}
+  ${newBestLine}
+  ${bestLine}
+  ${recapLabel}
+  ${recapHtml}
+  <div class="result-buttons">
+    <button data-action="quiz-restart">Try Again</button>
+    <button data-action="goto-title" class="secondary">Main Menu</button>
+  </div>
+</section>`;
+  }
+
   // ── Achievement metadata ──────────────────────────────────────────────────
   const ACHIEVEMENT_LIST = [
     { key: "firstWin",         title: "First Steps",            description: "Win your first match",                              icon: "🏅", category: "combat",  progress: null },
@@ -2609,7 +2754,10 @@ ${recordsHtml || ""}
     }},
     { key: "tournamentWinner", title: "Tournament Winner",      description: "Win a Tournament",                                  icon: "🏟️", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 1 }) },
     { key: "tournamentMaster", title: "Tournament Master",      description: "Win 5 Tournaments",                                 icon: "🥇", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 5 }) },
-    { key: "tournamentLegend", title: "Tournament Legend",      description: "Win 20 Tournaments",                                icon: "👑", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 20 }) }
+    { key: "tournamentLegend", title: "Tournament Legend",      description: "Win 20 Tournaments",                                icon: "👑", category: "mode",    progress: (save) => ({ current: save.tournamentsWon || 0, target: 20 }) },
+    { key: "quizStreak5",      title: "Heritage Spark",         description: "Got 5 quiz questions correct in a row",             icon: "✨", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 5 }) },
+    { key: "quizStreak10",     title: "Heritage Flame",         description: "Got 10 quiz questions correct in a row",            icon: "🔥", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 10 }) },
+    { key: "quizStreak20",     title: "Heritage Beacon",        description: "Got 20 quiz questions correct in a row",            icon: "🌟", category: "quiz",    progress: (save) => ({ current: Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0, target: 20 }) }
   ];
 
   // ── Achievement toast queue ───────────────────────────────────────────────
@@ -2987,6 +3135,13 @@ ${recordsHtml || ""}
 <section class="screen stats-screen">
   <h2>Your Heritage</h2>
   <button data-action="goto-title" class="back">&larr; Back to Menu</button>
+
+  <div class="stats-section">
+    <h3>Heritage Quiz</h3>
+    <div class="stats-overall">
+      <div>&#x1F9E0; Best streak: <strong>${Number.isInteger(save.quizBestStreak) ? save.quizBestStreak : 0}</strong> in a row</div>
+    </div>
+  </div>
 
   <div class="stats-section">
     <h3>Daily Challenge</h3>
@@ -3782,7 +3937,7 @@ ${recordsHtml || ""}
     renderTitle, renderModeSelect, renderOpponentSelect, renderCharSelect, renderBattle,
     renderResult, renderTutorial, renderHelp, renderHelpButton, renderQuitConfirm,
     renderArcadeRoadmap, renderDifficultySelect, renderTriviaOverlay,
-    renderStudySession, renderStudyResult, renderStats, renderResetStatsConfirm,
+    renderStudySession, renderStudyResult, renderQuiz, renderQuizResult, renderStats, renderResetStatsConfirm,
     renderBossIntro, renderHall, renderProfile,
     renderEndlessContinue, renderEndlessResult,
     renderSettings, renderResetAllConfirm,

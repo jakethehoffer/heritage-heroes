@@ -870,3 +870,128 @@ test("dailyCalendar handles month boundaries correctly", () => {
   assert.strictEqual(result[0].completed, false);
   assert.strictEqual(result[3].completed, false);
 });
+
+// ── Heritage Quiz ─────────────────────────────────────────────────────────
+
+test("quizBestStreak defaults to 0", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.quizBestStreak, 0);
+});
+
+test("quizBestStreak round-trips via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  data.quizBestStreak = 17;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.quizBestStreak, 17);
+});
+
+test("load migrates a missing quizBestStreak gracefully (defaults to 0)", () => {
+  const s = fakeStore();
+  // Save without quizBestStreak
+  s.setItem("heritageHeroes.save", JSON.stringify({ sound: true }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 0);
+});
+
+test("load handles malformed quizBestStreak (string) -> defaults to 0", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ quizBestStreak: "lots" }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 0);
+});
+
+test("load handles malformed quizBestStreak (null) -> defaults to 0", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ quizBestStreak: null }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 0);
+});
+
+test("load handles malformed quizBestStreak (negative) -> defaults to 0", () => {
+  const s = fakeStore();
+  s.setItem("heritageHeroes.save", JSON.stringify({ quizBestStreak: -5 }));
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 0);
+});
+
+test("recordQuizRun first call sets score and returns isNewBest=true, previousBest=0", () => {
+  const s = fakeStore();
+  const result = Storage.recordQuizRun(s, 7);
+  assert.strictEqual(result.isNewBest, true);
+  assert.strictEqual(result.previousBest, 0);
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 7);
+});
+
+test("recordQuizRun second call with higher streak overwrites and returns isNewBest=true", () => {
+  const s = fakeStore();
+  Storage.recordQuizRun(s, 5);
+  const result = Storage.recordQuizRun(s, 12);
+  assert.strictEqual(result.isNewBest, true);
+  assert.strictEqual(result.previousBest, 5);
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 12);
+});
+
+test("recordQuizRun third call with lower streak does not change score, returns isNewBest=false", () => {
+  const s = fakeStore();
+  Storage.recordQuizRun(s, 10);
+  const result = Storage.recordQuizRun(s, 3);
+  assert.strictEqual(result.isNewBest, false);
+  assert.strictEqual(result.previousBest, 10);
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 10);
+});
+
+test("recordQuizRun with equal streak does not change score, returns isNewBest=false", () => {
+  const s = fakeStore();
+  Storage.recordQuizRun(s, 8);
+  const result = Storage.recordQuizRun(s, 8);
+  assert.strictEqual(result.isNewBest, false);
+  assert.strictEqual(result.previousBest, 8);
+  const data = Storage.load(s);
+  assert.strictEqual(data.quizBestStreak, 8);
+});
+
+test("recordQuizRun result round-trips via save/load", () => {
+  const s = fakeStore();
+  Storage.recordQuizRun(s, 14);
+  // Simulate a reload from another browser session — load and re-save.
+  const data = Storage.load(s);
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.quizBestStreak, 14);
+});
+
+// ── Quiz achievements ─────────────────────────────────────────────────────
+test("quiz achievements default to false", () => {
+  const data = Storage.load(fakeStore());
+  assert.strictEqual(data.achievements.quizStreak5,  false);
+  assert.strictEqual(data.achievements.quizStreak10, false);
+  assert.strictEqual(data.achievements.quizStreak20, false);
+});
+
+test("quiz achievements round-trip via save/load", () => {
+  const s = fakeStore();
+  const data = Storage.load(s);
+  const now = Date.now();
+  data.achievements.quizStreak5  = now;
+  data.achievements.quizStreak10 = now;
+  Storage.save(s, data);
+  const reloaded = Storage.load(s);
+  assert.strictEqual(reloaded.achievements.quizStreak5,  now);
+  assert.strictEqual(reloaded.achievements.quizStreak10, now);
+  assert.strictEqual(reloaded.achievements.quizStreak20, false);
+});
+
+test("unlockAchievement sets quizStreak5 and leaves others unchanged", () => {
+  const s = fakeStore();
+  Storage.unlockAchievement(s, "quizStreak5");
+  const data = Storage.load(s);
+  assert.ok(data.achievements.quizStreak5 > 0, "quizStreak5 should be a positive timestamp");
+  assert.strictEqual(data.achievements.quizStreak10, false);
+  assert.strictEqual(data.achievements.quizStreak20, false);
+  assert.strictEqual(data.achievements.firstWin,     false);
+});
