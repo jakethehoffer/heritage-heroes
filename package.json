@@ -1,0 +1,12 @@
+{
+  "name": "heritage-heroes",
+  "version": "3.0.0",
+  "private": true,
+  "description": "A turn-based dueling game starring seven iconic figures from history. Vanilla HTML/CSS/JS, no build step.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
