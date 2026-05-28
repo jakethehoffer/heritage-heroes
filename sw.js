@@ -1,18 +1,30 @@
 // Heritage Heroes — Service Worker
-// Caches all game assets for offline play. Bump CACHE_VERSION on every release
-// so users get the latest code (the SW clears old caches on activate).
 //
-// Release contract: when you ship new files, increment "heritage-heroes-v1" to
-// "heritage-heroes-v2", etc. Installed users will get the update on their next
-// page load (the activate handler deletes every old cache key).
+// Strategy: stale-while-revalidate for same-origin GET requests.
+//   - Serves the cached copy immediately (instant loads + full offline play).
+//   - In the background, re-fetches and updates the cache, so the NEXT load
+//     picks up freshly-deployed code. This self-heals staleness: a returning
+//     player converges to the latest version within a load or two even if
+//     CACHE_VERSION is never bumped.
+//
+// History: the previous handler was cache-first with no revalidation, so once
+// a player cached the assets they were frozen on that version forever (new
+// releases never reached them). Stale-while-revalidate fixes that.
+//
+// CACHE_VERSION now only needs bumping for a HARD reset (e.g. to force-evict a
+// known-bad cached asset). The activate handler deletes every non-current cache.
 
-const CACHE_VERSION = "heritage-heroes-v1";
+const CACHE_VERSION = "heritage-heroes-v2";
 
+// Precache list — MUST stay in sync with the <script>/<link> tags in
+// index.html. test/test-sw.js enforces this; add a module here when you add
+// one to index.html, or a cold offline load will break with a missing module.
 const ASSETS = [
   "./",
   "./index.html",
   "./styles/main.css",
   "./src/heroes.js",
+  "./src/calendar.js",
   "./src/render.js",
   "./src/stages.js",
   "./src/storage.js",
@@ -39,25 +51,41 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests for same-origin URLs
+  // Only handle GET requests for same-origin URLs.
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      // Fall back to network; if successful, opportunistically cache for next time
-      return fetch(event.request).then((response) => {
-        if (response && response.status === 200 && response.type === "basic") {
-          const respClone = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, respClone));
-        }
-        return response;
-      }).catch(() => {
-        // Offline and not in cache — return a simple fallback
-        return new Response("Offline and not cached", { status: 503 });
-      });
-    })
-  );
+  // Navigations (e.g. opening a shared "?share=..." challenge link) resolve to
+  // the cached app shell when the exact URL isn't cached — the query string
+  // varies but index.html is the same document.
+  const isNavigation = event.request.mode === "navigate";
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    const cached = await cache.match(event.request, { ignoreSearch: isNavigation });
+
+    // Background revalidation. Fire-and-forget the cache update; skip caching
+    // navigations so arbitrary ?share= variants don't grow the cache (the
+    // shell is already precached as "./" and "./index.html").
+    const fromNetwork = fetch(event.request).then((response) => {
+      if (!isNavigation && response && response.status === 200 && response.type === "basic") {
+        cache.put(event.request, response.clone());
+      }
+      return response;
+    }).catch(() => null);
+
+    // Serve cache immediately when we have it; revalidate in the background.
+    if (cached) return cached;
+
+    // No cache hit — wait on the network, then fall back to the shell (for
+    // navigations) or a plain offline response.
+    const networkResponse = await fromNetwork;
+    if (networkResponse) return networkResponse;
+    if (isNavigation) {
+      const shell = (await cache.match("./index.html")) || (await cache.match("./"));
+      if (shell) return shell;
+    }
+    return new Response("Offline and not cached", { status: 503 });
+  })());
 });
