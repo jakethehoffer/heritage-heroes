@@ -323,26 +323,6 @@ var Main = (function () {
     return arr;
   }
 
-  // ── Headless AI vs AI simulation ─────────────────────────────────────────
-  function simulateAiVsAi(heroAId, heroBId) {
-    const m = Combat.createMatch(heroAId, heroBId);
-    let safety = 200;
-    while (m.winner === null && safety-- > 0) {
-      const idx = m.activePlayer;
-      let move;
-      if (Combat.isCharging(m, idx)) {
-        move = "charge";
-      } else {
-        move = Combat.chooseAIMove(m, idx, Math.random, "normal");
-      }
-      Combat.applyMove(m, move);
-    }
-    return {
-      winner: m.winner,
-      turns: m.turnNumber - 1,
-      log: m.log
-    };
-  }
 
   // ── Daily Challenge helpers ───────────────────────────────────────────────
 
@@ -2503,7 +2483,7 @@ var Main = (function () {
         // If Semi 2 is both AI we can headlessly simulate it immediately so the
         // bracket reveal already shows the Semi 2 result before the user clicks.
         if (t.slotControllers[2] === "ai" && t.slotControllers[3] === "ai") {
-          const sim = simulateAiVsAi(t.slots[2], t.slots[3]);
+          const sim = Combat.simulateMatch(t.slots[2], t.slots[3]);
           t.bracket.semi2Winner = sim.winner === 0 ? t.slots[2] : t.slots[3];
           t.bracket.semi2WinnerSlot = sim.winner === 0 ? 2 : 3;
           t.bracket.semi2Log = sim.log;

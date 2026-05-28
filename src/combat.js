@@ -171,7 +171,14 @@ var Combat = (function () {
         throw new Error(`${hero.name}'s special is on cooldown (${active.specialCooldown})`);
       }
       applySpecial(state, activeIdx, enemyIdx);
-      active.specialCooldown = 3;
+      // Charge-type specials (Einstein's E=mc²) only "complete" when the charge
+      // unleashes, so their cooldown is set there (in the charging branch
+      // above). Setting it here too would just be overwritten at unleash, and
+      // the design measures cooldown from completion — so skip it when a charge
+      // was just initiated.
+      if (!active.statuses.charging) {
+        active.specialCooldown = 3;
+      }
       state.log.push(`${hero.name} uses ${hero.moves.special.name}!`);
       endTurn(state);
       return;
@@ -400,7 +407,44 @@ var Combat = (function () {
     return LADDER.filter(id => id !== playerHeroId);
   }
 
-  return { createMatch, applyMove, isMatchOver, isCharging, chooseAIMove, arcadeOrder };
+  // Decide a winner from board state alone: higher current HP wins, ties break
+  // to higher max HP, then to slot 0. Used as the tiebreak when a headless
+  // simulation times out so callers never receive a null winner.
+  function decideByHp(state) {
+    const a = state.players[0];
+    const b = state.players[1];
+    if (a.hp !== b.hp) return a.hp > b.hp ? 0 : 1;
+    if (a.maxHp !== b.maxHp) return a.maxHp > b.maxHp ? 0 : 1;
+    return 0;
+  }
+
+  // Headless AI-vs-AI match, used to auto-play an all-AI tournament semifinal.
+  // GUARANTEES a winner of 0 or 1: if the match doesn't resolve within maxTurns
+  // (e.g. two very defensive heroes trading Defends), the fighter with more HP
+  // wins via decideByHp — so the caller never has to handle a null winner.
+  // rng defaults to Math.random; inject a deterministic rng in tests.
+  // Returns { winner, turns, log, timedOut }.
+  function simulateMatch(heroAId, heroBId, rng, options) {
+    rng = rng || Math.random;
+    options = options || {};
+    const maxTurns = (typeof options.maxTurns === "number") ? options.maxTurns : 200;
+    const difficulty = options.difficulty || "normal";
+    const m = createMatch(heroAId, heroBId, options);
+    let safety = maxTurns;
+    while (m.winner === null && safety-- > 0) {
+      const idx = m.activePlayer;
+      const move = isCharging(m, idx) ? "charge" : chooseAIMove(m, idx, rng, difficulty);
+      applyMove(m, move);
+    }
+    let timedOut = false;
+    if (m.winner === null) {
+      m.winner = decideByHp(m);
+      timedOut = true;
+    }
+    return { winner: m.winner, turns: m.turnNumber - 1, log: m.log, timedOut };
+  }
+
+  return { createMatch, applyMove, isMatchOver, isCharging, chooseAIMove, arcadeOrder, decideByHp, simulateMatch };
 })();
 
 if (typeof module !== "undefined") module.exports = Combat;

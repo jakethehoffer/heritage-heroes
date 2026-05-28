@@ -705,3 +705,51 @@ test("createMatch respects stageId option override", () => {
   const s = Combat.createMatch("moses", "david", { stageId: "princeton" });
   assert.strictEqual(s.stageId, "princeton");
 });
+
+// ── Einstein charge cooldown timing ─────────────────────────────────────────
+// The design measures a special's cooldown "from the turn the Special completes
+// its effect." For Einstein's charge, completion = the unleash, so there must
+// be NO cooldown ticking during the charge wind-up.
+test("Einstein: special cooldown starts at unleash, not at cast", () => {
+  const s = Combat.createMatch("einstein", "moses");
+  Combat.applyMove(s, "special"); // Einstein begins charging (charging=2)
+  assert.strictEqual(s.players[0].statuses.charging, 2);
+  assert.strictEqual(s.players[0].specialCooldown, 0, "no cooldown while still charging");
+
+  Combat.applyMove(s, "attack");  // Moses
+  Combat.applyMove(s, "charge");  // Einstein: charging 2 -> 1
+  assert.strictEqual(s.players[0].specialCooldown, 0, "no cooldown mid-charge");
+
+  Combat.applyMove(s, "attack");  // Moses
+  Combat.applyMove(s, "charge");  // Einstein: unleash -> cooldown begins now
+  assert.strictEqual(s.players[0].statuses.charging, undefined);
+  assert.strictEqual(s.players[0].specialCooldown, 3, "cooldown set on unleash");
+});
+
+// ── Headless AI-vs-AI simulation (auto-played tournament semifinals) ─────────
+test("Combat.decideByHp picks the higher-HP slot", () => {
+  assert.strictEqual(Combat.decideByHp({ players: [{ hp: 50, maxHp: 80 }, { hp: 30, maxHp: 100 }] }), 0);
+  assert.strictEqual(Combat.decideByHp({ players: [{ hp: 30, maxHp: 80 }, { hp: 50, maxHp: 100 }] }), 1);
+});
+
+test("Combat.decideByHp breaks HP ties by max HP, then slot 0", () => {
+  assert.strictEqual(Combat.decideByHp({ players: [{ hp: 50, maxHp: 80 }, { hp: 50, maxHp: 100 }] }), 1);
+  assert.strictEqual(Combat.decideByHp({ players: [{ hp: 50, maxHp: 100 }, { hp: 50, maxHp: 100 }] }), 0);
+});
+
+test("Combat.simulateMatch always resolves to a winner of 0 or 1", () => {
+  for (let i = 0; i < 25; i++) {
+    const r = Combat.simulateMatch("moses", "david");
+    assert.ok(r.winner === 0 || r.winner === 1, `winner should be 0|1, got ${r.winner}`);
+    assert.ok(r.turns >= 1, "a real match takes at least one turn");
+  }
+});
+
+test("Combat.simulateMatch never returns null on timeout — decides by HP", () => {
+  // maxTurns:0 runs zero combat turns, so no KO can occur and the winner must
+  // come from the HP tiebreak. einstein(80hp) vs moses(100hp): moses (slot 1)
+  // has more HP, so slot 1 wins. The old code returned null here.
+  const r = Combat.simulateMatch("einstein", "moses", () => 0.5, { maxTurns: 0 });
+  assert.strictEqual(r.winner, 1);
+  assert.strictEqual(r.timedOut, true);
+});
