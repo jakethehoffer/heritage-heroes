@@ -16,3 +16,6 @@ Thumbs.db
 # Logs and node (in case we ever add anything)
 *.log
 node_modules/
+
+# Playwright MCP artifacts from local browser verification (snapshots, logs)
+.playwright-mcp/
