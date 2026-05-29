@@ -1,6 +1,12 @@
 var Storage = (function () {
   const KEY = "heritageHeroes.save";
 
+  // Max moves persisted per match-history entry (Match Replay). Enforced on
+  // BOTH the load path (re-trims old/corrupt saves) and the write path (so one
+  // very long match can't bloat the save before the next load). Matches rarely
+  // exceed ~50 turns; 200 is a generous ceiling.
+  const MAX_MOVES_PER_MATCH = 200;
+
   const HERO_IDS = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
 
   // Modes from which a `tryMode` daily quest is allowed to roll. We keep this
@@ -241,7 +247,7 @@ var Storage = (function () {
             // silently. If absent, leave the entry alone (no moves field).
             if (Array.isArray(e.moves)) {
               const cleanedMoves = [];
-              const cap = Math.min(e.moves.length, 200);
+              const cap = Math.min(e.moves.length, MAX_MOVES_PER_MATCH);
               for (let i = 0; i < cap; i++) {
                 const m = e.moves[i];
                 if (m && typeof m === "object"
@@ -374,8 +380,17 @@ var Storage = (function () {
     }
   }
 
+  // Persist the save blob. Returns true on success, false if the store throws
+  // (most importantly QuotaExceededError). Never throws — callers that ignore
+  // the return value are unaffected, but it's now possible to detect a failed
+  // write and surface it (instead of silently losing all persistence).
   function save(store, data) {
-    try { store.setItem(KEY, JSON.stringify(data)); } catch (_) { /* silent */ }
+    try {
+      store.setItem(KEY, JSON.stringify(data));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function incrementArcadeWin(store, heroId) {
@@ -596,7 +611,14 @@ var Storage = (function () {
   // Push a match history entry to the front of the ring buffer, trim to 10, save, return updated save.
   function recordMatchHistory(store, entry) {
     const data = load(store);
-    data.recentMatches.unshift(entry);
+    // Cap moves on the WRITE path (mirrors load()'s cap) so a single very long
+    // match can't bloat the save before a later load happens to re-trim it.
+    // Clone when capping so we never mutate the caller's entry object.
+    let toStore = entry;
+    if (entry && Array.isArray(entry.moves) && entry.moves.length > MAX_MOVES_PER_MATCH) {
+      toStore = Object.assign({}, entry, { moves: entry.moves.slice(0, MAX_MOVES_PER_MATCH) });
+    }
+    data.recentMatches.unshift(toStore);
     if (data.recentMatches.length > 10) data.recentMatches = data.recentMatches.slice(0, 10);
     save(store, data);
     return data;

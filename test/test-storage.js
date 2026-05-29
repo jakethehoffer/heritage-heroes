@@ -1999,3 +1999,40 @@ test("load drops moves entirely when source is not an array (e.g. string, object
   assert.ok(!(Array.isArray(m) && m.length > 0),
     "non-array moves must not be treated as a valid replay source");
 });
+
+// ── Quota / unbounded-growth hardening ──────────────────────────────────────
+test("recordMatchHistory caps moves at 200 on the WRITE path, not just on load", () => {
+  const s = fakeStore();
+  const bigMoves = [];
+  for (let i = 0; i < 500; i++) bigMoves.push({ actor: i % 2, move: "attack" });
+  Storage.recordMatchHistory(s, {
+    hero0Id: "moses", hero1Id: "david", winnerSlot: 0, turns: 500, moves: bigMoves
+  });
+  // Inspect the RAW persisted JSON (bypassing load()'s own 200-cap) to prove
+  // the write path itself bounded the array. Otherwise a single very long
+  // match bloats the save until a later load() happens to re-trim it.
+  const raw = JSON.parse(s.getItem("heritageHeroes.save"));
+  assert.strictEqual(raw.recentMatches[0].moves.length, 200);
+});
+
+test("recordMatchHistory does not mutate the caller's entry when capping moves", () => {
+  const s = fakeStore();
+  const bigMoves = [];
+  for (let i = 0; i < 300; i++) bigMoves.push({ actor: 0, move: "attack" });
+  const entry = { hero0Id: "moses", hero1Id: "david", winnerSlot: 0, turns: 300, moves: bigMoves };
+  Storage.recordMatchHistory(s, entry);
+  assert.strictEqual(entry.moves.length, 300, "caller's array must be left intact");
+});
+
+test("save returns true on success and false when the store throws (e.g. quota)", () => {
+  assert.strictEqual(Storage.save(fakeStore(), Storage.defaults()), true);
+  const quotaStore = {
+    getItem() { return null; },
+    setItem() {
+      const e = new Error("quota");
+      e.name = "QuotaExceededError";
+      throw e;
+    }
+  };
+  assert.strictEqual(Storage.save(quotaStore, Storage.defaults()), false);
+});
