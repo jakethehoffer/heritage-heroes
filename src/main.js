@@ -169,54 +169,8 @@ var Main = (function () {
 
   // ── Share-via-URL helpers ─────────────────────────────────────────────────
 
-  function parseIncomingChallenge() {
-    if (typeof window === "undefined" || !window.location || !window.location.search) return null;
-    const params = new URLSearchParams(window.location.search);
-    const type = params.get("share");
-    if (!type) return null;
-
-    const validHero = (h) => HERO_ORDER.includes(h);
-    const from = params.get("from") || null;
-
-    if (type === "daily") {
-      return { type: "daily", from };
-    }
-    if (type === "quick") {
-      const p = params.get("p");
-      const o = params.get("o");
-      const d = params.get("d");
-      if (!validHero(p) || !validHero(o) || p === o) return null;
-      const hard = d === "hard";
-      return { type: "quick", playerHeroId: p, opponentHeroId: o, hard, from };
-    }
-    if (type === "endless") {
-      const h = params.get("h");
-      const s = parseInt(params.get("s") || "0", 10);
-      if (!validHero(h)) return null;
-      return { type: "endless", heroId: h, streakToBeat: Math.max(0, s), from };
-    }
-    if (type === "arcade") {
-      const h = params.get("h");
-      if (!validHero(h)) return null;
-      return { type: "arcade", heroId: h, from };
-    }
-    if (type === "tournament") {
-      const h = params.get("h");
-      if (!validHero(h)) return null;
-      return { type: "tournament", heroId: h, from };
-    }
-    return null;
-  }
-
-  function buildShareUrl(type, params) {
-    const base = window.location.origin + window.location.pathname;
-    const search = new URLSearchParams();
-    search.set("share", type);
-    for (const [k, v] of Object.entries(params)) {
-      if (v != null && v !== "") search.set(k, String(v));
-    }
-    return base + "?" + search.toString();
-  }
+  // parseIncomingChallenge / buildShareUrl moved to src/challenge.js (pure,
+  // unit-tested). main.js keeps the impure window reads at the call sites.
 
   function copyToClipboard(text) {
     if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
@@ -238,7 +192,8 @@ var Main = (function () {
   }
 
   function copyShareLink(type, params) {
-    const url = buildShareUrl(type, params);
+    const base = window.location.origin + window.location.pathname;
+    const url = Challenge.buildShareUrl(base, type, params);
     copyToClipboard(url).then(
       () => Screens.showToast && Screens.showToast("Link copied! Send it to a friend."),
       () => Screens.showToast && Screens.showToast("Copy failed — please copy from address bar.")
@@ -326,8 +281,6 @@ var Main = (function () {
 
   // ── Daily Challenge helpers ───────────────────────────────────────────────
 
-  const DAILY_HEROES = ["moses", "david", "esther", "judah", "rambam", "golda", "einstein"];
-
   function todayIso() {
     const d = new Date();
     const y = d.getFullYear();
@@ -336,32 +289,9 @@ var Main = (function () {
     return `${y}-${m}-${day}`;
   }
 
-  function getDailyChallenge(isoDate) {
-    let hash = 0;
-    for (let i = 0; i < isoDate.length; i++) hash = (hash * 31 + isoDate.charCodeAt(i)) >>> 0;
-
-    const playerIdx = hash % 7;
-    const opponentOffset = 1 + (Math.floor(hash / 7) % 6);  // 1..6
-    const opponentIdx = (playerIdx + opponentOffset) % 7;
-
-    const dayOfYear = (function () {
-      const d = new Date(isoDate + "T12:00:00");
-      const start = new Date(d.getFullYear(), 0, 0);
-      return Math.floor((d - start) / 86400000);
-    }());
-    const difficulty = (dayOfYear % 3 === 0) ? "hard" : "normal";
-
-    return {
-      isoDate,
-      playerHeroId: DAILY_HEROES[playerIdx],
-      opponentHeroId: DAILY_HEROES[opponentIdx],
-      difficulty
-    };
-  }
-
   function startDaily() {
     const todayDate = todayIso();
-    const challenge = getDailyChallenge(todayDate);
+    const challenge = Challenge.getDailyChallenge(todayDate);
     const store = getStore();
     const ds = Storage.dailyStats(store);
     if (ds.completedToday) {
@@ -552,7 +482,9 @@ var Main = (function () {
     state.titleFeaturedIndex = Math.floor(Math.random() * Heroes.list.length);
     if (!state.save.tutorialSeen) state.overlay = "tutorial";
     // Parse and consume incoming share challenge from URL
-    state.incomingChallenge = parseIncomingChallenge();
+    state.incomingChallenge = (typeof window !== "undefined" && window.location)
+      ? Challenge.parseChallengeParams(window.location.search)
+      : null;
     if (state.incomingChallenge && window.history && window.history.replaceState) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -644,7 +576,7 @@ var Main = (function () {
     // Precompute daily challenge info for title screen
     if (state.screen === "title") {
       state.dailyToday = {
-        challenge: getDailyChallenge(todayIso()),
+        challenge: Challenge.getDailyChallenge(todayIso()),
         stats: Storage.dailyStats(getStore())
       };
       // Refresh daily quests on every title visit so an open tab that crosses

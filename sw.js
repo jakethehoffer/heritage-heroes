@@ -14,7 +14,7 @@
 // CACHE_VERSION now only needs bumping for a HARD reset (e.g. to force-evict a
 // known-bad cached asset). The activate handler deletes every non-current cache.
 
-const CACHE_VERSION = "heritage-heroes-v2";
+const CACHE_VERSION = "heritage-heroes-v3";
 
 // Precache list — MUST stay in sync with the <script>/<link> tags in
 // index.html. test/test-sw.js enforces this; add a module here when you add
@@ -30,6 +30,7 @@ const ASSETS = [
   "./src/storage.js",
   "./src/audio.js",
   "./src/combat.js",
+  "./src/challenge.js",
   "./src/screens.js",
   "./src/main.js",
   "./manifest.json",
