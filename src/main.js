@@ -598,8 +598,30 @@ var Main = (function () {
     return (typeof localStorage !== "undefined") ? localStorage : null;
   }
 
+  // Screen rendered on the previous render() call. Lets render() decide whether
+  // to keep the scroll position (same screen) or reset to the top (navigation).
+  let _lastRenderedScreen = null;
+
   function render() {
     const root = document.getElementById("root");
+
+    // Capture scroll + keyboard focus before the full-innerHTML swap further
+    // down. That swap rebuilds the entire DOM, which would otherwise jump the
+    // page to the top and drop focus to <body> on every single action — rough
+    // on long screens (Stats/Hall) and a keyboard-navigation breaker.
+    const _scroller = document.scrollingElement || document.documentElement;
+    const _prevScrollTop = _scroller ? _scroller.scrollTop : 0;
+    const _sameScreen = (state.screen === _lastRenderedScreen);
+    const _activeEl = document.activeElement;
+    let _focusSel = null;
+    if (_activeEl && _activeEl.dataset && _activeEl.dataset.action) {
+      _focusSel = {
+        action: _activeEl.dataset.action,
+        hero: _activeEl.dataset.hero || null,
+        move: _activeEl.dataset.move || null,
+        index: _activeEl.dataset.index || null
+      };
+    }
 
     // Expose game version metadata to render-layer code (read by renderWhatsNew).
     state.gameVersion = GAME_VERSION;
@@ -695,6 +717,26 @@ var Main = (function () {
     const help = state.screen !== "title" ? Screens.renderHelpButton() : "";
 
     root.innerHTML = body + overlay + help;
+
+    // Restore scroll: staying on the same screen keeps the position (e.g.
+    // toggling a Stats/Trophy filter, opening or closing an overlay); arriving
+    // at a new screen starts at the top.
+    if (_scroller) _scroller.scrollTop = _sameScreen ? _prevScrollTop : 0;
+    _lastRenderedScreen = state.screen;
+
+    // Restore keyboard focus to the equivalent control if it still exists, so a
+    // re-render doesn't dump focus back to <body> after every action. Dataset
+    // values here (action/hero/move/index) are all simple tokens, but guard the
+    // selector with try/catch in case a value ever isn't selector-safe.
+    if (_focusSel) {
+      let sel = '[data-action="' + _focusSel.action + '"]';
+      if (_focusSel.hero  != null) sel += '[data-hero="'  + _focusSel.hero  + '"]';
+      if (_focusSel.move  != null) sel += '[data-move="'  + _focusSel.move  + '"]';
+      if (_focusSel.index != null) sel += '[data-index="' + _focusSel.index + '"]';
+      let _match = null;
+      try { _match = root.querySelector(sel); } catch (_e) { _match = null; }
+      if (_match && typeof _match.focus === "function") _match.focus({ preventScroll: true });
+    }
   }
 
   function onClick(e) {
@@ -715,6 +757,22 @@ var Main = (function () {
       }
       return;
     }
+
+    // Keyboard activation for non-native clickable elements (role="button"
+    // divs, e.g. the featured-hero panel on the title screen). Native
+    // <button>/<a> already fire a click on Enter/Space, so we scope this to
+    // role="button" to avoid double-dispatching their action.
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      const t = e.target;
+      if (t && typeof t.getAttribute === "function"
+          && t.getAttribute("role") === "button"
+          && t.dataset && t.dataset.action) {
+        e.preventDefault();
+        handleAction(t.dataset.action, t, e);
+        return;
+      }
+    }
+
     if (state.screen !== "battle" || state.overlay) return;
     if (e.key === "1") dispatchMove("attack");
     else if (e.key === "2") dispatchMove("defend");
