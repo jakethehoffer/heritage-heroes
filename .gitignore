@@ -19,3 +19,6 @@ node_modules/
 
 # Playwright MCP artifacts from local browser verification (snapshots, logs)
 .playwright-mcp/
+
+# Local preview server config (Claude Preview launch.json)
+.claude/

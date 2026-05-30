@@ -356,6 +356,24 @@ test("renderTitle: includes Quick Play button with start-quick-play action", () 
   assert.match(html, /Quick Play/);
 });
 
+test("renderTitle: Daily Challenge is a clickable button wired to start-daily", () => {
+  const save = freshSave();
+  const dailyToday = {
+    challenge: { playerHeroId: "moses", opponentHeroId: "david", difficulty: "normal", isoDate: "2026-05-29" },
+    stats: { completedToday: false }
+  };
+  const html = Screens.renderTitle({ save, titleFeaturedIndex: 0, dailyToday });
+  assert.match(html, /<button[^>]*data-action="start-daily"/, "daily challenge should be a clickable button wired to start-daily");
+  assert.match(html, /daily-banner/);
+});
+
+test("renderTitle: uses the side-rail layout with left and right rails", () => {
+  const html = Screens.renderTitle({ save: freshSave(), titleFeaturedIndex: 0 });
+  assert.match(html, /class="title-layout"/);
+  assert.match(html, /title-rail title-left/);
+  assert.match(html, /title-rail title-right/);
+});
+
 test("renderTitle: Quick Play button appears on a brand-new save (no matches played)", () => {
   const save = freshSave();
   // Brand new save: no recentMatches, no arcade wins, no endless scores
@@ -1182,7 +1200,7 @@ test("renderTitle: On This Day panel escapes event text to prevent HTML injectio
   }
 });
 
-test("renderTitle: On This Day panel sits between Did You Know card and Daily Quests panel", () => {
+test("renderTitle: Did You Know is in the right rail; On This Day and Daily Quests are in the left rail", () => {
   const save = freshSave();
   // Seed the daily quests so the daily-quests-panel renders.
   save.dailyQuests = {
@@ -1200,14 +1218,21 @@ test("renderTitle: On This Day panel sits between Did You Know card and Daily Qu
   ];
   try {
     const html = Screens.renderTitle({ save, titleFeaturedIndex: 0 });
+    const leftIdx   = html.indexOf('title-rail title-left');
+    const centerIdx = html.indexOf('title-center');
+    const rightIdx  = html.indexOf('title-rail title-right');
     const factIdx = html.indexOf('class="title-funfact"');
     const otdIdx  = html.indexOf('class="otd-panel"');
     const dqIdx   = html.indexOf('daily-quests-panel');
     assert.ok(factIdx >= 0, "expected Did You Know card");
     assert.ok(otdIdx >= 0, "expected On This Day panel");
     assert.ok(dqIdx >= 0, "expected Daily Quests panel");
-    assert.ok(factIdx < otdIdx, "On This Day should appear after Did You Know");
-    assert.ok(otdIdx < dqIdx, "On This Day should appear before Daily Quests");
+    assert.ok(leftIdx >= 0 && centerIdx > leftIdx && rightIdx > centerIdx, "rails ordered left, center, right");
+    // On This Day and Daily Quests live in the left rail (before the center column).
+    assert.ok(dqIdx > leftIdx && dqIdx < centerIdx, "Daily Quests in left rail");
+    assert.ok(otdIdx > leftIdx && otdIdx < centerIdx, "On This Day in left rail");
+    // Did You Know lives in the right rail (after the center column).
+    assert.ok(factIdx > rightIdx, "Did You Know in right rail");
   } finally {
     Heroes.pickRandomFact = factOriginal;
     Calendar.todaysEvents = calOriginal;

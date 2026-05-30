@@ -80,7 +80,10 @@ var Screens = (function () {
         ? `&#x2713; Today's Challenge claimed &mdash; ${heroAName} vs ${heroBName}`
         : `&rarr; Today's Challenge: ${heroAName} vs ${heroBName}${dt.challenge.difficulty === "hard" ? " (Hard)" : ""}`;
       const bannerCls = dt.stats.completedToday ? "daily-banner claimed" : "daily-banner available";
-      dailyBannerLine = `<p class="${bannerCls}">${statusText}</p>`;
+      const dailyAria = dt.stats.completedToday
+        ? `Today's Daily Challenge, already done: ${heroAName} versus ${heroBName}. Open for details.`
+        : `Play today's Daily Challenge: ${heroAName} versus ${heroBName}${dt.challenge.difficulty === "hard" ? ", Hard mode" : ""}.`;
+      dailyBannerLine = `<button class="${bannerCls}" data-action="start-daily" aria-label="${dailyAria}">${statusText}</button>`;
 
       // Compact 7-day strip — only if user has at least one completion to celebrate.
       const dailySave = state.save && state.save.daily;
@@ -277,34 +280,45 @@ var Screens = (function () {
 <section class="screen screen-title">
   ${sparkles}
   ${state.incomingChallenge ? renderChallengeBanner(state.incomingChallenge) : ""}
-  <h1>Heritage Heroes</h1>
-  ${taglineHtml}
-  ${featuredPanel}
-  <div class="title-buttons">
-    <button data-action="goto-mode">BEGIN</button>${continueButton}
-    <button data-action="start-quick-play" class="quick-play" title="Random hero, random stage &mdash; just play.">
-      <span class="quick-play-icon" aria-hidden="true">&#x1F3B2;</span>
-      <span class="quick-play-label">Quick Play</span>
-      <span class="quick-play-sub">Random hero, random stage</span>
-    </button>
-    <button data-action="open-hall" class="secondary">Hall of Heroes</button>
-    <button data-action="open-timeline" class="secondary">Heritage Timeline</button>
-    ${state.save.recentMatches && state.save.recentMatches.length > 0 ? `
-    <button data-action="open-history" class="secondary">Match History</button>` : ""}
-    <button data-action="view-stats" class="secondary">View Stats</button>
-    <button data-action="show-help" class="secondary">How to Play</button>
-    <button data-action="open-settings" class="secondary">Settings</button>
+  <header class="title-header">
+    <h1>Heritage Heroes</h1>
+    ${taglineHtml}
+  </header>
+  <div class="title-layout">
+    <aside class="title-rail title-left">
+      ${dailyBannerLine}
+      ${dailyStripLine}
+      ${dailyQuestsPanel}
+      ${calendarPanel}
+    </aside>
+    <div class="title-center">
+      ${featuredPanel}
+      <div class="title-buttons">
+        <button data-action="goto-mode">BEGIN</button>${continueButton}
+        <button data-action="start-quick-play" class="quick-play" title="Random hero, random stage &mdash; just play.">
+          <span class="quick-play-icon" aria-hidden="true">&#x1F3B2;</span>
+          <span class="quick-play-label">Quick Play</span>
+          <span class="quick-play-sub">Random hero, random stage</span>
+        </button>
+        <div class="title-secondary-grid">
+          <button data-action="open-hall" class="secondary">Hall of Heroes</button>
+          <button data-action="open-timeline" class="secondary">Heritage Timeline</button>
+          ${state.save.recentMatches && state.save.recentMatches.length > 0 ? `<button data-action="open-history" class="secondary">Match History</button>` : ""}
+          <button data-action="view-stats" class="secondary">View Stats</button>
+          <button data-action="show-help" class="secondary">How to Play</button>
+          <button data-action="open-settings" class="secondary">Settings</button>
+        </div>
+      </div>
+    </div>
+    <aside class="title-rail title-right">
+      ${achievementProgress}
+      ${factCard}
+      ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
+      ${masteryLine}
+      ${endlessStreakLine}
+      ${quizBestLine}
+    </aside>
   </div>
-  ${achievementProgress}
-  ${factCard}
-  ${calendarPanel}
-  ${dailyQuestsPanel}
-  ${totalWins > 0 ? `<p class="stats">Arcade wins: ${totalWins}</p>` : ""}
-  ${masteryLine}
-  ${endlessStreakLine}
-  ${quizBestLine}
-  ${dailyBannerLine}
-  ${dailyStripLine}
 </section>`;
   }
 
